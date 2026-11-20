@@ -1,0 +1,268 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Argus.App.ViewModels"
+             x:Class="Argus.App.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <Grid ColumnDefinitions="*,20,*" Margin="0,0,4,12">
+
+      <!-- Left: Live Settings Editor -->
+      <Border Grid.Column="0" Classes="panel-hero" VerticalAlignment="Top">
+        <StackPanel Spacing="14">
+          <TextBlock Classes="section-heading" Text="Параметри телеметрії та оболонки" />
+
+          <Grid ColumnDefinitions="*,140" RowDefinitions="Auto,10,Auto,10,Auto,10,Auto,10,Auto">
+            <TextBlock Grid.Row="0" Grid.Column="0" Classes="body-muted" Text="Інтервал опитування датчиків (мс)" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Row="0" Grid.Column="1" Classes="argus-numeric" Minimum="250" Maximum="10000" Increment="250" Value="{Binding TelemetryIntervalMs}" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Classes="body-muted" Text="Вікно історії графіків (с)" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Row="2" Grid.Column="1" Classes="argus-numeric" Minimum="30" Maximum="3600" Increment="30" Value="{Binding HistoryWindowSeconds}" />
+
+            <TextBlock Grid.Row="4" Grid.Column="0" Classes="body-muted" Text="Поріг перегріву CPU (°C)" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Row="4" Grid.Column="1" Classes="argus-numeric" Minimum="50" Maximum="115" Increment="1" Value="{Binding CpuTemperatureAlertCelsius}" />
+
+            <TextBlock Grid.Row="6" Grid.Column="0" Classes="body-muted" Text="Поріг перегріву GPU (°C)" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Row="6" Grid.Column="1" Classes="argus-numeric" Minimum="50" Maximum="115" Increment="1" Value="{Binding GpuTemperatureAlertCelsius}" />
+
+            <TextBlock Grid.Row="8" Grid.Column="0" Classes="body-muted" Text="Поріг заповнення RAM (%)" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Row="8" Grid.Column="1" Classes="argus-numeric" Minimum="50" Maximum="99" Increment="1" Value="{Binding RamUsageAlertPercent}" />
+          </Grid>
+
+          <Border Classes="tile">
+            <StackPanel Spacing="10">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="2" Margin="0,0,12,0">
+                  <TextBlock Text="Перевіряти оновлення під час запуску" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Classes="body-muted" Text="Тиха перевірка нових релізів на GitHub; встановлення лише після підтвердження." />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1" IsChecked="{Binding CheckUpdatesOnStartup}" OnContent="" OffContent="" VerticalAlignment="Center" />
+              </Grid>
+
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="2" Margin="0,0,12,0">
+                  <TextBlock Text="Контрольна точка перед очищенням" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Classes="body-muted" Text="Автоматично створювати System Restore перед системними змінами." />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1" IsChecked="{Binding CreateRestorePointBeforeCleanup}" OnContent="" OffContent="" VerticalAlignment="Center" />
+              </Grid>
+
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="2" Margin="0,0,12,0">
+                  <TextBlock Text="Розширені сенсори PawnIO (опційно)" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Classes="body-muted" Text="Підписаний драйвер для температур CPU і плати, сумісний із HVCI та Defender." />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnablePawnIoExtendedSensors}" OnContent="" OffContent="" VerticalAlignment="Center" />
+              </Grid>
+
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="2" Margin="0,0,12,0">
+                  <TextBlock Text="Згортати в системний трей" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Classes="body-muted" Text="Натискання «Закрити» ховає вікно в трей замість повного завершення." />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1" IsChecked="{Binding MinimizeToTrayOnClose}" OnContent="" OffContent="" VerticalAlignment="Center" />
+              </Grid>
+
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="2" Margin="0,0,12,0">
+                  <TextBlock Text="Автозапуск разом із Windows" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Classes="body-muted" Text="Тихий старт у системному треї через HKCU\...\Run без UAC-запиту." />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1" IsChecked="{Binding StartWithWindows}" OnContent="" OffContent="" VerticalAlignment="Center" />
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Button Classes="argus-primary" Content="Зберегти зміни" Command="{Binding SaveSettingsCommand}" />
+            <Button Classes="argus-secondary" Content="Скинути до стандартних" Command="{Binding ResetDefaultsCommand}" />
+          </StackPanel>
+
+          <TextBlock FontSize="12.5"
+                     Foreground="{StaticResource ArgusEmeraldBrush}"
+                     IsVisible="{Binding HasSaveFeedback}"
+                     Text="{Binding SaveFeedback}" />
+        </StackPanel>
+      </Border>
+
+      <!-- Right: GitHub Updater & Code Signature + System Restore + Live Operation Journal -->
+      <StackPanel Grid.Column="2" Spacing="16" VerticalAlignment="Top">
+
+        <!-- GitHub Releases Auto-Update & Authenticode Verification Card -->
+        <Border Classes="panel-hero">
+          <StackPanel Spacing="10">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="3" Margin="0,0,12,0" VerticalAlignment="Center">
+                <TextBlock Classes="section-heading" Text="Оновлення з GitHub" TextWrapping="Wrap" />
+                <TextBlock Classes="body-muted" Text="Перевірка релізів із верифікацією SHA-256 і цифрового підпису." />
+              </StackPanel>
+
+              <Button Grid.Column="1"
+                      Classes="argus-primary"
+                      Content="Перевірити оновлення"
+                      IsEnabled="{Binding CanCheckForUpdates}"
+                      Command="{Binding CheckForUpdatesCommand}"
+                      VerticalAlignment="Center" />
+            </Grid>
+
+            <WrapPanel Orientation="Horizontal">
+              <Border Classes="pill" Padding="7,2" Margin="0,0,6,4">
+                <TextBlock Classes="metric-mono" FontSize="10.5" Foreground="{StaticResource ArgusCyanBrush}" Text="{Binding CurrentVersionText}" />
+              </Border>
+              <Border Classes="pill pill-ready" Padding="7,2" Margin="0,0,6,4">
+                <TextBlock FontSize="10.5" Foreground="{StaticResource ArgusEmeraldBrush}" Text="{Binding SignerSummaryText}" />
+              </Border>
+            </WrapPanel>
+
+            <Grid ColumnDefinitions="Auto,10,*">
+              <TextBlock Grid.Column="0" Classes="body-muted" Text="Репозиторій GitHub:" VerticalAlignment="Center" />
+              <TextBox Grid.Column="2"
+                       Classes="argus-input"
+                       Text="{Binding GitHubUpdateRepository}"
+                       PlaceholderText="власник/ARGUS" />
+            </Grid>
+
+            <TextBlock FontSize="12"
+                       TextWrapping="Wrap"
+                       Classes.warn-text="{Binding !UpdateStatusIsSuccess}"
+                       Text="{Binding UpdateStatusText}">
+              <TextBlock.Styles>
+                <Style Selector="TextBlock">
+                  <Setter Property="Foreground" Value="{StaticResource ArgusCyanBrush}" />
+                </Style>
+                <Style Selector="TextBlock.warn-text">
+                  <Setter Property="Foreground" Value="{StaticResource ArgusAmberBrush}" />
+                </Style>
+              </TextBlock.Styles>
+            </TextBlock>
+
+            <!-- Update Found Card -->
+            <Border Classes="tile" Padding="12,10" IsVisible="{Binding IsUpdateAvailable}">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="3" Margin="0,0,10,0">
+                    <TextBlock FontSize="13" FontWeight="Bold" Foreground="{StaticResource ArgusEmeraldBrush}" Text="{Binding AvailableUpdateTitle}" />
+                    <TextBlock Classes="body-muted" Text="{Binding AvailableUpdateNotes}" MaxLines="3" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                  <Button Grid.Column="1"
+                          Classes="argus-primary"
+                          Content="Завантажити й оновити"
+                          IsEnabled="{Binding CanDownloadUpdate}"
+                          Command="{Binding RequestInstallUpdateCommand}"
+                          VerticalAlignment="Center" />
+                </Grid>
+
+                <!-- Inline Confirmation Prompt before Downloading & Launching Installer -->
+                <Border Background="#181236"
+                        BorderBrush="{StaticResource ArgusVioletBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12,10"
+                        IsVisible="{Binding IsUpdateConfirmationOpen}">
+                  <StackPanel Spacing="8">
+                    <TextBlock FontSize="12.5"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                               Text="Ви точно хочете завантажити оновлення з GitHub і запустити інсталятор?"
+                               TextWrapping="Wrap" />
+                    <TextBlock FontSize="11.5"
+                               Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                               Text="Перед запуском ARGUS автоматично перевірить контрольну суму SHA-256 та цифровий підпис інсталятора, після чого закриє поточне вікно й запустить встановлення."
+                               TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <Button Classes="argus-primary"
+                              Padding="12,6"
+                              FontSize="12"
+                              Content="Так, оновити зараз"
+                              Command="{Binding ConfirmAndInstallUpdateCommand}" />
+                      <Button Classes="argus-secondary"
+                              Padding="12,6"
+                              FontSize="12"
+                              Content="Скасувати"
+                              Command="{Binding CancelUpdateConfirmationCommand}" />
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
+
+                <!-- 0..100% Download & Verification Progress -->
+                <StackPanel Spacing="4" IsVisible="{Binding IsDownloadingUpdate}">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" FontSize="11.5" Foreground="{StaticResource ArgusTextSecondaryBrush}" Text="{Binding UpdateDownloadStageText}" />
+                    <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="11.5" Foreground="{StaticResource ArgusCyanBrush}" Text="{Binding UpdateDownloadPercentText}" />
+                  </Grid>
+                  <ProgressBar Minimum="0" Maximum="100" Value="{Binding UpdateDownloadPercent}" Height="6" CornerRadius="3" Foreground="{StaticResource ArgusCyanBrush}" Background="#141C3D" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="panel">
+          <StackPanel Spacing="10">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="3" Margin="0,0,12,0">
+                <TextBlock Classes="section-heading" Text="Захист системи (System Restore)" />
+                <TextBlock Classes="body-muted" Text="Створення контрольної точки відновлення Windows через WMI." />
+              </StackPanel>
+              <Button Grid.Column="1"
+                      Classes="argus-secondary"
+                      Content="Створити точку"
+                      IsEnabled="{Binding !IsCreatingRestorePoint}"
+                      Command="{Binding CreateRestorePointNowCommand}"
+                      VerticalAlignment="Center" />
+            </Grid>
+
+            <TextBlock FontSize="12.5"
+                       TextWrapping="Wrap"
+                       IsVisible="{Binding HasRestoreFeedback}"
+                       Classes.warn-text="{Binding !RestoreFeedbackSuccess}"
+                       Text="{Binding RestoreFeedback}">
+              <TextBlock.Styles>
+                <Style Selector="TextBlock">
+                  <Setter Property="Foreground" Value="{StaticResource ArgusEmeraldBrush}" />
+                </Style>
+                <Style Selector="TextBlock.warn-text">
+                  <Setter Property="Foreground" Value="{StaticResource ArgusAmberBrush}" />
+                </Style>
+              </TextBlock.Styles>
+            </TextBlock>
+
+            <Border Classes="tile" Padding="12,9">
+              <StackPanel Spacing="4">
+                <TextBlock FontSize="11.5" Foreground="{StaticResource ArgusTextMutedBrush}" Text="{Binding SettingsFilePath, StringFormat='Конфігурація: {0}'}" TextWrapping="Wrap" />
+                <TextBlock FontSize="11.5" Foreground="{StaticResource ArgusTextMutedBrush}" Text="{Binding LogsDirectoryPath, StringFormat='Діагностичні логи: {0}'}" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="panel">
+          <StackPanel Spacing="12">
+            <TextBlock Classes="section-heading" Text="Журнал подій системи" />
+            <ScrollViewer MaxHeight="260" VerticalAlignment="Top">
+              <ItemsControl ItemsSource="{Binding JournalEntries}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:JournalRowItem">
+                    <Border Classes="tile" Margin="0,0,0,8" Padding="12,10">
+                      <StackPanel Spacing="4">
+                        <Grid ColumnDefinitions="Auto,10,*,Auto">
+                          <TextBlock Grid.Column="0" Classes="metric-mono" Text="{Binding TimeText}" />
+                          <TextBlock Grid.Column="2" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" Text="{Binding Action}" />
+                          <Border Grid.Column="3" Classes="pill">
+                            <TextBlock Text="{Binding SeverityLabel}" FontSize="10.5" Foreground="{StaticResource ArgusCyanBrush}" />
+                          </Border>
+                        </Grid>
+                        <TextBlock FontSize="11.5" Foreground="{StaticResource ArgusVioletSoftBrush}" Text="{Binding ModuleId}" />
+                        <TextBlock Classes="body-muted" Text="{Binding Details}" />
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </Grid>
+  </ScrollViewer>
+</UserControl>

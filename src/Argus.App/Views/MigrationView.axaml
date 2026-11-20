@@ -1,0 +1,388 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Argus.App.ViewModels"
+             xmlns:controls="using:Argus.App.Controls"
+             x:Class="Argus.App.Views.MigrationView"
+             x:DataType="vm:MigrationViewModel">
+
+  <Grid>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <StackPanel Spacing="12" Margin="0,0,4,14">
+
+      <!-- Source Live OS Summary -->
+      <Border Classes="panel-hero" Padding="14,10">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,12,0" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Classes="section-heading" Text="Джерело активної ОС" VerticalAlignment="Center" />
+              <Border Classes="pill pill-ready" Padding="7,2">
+                <TextBlock Text="{Binding SourceFirmwareBadge}" FontSize="10.5" Foreground="{StaticResource ArgusEmeraldBrush}" />
+              </Border>
+              <Border Classes="pill" Padding="7,2">
+                <TextBlock Text="{Binding SourceBitLockerBadge}" FontSize="10.5" Foreground="{StaticResource ArgusCyanBrush}" />
+              </Border>
+            </StackPanel>
+            <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" Text="{Binding SourceOsTitle}" />
+            <TextBlock Classes="metric-mono" FontSize="11.5" Text="{Binding SourceOsMetaText}" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+
+          <Button Grid.Column="1"
+                  Classes="argus-secondary"
+                  Padding="12,7"
+                  FontSize="12"
+                  IsEnabled="{Binding CanEditPlan}"
+                  Content="Оновити диски"
+                  Command="{Binding RefreshEnvironmentCommand}"
+                  VerticalAlignment="Center" />
+        </Grid>
+      </Border>
+
+      <!-- Step 1: CopyOS Profile Selector -->
+      <Grid ColumnDefinitions="*,12,*">
+        <Button Grid.Column="0"
+                Classes="profile-card"
+                Classes.selected="{Binding IsInternalSelected}"
+                IsEnabled="{Binding CanEditPlan}"
+                Command="{Binding SelectInternalProfileCommand}">
+          <StackPanel Spacing="4">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="1. Внутрішній диск" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+              <Border Grid.Column="1" Classes="pill" Padding="7,2">
+                <TextBlock Text="SATA / M.2 NVMe" FontSize="10.5" Foreground="{StaticResource ArgusCyanBrush}" />
+              </Border>
+            </Grid>
+            <TextBlock Classes="body-muted" FontSize="12" Text="Міграція живої Windows на внутрішній SSD/HDD материнської плати." />
+          </StackPanel>
+        </Button>
+
+        <Button Grid.Column="2"
+                Classes="profile-card"
+                Classes.selected="{Binding IsExternalSelected}"
+                IsEnabled="{Binding CanEditPlan}"
+                Command="{Binding SelectExternalProfileCommand}">
+          <StackPanel Spacing="4">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="1. Зовнішній носій" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+              <Border Grid.Column="1" Classes="pill" Padding="7,2">
+                <TextBlock Text="USB SSD / HDD" FontSize="10.5" Foreground="{StaticResource ArgusVioletSoftBrush}" />
+              </Border>
+            </Grid>
+            <TextBlock Classes="body-muted" FontSize="12" Text="Портативна Windows на зовнішній USB-диск із /nofirmwaresync." />
+          </StackPanel>
+        </Button>
+      </Grid>
+
+      <!-- Step 2: Target Disk Selection + Layout & Mode Options -->
+      <Border Classes="panel" Padding="14,11">
+        <StackPanel Spacing="10">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+              <TextBlock Classes="section-heading" Text="2. Цільовий накопичувач і параметри CopyOS" />
+              <TextBlock Classes="body-muted" FontSize="11.5" Text="{Binding BusFilterSummary}" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding IsGptSelected}"
+                      Padding="10,5"
+                      FontSize="11.5"
+                      IsEnabled="{Binding CanEditPlan}"
+                      Content="UEFI / GPT"
+                      Command="{Binding SelectGptCommand}" />
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding IsMbrSelected}"
+                      Padding="10,5"
+                      FontSize="11.5"
+                      IsEnabled="{Binding CanEditPlan}"
+                      Content="Legacy / MBR"
+                      Command="{Binding SelectMbrCommand}" />
+            </StackPanel>
+          </Grid>
+
+          <!-- Target Disks List -->
+          <ItemsControl ItemsSource="{Binding TargetDisks}" IsVisible="{Binding HasTargetDisks}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:MigrationTargetDiskItem">
+                <Button Classes="profile-card"
+                        Classes.selected="{Binding IsSelected}"
+                        Padding="11,8"
+                        Margin="0,0,0,6"
+                        Command="{Binding SelectCommand}">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,10,0">
+                      <TextBlock Text="{Binding Title}"
+                                 FontSize="13"
+                                 FontWeight="SemiBold"
+                                 Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                      <TextBlock Classes="metric-mono"
+                                 FontSize="11.5"
+                                 Text="{Binding MetaText}"
+                                 TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <Border Grid.Column="1"
+                            Classes="pill"
+                            Classes.pill-warn="{Binding HasExistingData}"
+                            Padding="8,3"
+                            VerticalAlignment="Center">
+                      <TextBlock FontSize="11"
+                                 Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                 Text="{Binding ExistingDataText}" />
+                    </Border>
+                  </Grid>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <Border Classes="tile" Padding="12,9" IsVisible="{Binding NoTargetDisks}">
+            <TextBlock Classes="body-muted" Text="{Binding EmptyTargetsMessage}" TextWrapping="Wrap" />
+          </Border>
+
+          <!-- Clone Mode & Profile Options -->
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <TextBlock Classes="body-muted" Text="Режим клонування:" VerticalAlignment="Center" Margin="0,0,4,0" />
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding IsAutoModeSelected}"
+                      Padding="9,4"
+                      FontSize="11.5"
+                      IsEnabled="{Binding CanEditPlan}"
+                      Content="Авто"
+                      Command="{Binding SelectCloneModeAutoCommand}" />
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding IsBlockModeSelected}"
+                      Padding="9,4"
+                      FontSize="11.5"
+                      IsEnabled="{Binding CanEditPlan}"
+                      Content="BLOCK (VSS Bitmap)"
+                      Command="{Binding SelectCloneModeBlockCommand}" />
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding IsDismModeSelected}"
+                      Padding="9,4"
+                      FontSize="11.5"
+                      IsEnabled="{Binding CanEditPlan}"
+                      Content="VSS + DISM"
+                      Command="{Binding SelectCloneModeDismCommand}" />
+            </StackPanel>
+
+            <Border Grid.Column="1" Classes="pill pill-ready" Padding="9,3" VerticalAlignment="Center">
+              <TextBlock FontSize="11" Foreground="{StaticResource ArgusEmeraldBrush}" Text="{Binding ResolvedModeBadge}" />
+            </Border>
+          </Grid>
+
+          <!-- Internal-Only Checkboxes -->
+          <StackPanel Orientation="Horizontal" Spacing="18" IsVisible="{Binding IsInternalSelected}">
+            <CheckBox IsChecked="{Binding RegisterUefiFirst}"
+                      IsEnabled="{Binding CanEditPlan}"
+                      Content="Записати новий SSD першим у чергу UEFI (bcdboot)"
+                      FontSize="12" />
+            <CheckBox IsChecked="{Binding CopyRedirectedDesktop}"
+                      IsEnabled="{Binding CanEditPlan}"
+                      Content="Скопіювати перенесений Робочий стіл на новий SSD"
+                      FontSize="12" />
+          </StackPanel>
+
+          <!-- Profile Policy Summary + Preflight Status -->
+          <Border Classes="tile" Padding="11,8">
+            <StackPanel Spacing="5">
+              <TextBlock FontSize="12"
+                         FontWeight="SemiBold"
+                         Foreground="{StaticResource ArgusCyanBrush}"
+                         Text="{Binding PreflightSummaryText}"
+                         TextWrapping="Wrap" />
+              <TextBlock Classes="metric-mono"
+                         FontSize="11"
+                         Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                         Text="{Binding BootDriversSummary}"
+                         TextWrapping="Wrap" />
+              <TextBlock FontSize="11.5"
+                         Foreground="{StaticResource ArgusTextMutedBrush}"
+                         Text="{Binding FirmwarePolicySummary}"
+                         TextWrapping="Wrap" />
+              <ItemsControl ItemsSource="{Binding PreflightMessages}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock FontSize="11.5"
+                               Foreground="{StaticResource ArgusAmberBrush}"
+                               Text="{Binding}"
+                               TextWrapping="Wrap"
+                               Margin="0,2,0,0" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <!-- Step 3: Target Double-Check Dropdown, Start Button & Live Progress -->
+      <Border Classes="panel-hero" Padding="14,11" BorderBrush="{StaticResource ArgusCoralBrush}">
+        <StackPanel Spacing="10">
+          <StackPanel Spacing="2">
+            <TextBlock Text="3. Підтвердження цільового диска і запуск міграції"
+                       FontSize="13.5"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource ArgusCoralBrush}" />
+            <TextBlock Classes="body-muted"
+                       FontSize="11.5"
+                       Text="Перевірте ще раз цільовий накопичувач, на який буде перенесено Windows. Після натискання «Почати клонування» з'явиться вікно підтвердження." />
+          </StackPanel>
+
+          <Grid ColumnDefinitions="*,Auto,Auto">
+            <ComboBox Grid.Column="0"
+                      ItemsSource="{Binding TargetDisks}"
+                      SelectedItem="{Binding SelectedTarget}"
+                      IsEnabled="{Binding CanEditPlan}"
+                      HorizontalAlignment="Stretch"
+                      Margin="0,0,10,0">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:MigrationTargetDiskItem">
+                  <TextBlock Text="{Binding DropdownLabel}" TextTrimming="CharacterEllipsis" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <Button Grid.Column="1"
+                    Classes="argus-primary"
+                    Padding="14,7"
+                    FontSize="12"
+                    Margin="0,0,8,0"
+                    IsEnabled="{Binding CanStartMigration}"
+                    Content="Почати клонування"
+                    Command="{Binding RequestStartMigrationCommand}" />
+
+            <Button Grid.Column="2"
+                    Classes="argus-secondary"
+                    Padding="12,7"
+                    FontSize="12"
+                    IsEnabled="{Binding IsRunning}"
+                    Content="Скасувати"
+                    Command="{Binding CancelMigrationCommand}" />
+          </Grid>
+
+          <!-- Phase Pipeline Steps -->
+          <ItemsControl ItemsSource="{Binding PhaseSteps}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <UniformGrid Columns="6" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:MigrationPhaseStepItem">
+                <Border Classes="pill"
+                        Classes.pill-ready="{Binding IsDone}"
+                        Classes.pill-warn="{Binding IsActive}"
+                        Margin="0,0,6,0"
+                        Padding="6,3"
+                        HorizontalAlignment="Stretch">
+                  <TextBlock Text="{Binding Label}"
+                             FontSize="10.5"
+                             HorizontalAlignment="Center"
+                             Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <!-- Live Throughput & Progress Bar -->
+          <Border Classes="tile" Padding="11,8">
+            <StackPanel Spacing="6">
+              <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Grid.Column="0"
+                           FontSize="12"
+                           Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                           Text="{Binding LiveStatusText}"
+                           TextTrimming="CharacterEllipsis"
+                           Margin="0,0,10,0" />
+                <TextBlock Grid.Column="1"
+                           Classes="metric-mono"
+                           FontSize="11.5"
+                           Foreground="{StaticResource ArgusCyanBrush}"
+                           Text="{Binding SpeedText}"
+                           Margin="0,0,12,0" />
+                <TextBlock Grid.Column="2"
+                           Classes="metric-mono"
+                           FontSize="11.5"
+                           Foreground="{StaticResource ArgusVioletSoftBrush}"
+                           Text="{Binding EtaText}" />
+              </Grid>
+
+              <ProgressBar Minimum="0"
+                           Maximum="100"
+                           Value="{Binding ProgressPercent}"
+                           Height="7"
+                           Foreground="{StaticResource ArgusCyanBrush}"
+                           Background="#161E42" />
+
+              <Grid ColumnDefinitions="*,Auto">
+                <controls:TelemetrySparkline Grid.Column="0"
+                                             Height="30"
+                                             Values="{Binding SpeedHistory}"
+                                             Maximum="{Binding SpeedChartMax}"
+                                             LineColor="#38D9F5"
+                                             Margin="0,0,12,0" />
+                <TextBlock Grid.Column="1"
+                           Classes="metric-mono"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{StaticResource ArgusTextMutedBrush}"
+                           Text="{Binding CopiedBytesText}" />
+              </Grid>
+
+              <TextBlock Classes="metric-mono"
+                         FontSize="11"
+                         Foreground="{StaticResource ArgusEmeraldBrush}"
+                         IsVisible="{Binding HasLastLogPath}"
+                         Text="{Binding LastLogPathText}"
+                         TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
+
+  <!-- Modal "Are you sure?" Confirmation Overlay before erasing Target Disk -->
+  <Border Background="#CC050814"
+          IsVisible="{Binding IsConfirmationDialogOpen}"
+          CornerRadius="12">
+    <Border Classes="panel-hero"
+            BorderBrush="{StaticResource ArgusCoralBrush}"
+            MaxWidth="520"
+            Padding="22,18"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center">
+      <StackPanel Spacing="12">
+        <TextBlock Text="Ви точно впевнені, що хочете почати клонування?"
+                   FontSize="16"
+                   FontWeight="Bold"
+                   Foreground="{StaticResource ArgusCoralBrush}"
+                   TextWrapping="Wrap" />
+
+        <Border Classes="tile" Padding="12,9">
+          <StackPanel Spacing="5">
+            <TextBlock FontSize="11" Foreground="{StaticResource ArgusTextMutedBrush}" Text="ЦІЛЬОВИЙ ДИСК ДЛЯ ЗАПИСУ WINDOWS" />
+            <TextBlock FontSize="13.5" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" Text="{Binding ConfirmationDialogTargetText}" TextWrapping="Wrap" />
+            <TextBlock FontSize="12" Foreground="{StaticResource ArgusAmberBrush}" Text="{Binding ConfirmationDialogWarningText}" TextWrapping="Wrap" />
+            <TextBlock Classes="metric-mono" FontSize="11.5" Foreground="{StaticResource ArgusCyanBrush}" Text="{Binding ResolvedModeBadge}" />
+          </StackPanel>
+        </Border>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+          <Button Classes="argus-secondary"
+                  Padding="14,7"
+                  FontSize="12"
+                  Content="Скасувати"
+                  Command="{Binding CancelConfirmationDialogCommand}" />
+          <Button Classes="argus-primary"
+                  Padding="16,7"
+                  FontSize="12"
+                  Content="Так, почати клонування"
+                  Command="{Binding ConfirmAndStartMigrationCommand}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+  </Border>
+  </Grid>
+</UserControl>

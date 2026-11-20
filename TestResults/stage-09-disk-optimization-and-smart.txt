@@ -1,0 +1,40 @@
+ARGUS — Звіт про виконання Етапу 9
+Назва: Діагностика накопичувачів (S.M.A.R.T.), безпечна оптимізація HDD/SSD та візуальна карта найбільших тек
+Дата: 19 листопада 2026 року
+Версія: 0.9.0
+
+1. Що зроблено
+- Розширено доменні контракти в `src/Argus.Core/Contracts/Maintenance/MaintenanceContracts.cs`:
+  - додано типи `FolderSpaceNode`, `VolumeSpaceReport` та інтерфейс `IDiskSpaceAnalyzer` поряд із `StorageMediaKind`, `DiskOptimizationAction`, `SmartHealthStatus`, `SmartSummary`, `PhysicalDiskInfo`, `DiskOptimizationResult`, `DiskOptimizationPolicy` й `IDiskOptimizer`.
+- Реалізовано апаратний інвентар дисків і безпечну оптимізацію в `src/Argus.Maintenance/Disks/WindowsDiskOptimizer.cs` (`WindowsDiskOptimizer`, `IDefragRunner`, `ProcessDefragRunner`):
+  - опитування фізичних накопичувачів через Storage WMI (`MSFT_PhysicalDisk`, `MSFT_Disk`, `MSFT_Partition`, `MSFT_StorageReliabilityCounter`), `Win32_DiskDrive` та Win32 `DeviceIoControl` (`IOCTL_STORAGE_QUERY_PROPERTY`, `StorageDeviceTemperatureProperty`) без сторонніх драйверів ядра;
+  - примусову політику оптимізації через `defrag.exe`: для SSD/NVMe запускається лише TRIM (`/L /U`), для HDD — повна оптимізація та дефрагментація (`/O /U`), для знімних USB-накопичувачів — лише аналіз (`/A /U`);
+  - блокування спроб запуску без прав адміністратора (подія `DiskOptimizeBlockedNotAdmin` у журналі) та фіксацію виконаних операцій у `journal.jsonl` (`DiskVolumeOptimized`).
+- Реалізовано швидкий аналізатор найбільших тек у `src/Argus.Maintenance/Disks/WindowsDiskSpaceAnalyzer.cs` (`IDiskSpaceAnalyzer`):
+  - обчислює топ найбільших тек першого рівня на вибраному томі в паралельному обході вшир (`Queue<string>`) з автоматичним пропуском точок повторного оброблення (`FileAttributes.ReparsePoint`) та спеціальних системних каталогів (`$RECYCLE.BIN`, `System Volume Information`, `$WinREAgent`, `Recovery`, `Config.Msi`, `Documents and Settings`, `$GetCurrent`, `.tmp.drivedownload`);
+  - обмежує обхід лімітами (`MaxVolumeScanMs = 1600`, `MaxFolderScanMs = 220`, `MaxDirsPerTopFolder = 1200`, `MaxFilesPerTopFolder = 18000`), щоб інтерфейс не зависав навіть на системному диску.
+- Оновлено стан модуля в `src/Argus.Maintenance/MaintenanceModule.cs`: `Argus.Maintenance` переведено на етап `ArgusModuleStage.Ready` (готовність ядра на екрані «Огляд» зросла до 80 % — 4 із 5 модулів), а `IDiskOptimizer` та `IDiskSpaceAnalyzer` зареєстровано в DI-контейнері.
+- Реалізовано екран «Диски й діагностика» (`src/Argus.App/ViewModels/DisksViewModel.cs`, `src/Argus.App/Views/DisksView.axaml`, `src/Argus.App/App.axaml.cs`):
+  - картки фізичних накопичувачів із позначкою типу (`HDD`, `SATA SSD`, `NVMe SSD`, `USB`), шиною, розміткою розділів, серійним номером, статусом S.M.A.R.T., температурою й кнопками безпечної оптимізації та переходу до карти тому;
+  - перемикач томів (`C:`, `D:`, `E:`) та двоколонкову візуальну карту найбільших тек зі смужками частки й лічильником файлів.
+- Оновлено версію рішення до `0.9.0` у `Directory.Build.props`, оновлено перевірку `VersionBadge` у `tests/Argus.App.Tests/ViewModelTests.cs`, перезібрано кореневий адміністраторський `Argus.exe` і додано 4 модульні тести в `tests/Argus.App.Tests/DisksMaintenanceTests.cs` (разом 60 тестів).
+
+2. Виявлені проблеми та виправлення за результатами прогонів у пісочниці
+- Прогін 1 (`stage9_overview.png`): на екрані «Огляд системи» у нижній стрічці «Останні записи журналу» назва дії `CleanerAnalyzeCompleted` обрізалася як `CleanerAnalyzeCom[`.
+  Виправлення: у `src/Argus.App/Views/OverviewView.axaml` розширено колонку дій (`68,125,172,*`), додано горизонтальні відступи та `TextTrimming="CharacterEllipsis"`. На скриншотах наступних прогонів текст не обрізається.
+- Прогін 2 (`stage9_v2_disks.png`): у `DisksViewModel.RefreshDisksAsync()` оновлення інтерфейсу чекало закінчення `AnalyzeVolumeSpaceAsync`, через що фізичні диски не з'являлися в списку, доки тривав обхід тек на `C:\`.
+  Виправлення: `RefreshDisksAsync()` публікує знайдені диски й вкладки томів у UI-потік одразу після `GetDisksAsync()`, ще до запуску сканування найбільших тек.
+- Прогін 3 (`stage9_v3_disks.png`): попри миттєве відображення трьох накопичувачів, карта найбільших тек на системному диску `C:` ще показувала стан «Сканування найбільших тек на C:\...» на 5-й секунді роботи у пісочниці. Рекурсивний виклик `EnumerateFiles` перевіряв таймер раз на 256 доступних файлів і застрягав у глибоких або обмежених системних гілках (`WindowsApps`, `WinSxS`).
+  Виправлення: у `WindowsDiskSpaceAnalyzer.cs` рекурсивний перебір замінено на керований пошук вшир (`Queue<string>`), додано глобальний ліміт 1600 мс на том і 220 мс / 1200 каталогів / 18 000 файлів на теку з перевіркою часу на кожному каталозі та кожні 32 файли. На скриншоті четвертого прогону карта диска `C:` завантажується повністю.
+
+3. Результати фінальної перевірки (Прогін 4)
+- Сувора збірка (`TreatWarningsAsErrors=true`) у `Debug` і `Release`: 0 помилок, 0 попереджень.
+- Модульні тести (`Argus.Core.Tests` + `Argus.App.Tests`): 60 із 60 тестів пройдено в `Debug` (`2s 408ms`) і `Release` (`2s 386ms`).
+- Однофайлова пісочниця (`win-x64`, `asInvoker`, `DOTNET_ROOT` і `dotnet` з `PATH` вилучено): 2 файли, 47,97 МБ, 0 файлів `.pdb`.
+- Сканер Windows Defender (`MpCmdRun.exe -Scan -ScanType 3`):
+  - папка пісочниці: код виходу 0 (`found no threats`);
+  - кореневий `Argus.exe` (`47,97 МБ`, версія `0.9.0`, `Subsystem=2 WinGUI`, маніфест `requireAdministrator`): код виходу 0 (`found no threats`).
+- Ізольований запуск без .NET у середовищі:
+  - `--section disks` (`1256x789`, `WS=220,5 МБ`, `stderr` порожній): коректно розпізнано три накопичувачі робочої станції (`Диск 0` `WDC WD10EZEX-08WN4A0` `HDD` 931,51 ГіБ `D:`, `Диск 1` `ST4000DM004-2CV104` `HDD` 3726,02 ГіБ `E:`, `Диск 2` `SPCC Solid State Disk` `SATA SSD` 238,47 ГіБ `C:`), статус `Здоровий` та сформована карта найбільших тек на `C:` (зайнято 193,95 ГіБ із 237,42 ГіБ, вільно 43,48 ГіБ; `Windows`, `Program Files`, `Program Files (x86)`, `Users`, `ProgramData`, `$Windows.~WS`). У непідвищеній пісочниці температура SATA-дисків показує `н/д`, оскільки WMI-лічильники надійності (`MSFT_StorageReliabilityCounter`) потребують прав адміністратора, які має кореневий `Argus.exe`.
+  - `--section overview` (`1256x789`, `WS=222,1 МБ`, `stderr` порожній): індикатор готовності 80 % (4 із 5 модулів у статусі `Готово`, `Argus.Migration` у статусі `Каркас`), жива телеметрія (`GeForce GTX 1660 · 49 °C`, `Windows 11 (збірка 26300)`), журнал подій без обрізань.
+  - Журнал роботи пісочниці зафіксував старт телеметрії (1000 мс) і реєстрацію `CfgMgr32` без помилок. Тимчасову пісочницю після тестування видалено.

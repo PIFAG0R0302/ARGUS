@@ -1,0 +1,30 @@
+ARGUS — Звіт про виконання Етапу 1
+Назва: Підготовка середовища та модульного каркаса (Argus.sln)
+Дата: 19 листопада 2026 року
+Версія: 0.1.0
+
+1. Що зроблено
+- Встановлено офіційний .NET 10.0.404 SDK (разом із рантаймами Microsoft.NETCore.App 10.0.15 і Microsoft.WindowsDesktop.App 10.0.15) у профіль користувача (%LOCALAPPDATA%\Microsoft\dotnet) та прописано змінну користувача DOTNET_ROOT.
+- Оригінальні скрипти CopyOS (Universal-OS-Inside-Cloner.bat і Universal-OS-Outside-Cloner.bat) перенесено без змін у підтеку legacy-scripts/ як еталон для звірки.
+- Створено модульне рішення Argus.sln із шістьма проєктами: Argus.Core (net10.0), Argus.Telemetry, Argus.Devices, Argus.Maintenance, Argus.Migration та Argus.App (net10.0-windows, Avalonia 12.1.6 + Skia, без WebView2).
+- Додано централізовану конфігурацію збірки: Directory.Build.props, Directory.Packages.props, global.json, .editorconfig, .gitignore, README.md і скрипт збірки build.ps1.
+- Налаштовано DI-контейнер і базове темно-синьо-фіолетове стартове вікно Argus.App, що відображає зареєстровані модулі.
+
+2. Виявлені проблеми та як їх виправлено
+- Проблема 1: Системний інсталятор winget завершився з кодом 50 (0x80070032 — не вдалося підняти права UAC для запису в C:\Program Files\dotnet).
+  Виправлення: Завантажено офіційний архів Microsoft dotnet-sdk-10.0.404-win-x64.zip у %LOCALAPPDATA%\Microsoft\dotnet, прописано DOTNET_ROOT і додано автопошук .NET 10 у build.ps1.
+- Проблема 2: Перший тестовий запуск Argus.exe завершився з FileNotFoundException для Avalonia.Controls через параметр CopyLocalLockFileAssemblies=false у Directory.Build.props.
+  Виправлення: Прибрано CopyLocalLockFileAssemblies=false із Directory.Build.props, після чого збірка почала штатно копіювати залежності.
+- Проблема 3: Під час самодостатньої публікації Release (win-x64) у теку потрапляли 100 МБ символів налагодження (libSkiaSharp.pdb — 80,14 МБ, libHarfBuzzSharp.pdb — 19,95 МБ), роздуваючи збірку до 206,1 МБ.
+  Виправлення: Додано виключення .pdb під час Release-публікації в Argus.App.csproj. Розмір зменшився до 106 МБ (0 файлів .pdb).
+- Проблема 4: global.json жорстко вимагав SDK 10.0.400, а build.ps1 не перевіряв мажорну версію знайденого dotnet.exe.
+  Виправлення: У global.json знижено мінімум до 10.0.100 (rollForward: latestFeature); build.ps1 перевіряє наявність SDK 10.x і отримав прапорці -Strict та -PublishPortable.
+- Проблема 5: Не було явного ShutdownMode у App.axaml.cs.
+  Виправлення: Встановлено ShutdownMode.OnMainWindowClose.
+
+3. Результати перевірки в ізольованій пісочниці
+- Сувора збірка (TreatWarningsAsErrors=true) у Debug і Release: 0 помилок, 0 попереджень.
+- Аудит NuGet (--vulnerable --include-transitive, --deprecated): 0 вразливих, 0 застарілих пакетів.
+- Сканер Windows Defender (MpCmdRun.exe -Scan -ScanType 3): загроз не виявлено (код 0).
+- Ізольований запуск без .NET у PATH і без DOTNET_ROOT: вікно ARGUS відкрилося штатно (1056x699, порожній stderr, чисте закриття з кодом 0).
+- Візуальна перевірка скриншота: коректна кирилиця, темна синьо-фіолетова палітра, усі 5 модулів DI відображаються без обрізань.

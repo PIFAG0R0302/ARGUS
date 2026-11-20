@@ -1,0 +1,372 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Argus.App.ViewModels"
+             xmlns:controls="using:Argus.App.Controls"
+             x:Class="Argus.App.Views.MonitoringView"
+             x:DataType="vm:MonitoringViewModel">
+
+  <!-- Sticky Top Gauges & Live Dynamics Chart (Row 0) + Scrollable Hardware Details Below (Row 2) -->
+  <Grid RowDefinitions="Auto,10,*" Margin="0,0,4,6">
+
+    <!-- PINNED TOP HEADER: Status Strip + Alert Banner + 4 Gauges + Live Chart with Series Filters -->
+    <StackPanel Grid.Row="0" Spacing="8">
+      <!-- Sensor Tier & Sampling Status Strip -->
+      <Border Classes="tile" Padding="14,7">
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+          <TextBlock Grid.Column="0"
+                     FontSize="12"
+                     Foreground="{StaticResource ArgusEmeraldBrush}"
+                     Text="{Binding SensorModeSummary}"
+                     TextTrimming="CharacterEllipsis"
+                     VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Classes="metric-mono" Margin="14,0,0,0" Text="{Binding SamplingSummary}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="2" Classes="metric-mono" Margin="14,0,0,0" Text="{Binding HistorySummary}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="3"
+                     FontSize="11.5"
+                     Margin="14,0,0,0"
+                     Foreground="{StaticResource ArgusTextMutedBrush}"
+                     Text="{Binding LastUpdatedText}"
+                     VerticalAlignment="Center" />
+        </Grid>
+      </Border>
+
+      <!-- Active Threshold Alert Banner (visible when triggered) -->
+      <Border Classes="pill-danger"
+              IsVisible="{Binding HasActiveAlert}"
+              CornerRadius="8"
+              Padding="14,7">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0"
+                     FontSize="12"
+                     FontWeight="SemiBold"
+                     Foreground="{StaticResource ArgusCoralBrush}"
+                     Text="{Binding ActiveAlertText}"
+                     VerticalAlignment="Center" />
+          <Button Grid.Column="1"
+                  Classes="argus-secondary"
+                  Padding="10,4"
+                  FontSize="11.5"
+                  Content="Сховати"
+                  Command="{Binding DismissAlertCommand}" />
+        </Grid>
+      </Border>
+
+      <!-- Four Live Skia Radial Gauges (Pinned) -->
+      <UniformGrid Columns="4">
+        <Border Classes="panel" Margin="0,0,10,0" Padding="8,4">
+          <controls:TelemetryArcGauge Height="130"
+                                      IsStandby="{Binding CpuStandby}"
+                                      Value="{Binding CpuLoadValue}"
+                                      Maximum="100"
+                                      DisplayValue="{Binding CpuDisplayValue}"
+                                      Unit="%"
+                                      Label="Процесор"
+                                      SubLabel="{Binding CpuSubLabel}"
+                                      AccentStart="#7C5CFF"
+                                      AccentEnd="#38D9F5" />
+        </Border>
+        <Border Classes="panel" Margin="0,0,10,0" Padding="8,4">
+          <controls:TelemetryArcGauge Height="130"
+                                      IsStandby="{Binding RamStandby}"
+                                      Value="{Binding RamLoadValue}"
+                                      Maximum="100"
+                                      DisplayValue="{Binding RamDisplayValue}"
+                                      Unit="ГіБ"
+                                      Label="Оперативна пам'ять"
+                                      SubLabel="{Binding RamSubLabel}"
+                                      AccentStart="#6366F1"
+                                      AccentEnd="#38D9F5" />
+        </Border>
+        <Border Classes="panel" Margin="0,0,10,0" Padding="8,4">
+          <controls:TelemetryArcGauge Height="130"
+                                      IsStandby="{Binding GpuStandby}"
+                                      Value="{Binding GpuLoadValue}"
+                                      Maximum="100"
+                                      DisplayValue="{Binding GpuDisplayValue}"
+                                      Unit="{Binding GpuUnit}"
+                                      Label="Відеокарта"
+                                      SubLabel="{Binding GpuSubLabel}"
+                                      AccentStart="#8B5CF6"
+                                      AccentEnd="#2DD4A8" />
+        </Border>
+        <Border Classes="panel" Padding="8,4">
+          <controls:TelemetryArcGauge Height="130"
+                                      IsStandby="{Binding TempStandby}"
+                                      Value="{Binding TempValue}"
+                                      Maximum="110"
+                                      DisplayValue="{Binding TempDisplayValue}"
+                                      Unit="°C"
+                                      Label="Температура"
+                                      SubLabel="{Binding TempSubLabel}"
+                                      AccentStart="#F5A623"
+                                      AccentEnd="#F45B69" />
+        </Border>
+      </UniformGrid>
+
+      <!-- Real-Time Skia Multi-Series Chart + Series Filter Toggles + Time Window + Export (Pinned) -->
+      <Border Classes="panel-hero" Padding="14,9">
+        <StackPanel Spacing="6">
+          <Grid ColumnDefinitions="*,Auto,Auto">
+            <TextBlock Grid.Column="0"
+                       Classes="section-heading"
+                       Text="Динаміка в реальному часі (Skia)"
+                       TextTrimming="CharacterEllipsis"
+                       VerticalAlignment="Center" />
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" Margin="10,0,12,0" VerticalAlignment="Center">
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding IsWindow30Selected}"
+                      Padding="9,3"
+                      FontSize="11"
+                      Content="30 с"
+                      Command="{Binding SelectWindow30Command}" />
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding IsWindow60Selected}"
+                      Padding="9,3"
+                      FontSize="11"
+                      Content="1 хв"
+                      Command="{Binding SelectWindow60Command}" />
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding IsWindow180Selected}"
+                      Padding="9,3"
+                      FontSize="11"
+                      Content="3 хв"
+                      Command="{Binding SelectWindow180Command}" />
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding IsWindow300Selected}"
+                      Padding="9,3"
+                      FontSize="11"
+                      Content="5 хв"
+                      Command="{Binding SelectWindow300Command}" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+              <Button Classes="argus-secondary"
+                      Padding="9,3"
+                      FontSize="11"
+                      IsEnabled="{Binding !IsExportingReport}"
+                      Content="Експорт HTML"
+                      Command="{Binding ExportHtmlReportCommand}" />
+              <Button Classes="argus-secondary"
+                      Padding="8,3"
+                      FontSize="11"
+                      IsEnabled="{Binding !IsExportingReport}"
+                      Content="JSON"
+                      Command="{Binding ExportJsonReportCommand}" />
+              <Button Classes="argus-secondary"
+                      Padding="8,3"
+                      FontSize="11"
+                      IsEnabled="{Binding !IsExportingReport}"
+                      Content="CSV"
+                      Command="{Binding ExportCsvReportCommand}" />
+            </StackPanel>
+          </Grid>
+
+          <!-- Interactive Series Filter Strip (Click to isolate CPU / RAM / GPU / Temp or combine any subset) -->
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <TextBlock FontSize="11" Foreground="{StaticResource ArgusTextMutedBrush}" Text="Фільтр графіків:" VerticalAlignment="Center" Margin="0,0,2,0" />
+
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding ShowCpuSeries}"
+                      Padding="8,3"
+                      FontSize="11"
+                      Command="{Binding ToggleCpuSeriesCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <Ellipse Width="7" Height="7" Fill="#38D9F5" VerticalAlignment="Center" />
+                  <TextBlock Text="CPU %" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding ShowRamSeries}"
+                      Padding="8,3"
+                      FontSize="11"
+                      Command="{Binding ToggleRamSeriesCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <Ellipse Width="7" Height="7" Fill="#9B82FF" VerticalAlignment="Center" />
+                  <TextBlock Text="ОЗП %" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding ShowGpuSeries}"
+                      Padding="8,3"
+                      FontSize="11"
+                      Command="{Binding ToggleGpuSeriesCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <Ellipse Width="7" Height="7" Fill="#2DD4A8" VerticalAlignment="Center" />
+                  <TextBlock Text="GPU %" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding ShowTempSeries}"
+                      Padding="8,3"
+                      FontSize="11"
+                      Command="{Binding ToggleTempSeriesCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <Ellipse Width="7" Height="7" Fill="#F5A623" VerticalAlignment="Center" />
+                  <TextBlock Text="Темп. °C" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding AreAllSeriesVisible}"
+                      Padding="8,3"
+                      FontSize="11"
+                      Content="Усі"
+                      Command="{Binding ShowAllSeriesCommand}" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+              <Border Width="12" Height="1.5" Background="#88F45B69" VerticalAlignment="Center" />
+              <TextBlock FontSize="11" Foreground="{StaticResource ArgusTextMutedBrush}" Text="Поріг сповіщення" />
+            </StackPanel>
+          </Grid>
+
+          <controls:TelemetryLineChart Height="106"
+                                       PrimarySeries="{Binding CpuSeries}"
+                                       SecondarySeries="{Binding RamSeries}"
+                                       TertiarySeries="{Binding GpuSeries}"
+                                       ThermalSeries="{Binding TempSeries}"
+                                       Maximum="100"
+                                       WindowSeconds="{Binding SelectedWindowSeconds}"
+                                       AlertThreshold="{Binding ActiveAlertThreshold}" />
+
+          <TextBlock FontSize="11.5"
+                     IsVisible="{Binding HasExportFeedback}"
+                     Classes.warn-text="{Binding !ExportSucceeded}"
+                     Text="{Binding ExportFeedback}"
+                     TextTrimming="CharacterEllipsis">
+            <TextBlock.Styles>
+              <Style Selector="TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource ArgusEmeraldBrush}" />
+              </Style>
+              <Style Selector="TextBlock.warn-text">
+                <Setter Property="Foreground" Value="{StaticResource ArgusAmberBrush}" />
+              </Style>
+            </TextBlock.Styles>
+          </TextBlock>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <!-- SCROLLABLE LOWER SECTION: Per-Core CPU + GPU / Storage / Extra Sensors -->
+    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+      <Grid ColumnDefinitions="*,14,*" Margin="0,0,2,8">
+
+        <!-- Left: Live Per-Thread CPU Load Matrix -->
+        <Border Grid.Column="0" Classes="panel" VerticalAlignment="Top" Padding="15,12">
+          <StackPanel Spacing="9">
+            <StackPanel Spacing="2">
+              <TextBlock Classes="section-heading" Text="Завантаження по потоках CPU" />
+              <TextBlock FontSize="12"
+                         Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                         Text="{Binding CpuModelName}"
+                         TextTrimming="CharacterEllipsis" />
+              <TextBlock Classes="metric-mono"
+                         FontSize="11.5"
+                         Text="{Binding CpuClockAndTopologyText}" />
+            </StackPanel>
+
+            <ItemsControl ItemsSource="{Binding CoreLoads}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <UniformGrid Columns="2" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:CoreLoadItem">
+                  <Border Classes="tile" Margin="0,0,8,7" Padding="10,7">
+                    <StackPanel Spacing="4">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" FontSize="11.5" Foreground="{StaticResource ArgusTextSecondaryBrush}" Text="{Binding Label}" />
+                        <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="11.5" Text="{Binding LoadText}" />
+                      </Grid>
+                      <ProgressBar Minimum="0"
+                                   Maximum="100"
+                                   Value="{Binding LoadPercent}"
+                                   Height="5"
+                                   CornerRadius="3"
+                                   Background="#1A2248"
+                                   Foreground="{StaticResource ArgusCyanBrush}" />
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
+        <!-- Right: GPU Details + Physical Disks + Extra Sensors -->
+        <StackPanel Grid.Column="2" Spacing="12" VerticalAlignment="Top">
+          <Border Classes="panel" Padding="15,12">
+            <StackPanel Spacing="6">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Classes="section-heading" Text="Відеоадаптер" VerticalAlignment="Center" />
+                <Border Grid.Column="1" Classes="pill pill-ready">
+                  <TextBlock Text="Живий потік" FontSize="10.5" Foreground="{StaticResource ArgusEmeraldBrush}" />
+                </Border>
+              </Grid>
+              <TextBlock FontSize="13.5" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" Text="{Binding GpuNameText}" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Classes="metric-mono" Text="{Binding GpuVramDetailText}" />
+                <TextBlock Grid.Column="1" Classes="metric-mono" Text="{Binding GpuClockAndFanText}" />
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="panel" Padding="15,12">
+            <StackPanel Spacing="8">
+              <TextBlock Classes="section-heading" Text="Накопичувачі (I/O та температура)" />
+              <ItemsControl ItemsSource="{Binding StorageItems}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:StorageRowItem">
+                    <Border Classes="tile" Margin="0,0,0,6" Padding="10,7">
+                      <Grid ColumnDefinitions="*,Auto,Auto">
+                        <TextBlock Grid.Column="0"
+                                   FontSize="12"
+                                   Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                   Text="{Binding Title}"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1"
+                                   Classes="metric-mono"
+                                   FontSize="11.5"
+                                   Margin="10,0,10,0"
+                                   Text="{Binding ThroughputText}"
+                                   VerticalAlignment="Center" />
+                        <Border Grid.Column="2" Classes="pill" Padding="8,2">
+                          <TextBlock FontSize="11" Foreground="{StaticResource ArgusCyanBrush}" Text="{Binding TemperatureText}" />
+                        </Border>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="panel" Padding="15,12" IsVisible="{Binding HasExtraSensors}">
+            <StackPanel Spacing="8">
+              <TextBlock Classes="section-heading" Text="Додаткові сенсори (ACPI / PawnIO)" />
+              <ItemsControl ItemsSource="{Binding ExtraSensors}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ExtraSensorItem">
+                    <Border Classes="tile" Margin="0,0,0,6" Padding="10,7">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" FontSize="12" Foreground="{StaticResource ArgusTextSecondaryBrush}" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="12" Text="{Binding ValueText}" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Grid>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

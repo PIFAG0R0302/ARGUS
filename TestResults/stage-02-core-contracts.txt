@@ -1,0 +1,36 @@
+ARGUS — Звіт про виконання Етапу 2
+Назва: Контракти ядра та архітектура для розширення (Argus.Core)
+Дата: 19 листопада 2026 року
+Версія: 0.2.0
+
+1. Що зроблено
+- Реалізовано типізовані контракти всіх чотирьох функціональних модулів у src/Argus.Core/Contracts/:
+  - Telemetry: дворівневі датчики (NativeZeroDriver і опційний SignedPawnIo), моделі знімків CPU/RAM/GPU/накопичувачів, ISensorProvider, ITelemetryService.
+  - Devices: HardwareInventory, DeviceNode, DeviceTopologyChangedEvent, IDeviceProvider.
+  - Maintenance: двокрокове очищення (AnalyzeAsync, CleanAsync), JsonCleanerRuleLoader для зовнішніх JSON-правил, DiskOptimizationPolicy (SSD і NVMe — лише TRIM, HDD — дефрагментація), S.M.A.R.T. і IRestorePointService.
+  - Migration: профілі CopyOS (InternalMotherboardDisk і ExternalUsbDrive), режими BlockVssBitmap і DismShrinkToFit, прогрес, MigrationConfirmationPolicy (WIPE-DISK-N), IMigrationEngine.
+- Реалізовано базову інфраструктуру ядра:
+  - RingBuffer<T>: потокобезпечний кільцевий буфер фіксованої ємності.
+  - ArgusEventBus (IArgusEventBus): потокобезпечна шина подій з ізоляцією винятків у підписниках.
+  - JsonArgusSettingsStore (IArgusSettingsStore): атомарне збереження JSON через тимчасовий файл, нормалізація значень, резервне копіювання пошкодженого конфігу й підтримка портативного режиму (portable.flag).
+  - FileBackedOperationJournal (IOperationJournal): журнал дій у пам'яті та файлі journal.jsonl із публікацією подій у шину.
+  - JsonExtensionDiscovery (IArgusExtensionDiscovery): пошук маніфестів зовнішніх розширень із захистом від обходу шляхів.
+- Підключено сервіси ядра до DI в Argus.App; статус Argus.Core переведено в Ready.
+- Створено тестовий проєкт tests/Argus.Core.Tests із 28 модульними тестами.
+
+2. Виявлені проблеми та як їх виправлено
+- Проблема 1: Перша версія JsonCleanerRuleLoader пропускала прямі слеші (C:/Windows), підтеки захищених каталогів (System32, WinSxS) і UNC/пристрійні префікси (\\?\...).
+  Виправлення: Додано нормалізацію роздільників, блокування UNC-шляхів і перевірку префіксів захищених підтек; поведінку закріплено 8 тестами.
+- Проблема 2: Поле severity у journal.jsonl серіалізувалося числом (0) замість текстової назви.
+  Виправлення: Додано JsonStringEnumConverter у LineJsonOptions; тепер у файл пишеться "severity":"Info".
+- Проблема 3: Аудит пакетів --deprecated показав, що xunit 2.9.3 позначено як застарілий.
+  Виправлення: Тестовий проєкт переведено на xunit.v3 4.0.3 та нативний раннер Microsoft.Testing.Platform у global.json.
+- Проблема 4: Аналізатор xUnit1051 під час переходу на xunit.v3 вимагав явно передавати TestContext.Current.CancellationToken в асинхронні виклики тестів.
+  Виправлення: У всіх асинхронних тестах передано TestContext.Current.CancellationToken.
+
+3. Результати перевірки в ізольованій пісочниці
+- Сувора збірка (TreatWarningsAsErrors=true) і тести (xunit.v3 / MTP) у Debug і Release: 0 помилок, 0 попереджень, 28 із 28 тестів пройдено.
+- Аудит NuGet (--vulnerable --include-transitive, --deprecated): 0 вразливих, 0 застарілих пакетів у всіх 7 проєктах.
+- Сканер Windows Defender (MpCmdRun.exe -Scan -ScanType 3): загроз не виявлено (код 0).
+- Портативний запуск без .NET у PATH і без DOTNET_ROOT (із portable.flag): вікно відкрилося штатно (1056x699, порожній stderr, код виходу 0), у пісочниці створено data\logs\journal.jsonl із записом "action":"AppStarted" та "severity":"Info".
+- Візуальний контроль скриншота: версія v0.2.0, активне Core DI та статус Argus.Core (Ready) відображаються без помилок.

@@ -1,0 +1,273 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Argus.App.ViewModels"
+             x:Class="Argus.App.Views.DevicesView"
+             x:DataType="vm:DevicesViewModel">
+
+  <!-- Fully Adaptive Layout: Top hardware matrix (Auto) + Live Device Tree stretching to window bottom (*) -->
+  <Grid RowDefinitions="Auto,12,*" Margin="0,0,4,6">
+
+    <!-- Top Hardware Inventory Deck (2x2 Matrix: CPU/Cache, Motherboard/BIOS, SMBIOS RAM Slots, GPU/Network) -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,12,*" RowDefinitions="Auto,10,Auto">
+
+      <!-- Card 1: CPU & L2/L3 Cache -->
+      <Border Grid.Row="0" Grid.Column="0" Classes="panel" Padding="14,10">
+        <StackPanel Spacing="4">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Classes="section-heading" Text="Процесор і кеш-пам'ять" VerticalAlignment="Center" />
+            <Border Grid.Column="1" Classes="pill">
+              <TextBlock Text="WMI / Топологія" FontSize="10.5" Foreground="{StaticResource ArgusCyanBrush}" />
+            </Border>
+          </Grid>
+          <TextBlock FontSize="13"
+                     FontWeight="SemiBold"
+                     Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                     Text="{Binding CpuTitle}"
+                     TextTrimming="CharacterEllipsis" />
+          <TextBlock Classes="metric-mono"
+                     FontSize="11.5"
+                     Text="{Binding CpuTopologyAndClockText}"
+                     TextTrimming="CharacterEllipsis" />
+          <TextBlock FontSize="11.5"
+                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                     Text="{Binding CpuCacheAndArchText}"
+                     TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+      </Border>
+
+      <!-- Card 2: Motherboard & UEFI/BIOS -->
+      <Border Grid.Row="0" Grid.Column="2" Classes="panel" Padding="14,10">
+        <StackPanel Spacing="4">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Classes="section-heading" Text="Системна плата та UEFI / BIOS" VerticalAlignment="Center" />
+            <Border Grid.Column="1" Classes="pill">
+              <TextBlock Text="SMBIOS" FontSize="10.5" Foreground="{StaticResource ArgusVioletSoftBrush}" />
+            </Border>
+          </Grid>
+          <TextBlock FontSize="13"
+                     FontWeight="SemiBold"
+                     Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                     Text="{Binding BoardTitle}"
+                     TextTrimming="CharacterEllipsis" />
+          <TextBlock Classes="metric-mono"
+                     FontSize="11.5"
+                     Text="{Binding BiosSummaryText}"
+                     TextTrimming="CharacterEllipsis" />
+          <TextBlock FontSize="11.5"
+                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                     Text="{Binding OsAndFirmwareText}"
+                     TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+      </Border>
+
+      <!-- Card 3: Physical RAM Slots -->
+      <Border Grid.Row="2" Grid.Column="0" Classes="panel" Padding="14,10">
+        <StackPanel Spacing="5">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Classes="section-heading"
+                       Text="Модулі оперативної пам'яті"
+                       TextTrimming="CharacterEllipsis"
+                       VerticalAlignment="Center" />
+            <Border Grid.Column="1" Classes="pill" Margin="10,0,0,0">
+              <TextBlock Classes="metric-mono"
+                         FontSize="11"
+                         Text="{Binding RamSummaryTitle}"
+                         VerticalAlignment="Center" />
+            </Border>
+          </Grid>
+          <ScrollViewer MaxHeight="96" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding RamSlots}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:RamSlotRowItem">
+                  <Border Classes="tile" Margin="0,0,0,4" Padding="10,5">
+                    <Grid ColumnDefinitions="Auto,10,Auto,10,*">
+                      <TextBlock Grid.Column="0"
+                                 FontSize="11.5"
+                                 FontWeight="SemiBold"
+                                 Foreground="{StaticResource ArgusVioletSoftBrush}"
+                                 Text="{Binding SlotLocator}"
+                                 VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="2"
+                                 Classes="metric-mono"
+                                 FontSize="11.5"
+                                 Text="{Binding CapacityAndSpeed}"
+                                 VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="4"
+                                 FontSize="11.5"
+                                 Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                 HorizontalAlignment="Right"
+                                 Text="{Binding VendorAndPart}"
+                                 TextTrimming="CharacterEllipsis"
+                                 VerticalAlignment="Center" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </StackPanel>
+      </Border>
+
+      <!-- Card 4: GPU & Network Interfaces -->
+      <Border Grid.Row="2" Grid.Column="2" Classes="panel" Padding="14,10">
+        <StackPanel Spacing="4">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Classes="section-heading" Text="Відеокарта та мережа" VerticalAlignment="Center" />
+            <Border Grid.Column="1" Classes="pill pill-ready">
+              <TextBlock Text="Активні шини" FontSize="10.5" Foreground="{StaticResource ArgusEmeraldBrush}" />
+            </Border>
+          </Grid>
+          <TextBlock FontSize="13"
+                     FontWeight="SemiBold"
+                     Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                     Text="{Binding PrimaryGpuTitle}"
+                     TextTrimming="CharacterEllipsis" />
+          <TextBlock Classes="metric-mono"
+                     FontSize="11.5"
+                     Text="{Binding PrimaryGpuDriverAndIdText}"
+                     TextTrimming="CharacterEllipsis" />
+          <TextBlock FontSize="11.5"
+                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                     Text="{Binding PrimaryNicSummaryText}"
+                     TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <!-- Live SetupAPI Device Manager Deck (Stretches dynamically to the bottom edge at any resolution) -->
+    <Border Grid.Row="2" Classes="panel-hero" Padding="14,12">
+      <Grid RowDefinitions="Auto,10,Auto,10,*">
+
+        <!-- Search & Live PnP Status Row -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,10,Auto,8,Auto">
+          <TextBox Grid.Column="0"
+                   Classes="argus-input"
+                   Text="{Binding SearchQuery}"
+                   PlaceholderText="Пошук за назвою пристрою, виробником, версією драйвера або кодом PCI\VEN_ / USB\VID_…" />
+          <Border Grid.Column="2" Classes="pill pill-ready" VerticalAlignment="Center" Padding="10,6">
+            <TextBlock Text="{Binding PnpMonitorStatusText}"
+                       FontSize="11.5"
+                       Foreground="{StaticResource ArgusEmeraldBrush}" />
+          </Border>
+          <Button Grid.Column="4"
+                  Classes="argus-secondary"
+                  Padding="12,6"
+                  FontSize="12"
+                  IsEnabled="{Binding !IsLoading}"
+                  Content="Оновити"
+                  Command="{Binding RefreshDevicesCommand}" />
+        </Grid>
+
+        <!-- Bus & Status Filter Bar -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+            <Button Classes="argus-secondary"
+                    Classes.selected="{Binding IsFilterAll}"
+                    Padding="10,5"
+                    FontSize="11.5"
+                    Content="{Binding FilterAllLabel}"
+                    Command="{Binding FilterAllCommand}" />
+            <Button Classes="argus-secondary"
+                    Classes.selected="{Binding IsFilterPcie}"
+                    Padding="10,5"
+                    FontSize="11.5"
+                    Content="{Binding FilterPcieLabel}"
+                    Command="{Binding FilterPcieCommand}" />
+            <Button Classes="argus-secondary"
+                    Classes.selected="{Binding IsFilterUsb}"
+                    Padding="10,5"
+                    FontSize="11.5"
+                    Content="{Binding FilterUsbLabel}"
+                    Command="{Binding FilterUsbCommand}" />
+            <Button Classes="argus-secondary"
+                    Classes.selected="{Binding IsFilterStorage}"
+                    Padding="10,5"
+                    FontSize="11.5"
+                    Content="{Binding FilterStorageLabel}"
+                    Command="{Binding FilterStorageCommand}" />
+            <Button Classes="argus-secondary"
+                    Classes.selected="{Binding IsFilterNetAudio}"
+                    Padding="10,5"
+                    FontSize="11.5"
+                    Content="{Binding FilterNetAudioLabel}"
+                    Command="{Binding FilterNetAudioCommand}" />
+            <Button Classes="argus-secondary"
+                    Classes.selected="{Binding IsFilterProblems}"
+                    Padding="10,5"
+                    FontSize="11.5"
+                    Content="{Binding FilterProblemsLabel}"
+                    Command="{Binding FilterProblemsCommand}" />
+          </StackPanel>
+
+          <TextBlock Grid.Column="1"
+                     Classes="metric-mono"
+                     FontSize="11.5"
+                     VerticalAlignment="Center"
+                     Text="{Binding ShowingCountText}" />
+        </Grid>
+
+        <!-- Adaptive Live Device Nodes List (NO fixed MaxHeight) -->
+        <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding FilteredDevices}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:DeviceNodeRowItem">
+                <Border Classes="tile" Margin="0,0,4,6" Padding="12,8">
+                  <Grid ColumnDefinitions="56,74,*,280">
+                    <Border Grid.Column="0"
+                            Classes="pill"
+                            Classes.pill-ready="{Binding IsOk}"
+                            Classes.pill-warn="{Binding IsProblem}"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            Padding="8,2">
+                      <TextBlock Text="{Binding StatusLabel}"
+                                 FontSize="10.5"
+                                 FontWeight="SemiBold"
+                                 Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                    </Border>
+
+                    <Border Grid.Column="1"
+                            Classes="pill"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            Margin="6,0,0,0"
+                            Padding="8,2">
+                      <TextBlock Text="{Binding BusType}"
+                                 FontSize="10.5"
+                                 Foreground="{StaticResource ArgusCyanBrush}" />
+                    </Border>
+
+                    <StackPanel Grid.Column="2" Spacing="2" Margin="10,0,12,0" VerticalAlignment="Center">
+                      <TextBlock FontSize="12.5"
+                                 FontWeight="SemiBold"
+                                 Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                 Text="{Binding FriendlyName}"
+                                 TextTrimming="CharacterEllipsis" />
+                      <TextBlock FontSize="11.5"
+                                 Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                 Text="{Binding CategoryAndManufacturer}"
+                                 TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="3" Spacing="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                      <TextBlock Classes="metric-mono"
+                                 FontSize="11.5"
+                                 HorizontalAlignment="Right"
+                                 Text="{Binding DriverSummary}"
+                                 TextTrimming="CharacterEllipsis" />
+                      <TextBlock FontSize="10.5"
+                                 Foreground="{StaticResource ArgusTextMutedBrush}"
+                                 HorizontalAlignment="Right"
+                                 Text="{Binding InstanceId}"
+                                 TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

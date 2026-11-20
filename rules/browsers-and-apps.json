@@ -1,0 +1,42 @@
+{
+  "rules": [
+    {
+      "id": "browser.chrome_cache",
+      "displayName": "Кеш браузера Google Chrome (без паролів і сесій)",
+      "category": "BrowserCache",
+      "description": "Тимчасовий вебкеш, Code Cache та GPUCache профілю Google Chrome. Куки, історія та паролі не зачіпаються.",
+      "paths": [
+        "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Cache\\Cache_Data",
+        "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Code Cache",
+        "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\GPUCache",
+        "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\ShaderCache"
+      ],
+      "filePatterns": [
+        "*"
+      ],
+      "recursive": true,
+      "minFileAgeHours": 0,
+      "requiresElevation": false,
+      "enabledByDefault": true
+    },
+    {
+      "id": "browser.edge_cache",
+      "displayName": "Кеш браузера Microsoft Edge (без паролів і сесій)",
+      "category": "BrowserCache",
+      "description": "Тимчасовий вебкеш, Code Cache та GPUCache профілю Microsoft Edge. Авторизація та паролі зберігаються.",
+      "paths": [
+        "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\Default\\Cache\\Cache_Data",
+        "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\Default\\Code Cache",
+        "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\Default\\GPUCache",
+        "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\ShaderCache"
+      ],
+      "filePatterns": [
+        "*"
+      ],
+      "recursive": true,
+      "minFileAgeHours": 0,
+      "requiresElevation": false,
+      "enabledByDefault": true
+    }
+  ]
+}

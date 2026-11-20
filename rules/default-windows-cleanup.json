@@ -1,0 +1,127 @@
+{
+  "rules": [
+    {
+      "id": "win.user_temp",
+      "displayName": "Тимчасові файли користувача (%TEMP%)",
+      "category": "UserTemp",
+      "description": "Тимчасові файли застосунків і розпаковані кеші старше 1 години в профілі користувача.",
+      "paths": [
+        "%TEMP%"
+      ],
+      "filePatterns": [
+        "*"
+      ],
+      "recursive": true,
+      "minFileAgeHours": 1,
+      "requiresElevation": false,
+      "enabledByDefault": true
+    },
+    {
+      "id": "win.system_temp",
+      "displayName": "Системні тимчасові файли Windows",
+      "category": "WindowsTemp",
+      "description": "Залишки системних інсталяторів та фонових служб у %WINDIR%\\Temp старше 1 години.",
+      "paths": [
+        "%WINDIR%\\Temp"
+      ],
+      "filePatterns": [
+        "*"
+      ],
+      "recursive": true,
+      "minFileAgeHours": 1,
+      "requiresElevation": true,
+      "enabledByDefault": true
+    },
+    {
+      "id": "win.crash_dumps",
+      "displayName": "Дампи аварійного завершення та звіти WER",
+      "category": "CrashDumps",
+      "description": "Локальні дампи збоїв програм (CrashDumps) та архіви звітів Windows Error Reporting.",
+      "paths": [
+        "%LOCALAPPDATA%\\CrashDumps",
+        "%LOCALAPPDATA%\\Microsoft\\Windows\\WER\\ReportArchive",
+        "%LOCALAPPDATA%\\Microsoft\\Windows\\WER\\ReportQueue",
+        "%ProgramData%\\Microsoft\\Windows\\WER\\ReportArchive",
+        "%ProgramData%\\Microsoft\\Windows\\WER\\ReportQueue",
+        "%WINDIR%\\Minidump"
+      ],
+      "filePatterns": [
+        "*.dmp",
+        "*.hdmp",
+        "*.mdmp",
+        "*.wer"
+      ],
+      "recursive": true,
+      "minFileAgeHours": 0,
+      "requiresElevation": false,
+      "enabledByDefault": true
+    },
+    {
+      "id": "win.system_logs",
+      "displayName": "Журнали обслуговування Windows (CBS / DISM)",
+      "category": "SystemLogs",
+      "description": "Застарілі архівні журнали компонентного сховища CBS і DISM старше 24 годин.",
+      "paths": [
+        "%WINDIR%\\Logs\\CBS",
+        "%WINDIR%\\Logs\\DISM",
+        "%WINDIR%\\Logs\\MoSetup"
+      ],
+      "filePatterns": [
+        "*.log",
+        "*.cab"
+      ],
+      "recursive": true,
+      "minFileAgeHours": 24,
+      "requiresElevation": true,
+      "enabledByDefault": false
+    },
+    {
+      "id": "win.update_cache",
+      "displayName": "Кеш завантажень Windows Update",
+      "category": "WindowsUpdateCache",
+      "description": "Завантажені інсталяційні пакети оновлень у SoftwareDistribution\\Download старше 24 годин.",
+      "paths": [
+        "%WINDIR%\\SoftwareDistribution\\Download"
+      ],
+      "filePatterns": [
+        "*"
+      ],
+      "recursive": true,
+      "minFileAgeHours": 24,
+      "requiresElevation": true,
+      "enabledByDefault": false
+    },
+    {
+      "id": "win.thumbnails",
+      "displayName": "Кеш ескізів Провідника Windows",
+      "category": "Thumbnails",
+      "description": "Файли кешу мініатюр зображень thumbcache_*.db у профілі користувача.",
+      "paths": [
+        "%LOCALAPPDATA%\\Microsoft\\Windows\\Explorer"
+      ],
+      "filePatterns": [
+        "thumbcache_*.db"
+      ],
+      "recursive": false,
+      "minFileAgeHours": 0,
+      "requiresElevation": false,
+      "enabledByDefault": false
+    },
+    {
+      "id": "win.recycle_bin",
+      "displayName": "Кошик Windows",
+      "category": "RecycleBin",
+      "description": "Видалені користувачем файли в Кошику на всіх локальних дисках.",
+      "paths": [
+        "$RECYCLE.BIN"
+      ],
+      "filePatterns": [
+        "*"
+      ],
+      "recursive": false,
+      "minFileAgeHours": 0,
+      "requiresElevation": false,
+      "enabledByDefault": true
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+ARGUS — Звіт про виконання Етапу 7
+Назва: Інвентаризація заліза й модуль «Диспетчер пристроїв» (WMI, SMBIOS, SetupAPI, CfgMgr32, WM_DEVICECHANGE)
+Дата: 19 листопада 2026 року
+Версія: 0.7.0
+
+1. Що зроблено
+- Реалізовано повноцінний модуль інвентаризації заліза та дерева пристроїв Argus.Devices (переведено зі стану «Каркас» у «Готово», загальна готовність ядра — 60%, 3 із 5 модулів):
+  - src/Argus.Core/Contracts/Devices/DeviceContracts.cs — додано контракт живого монітора топології IDeviceChangeMonitor.
+  - src/Argus.Devices/Providers/WindowsDeviceProvider.cs (IDeviceProvider):
+    - GetInventoryAsync збирає специфікацію ОС і режиму завантажувача (UEFI / Legacy BIOS), процесора (модель, виробник, сокет, фізичні ядра, потоки, максимальна частота, обсяги кешу L2 і L3), планок оперативної пам'яті в кожному слоті SMBIOS (DeviceLocator, обсяг, частота, декодування DDR3/DDR4/DDR5 та JEDEC-кодів виробників на кшталт 8502 -> Patriot Memory), материнської плати й BIOS (виробник, модель, версія та дата релізу), відеоадаптерів (точний обсяг VRAM понад 4 ГіБ через реєстр HardwareInformation.qwMemorySize, версія драйвера, PCI-ідентифікатор) і фізичних мережевих інтерфейсів (тип, швидкість лінку, статус, MAC-адреса).
+    - GetDevicesAsync будує живе дерево підключених пристроїв безпосередньо через нативні Win32 SetupAPI (SetupDiGetClassDevsW, SetupDiEnumDeviceInfo, SetupDiGetDeviceRegistryPropertyW) та CfgMgr32 (CM_Get_DevNode_Status, CM_Get_Device_IDW, CM_Get_Parent) зі швидким читанням версії та дати драйвера з HKLM\SYSTEM\CurrentControlSet\Control\Class\<SPDRP_DRIVER> без затримок WMI.
+  - src/Argus.Devices/Monitoring/WindowsDeviceChangeMonitor.cs (IDeviceChangeMonitor):
+    - Підписується на системні події підключення й відключення пристроїв через нативний Win32 CM_Register_Notification (CfgMgr32.dll, CM_NOTIFY_FILTER_FLAG_ALL_INTERFACE_CLASSES) та приймає віконні повідомлення WM_DEVICECHANGE (DBT_DEVICEARRIVAL, DBT_DEVICEREMOVECOMPLETE, DBT_DEVNODES_CHANGED) із MainWindow.
+    - Застосовує захист від пакетних спрацювань (debounce 350 мс), публікує DeviceTopologyChangedEvent у шину IArgusEventBus та записує подію в журнал операцій.
+- Оновлено інтерфейс розділу «Пристрої та конфігурація» (DevicesView / DevicesViewModel):
+  - Верхня матриця специфікації ПК з 4 карток: «Процесор і кеш-пам'ять», «Системна плата та UEFI / BIOS», «Модулі оперативної пам'яті» (по кожному слоту SMBIOS) та «Відеокарта та мережа».
+  - Інтерактивний диспетчер пристроїв SetupAPI: миттєвий пошук за назвою, виробником, версією драйвера чи кодом PCI\VEN_ / USB\VID_, швидкі фільтри за шинами й станом («Усі», «PCIe», «USB», «Диски», «Мережа/Аудіо», «Проблемні») із живими лічильниками, кнопка ручного оновлення та автоматичне оновлення списку за подією DeviceTopologyChangedEvent.
+- Оновлено версію рішення до 0.7.0 у Directory.Build.props та перезібрано кореневий адміністраторський Argus.exe.
+- Розширено модульні тести: додано tests/Argus.App.Tests/DevicesInventoryTests.cs (4 нові тести: декодери SMBIOS/JEDEC/DMTF/шин, debounce і журналювання в WindowsDeviceChangeMonitor, фільтрація й реакція на PnP-події в DevicesViewModel, живий системний тест WindowsDeviceProvider на Windows) — разом 52 тести.
+
+2. Виявлені проблеми та як їх виправлено
+- Проблема 1: У тесті DevicesViewModel_LoadsInventoryFiltersByBusAndSearchAndReactsToTopologyChange перевірка фільтра PCIe очікувала 1 елемент, тоді як тестовий набір містив 2 пристрої на шині PCIe (відеокарту та контролер із помилкою).
+  Виправлення: Уточнено очікування тесту до 2 пристроїв PCIe з перевіркою наявності відеокарти.
+- Проблема 2: Під час візуального перегляду скриншота першого прогону (stage7_devices.png) виявлено три моменти:
+  1) у заголовку картки «Модулі оперативної пам'яті» довгий підпис «Усього 32 ГіБ · Активних модулів: 2» стикався з назвою картки;
+  2) у картці «Відеокарта та мережа» показувався віртуальний фільтр NDIS (-Virtual WiFi Filter Driver-0000) замість фізичного мережевого адаптера;
+  3) у списку пристроїв SetupAPI залишався програмний проксі-вузол SW\{...} (Microsoft Streaming Service Proxy), а хук Win32Properties.AddWndProcHookCallback реєструвався до події Opened вікна.
+  Виправлення: Підпис ОЗП оформлено компактною капсулою «32 ГіБ · Слотів: 2» із відступом; у CollectNetworkAdapters додано фільтрацію віртуальних NDIS-фільтрів; префікс SW\ додано до IsNoiseSoftwareDevice; реєстрацію AddWndProcHookCallback перенесено в обробник Opened у MainWindow.axaml.cs.
+
+3. Результати перевірки в ізольованій пісочниці (два прогони)
+- Сувора збірка (TreatWarningsAsErrors=true) у Debug і Release: 0 помилок, 0 попереджень.
+- Модульні тести (Argus.Core.Tests + Argus.App.Tests, xunit.v3 / MTP): 52 із 52 тестів пройдено в Debug і Release.
+- Аудит NuGet (--vulnerable --include-transitive, --deprecated): 0 вразливих і 0 застарілих пакетів у всіх 8 проєктах.
+- Сканер Windows Defender (MpCmdRun.exe -Scan -ScanType 3):
+  - однофайлова збірка у пісочниці (47,93 МБ, 0 файлів .pdb): 0 загроз (код виходу 0);
+  - кореневий Argus.exe із правами адміністратора (47,93 МБ, версія 0.7.0, підсистема WinGUI=2, вбудований маніфест requireAdministrator перевірено з PE-ресурсу RT_MANIFEST): 0 загроз (код виходу 0).
+- Ізольований запуск однофайлового Argus.exe без .NET у PATH і без DOTNET_ROOT (прогін 2):
+  - «Пристрої» (1256x789, stderr порожній): відображено реальні характеристики ПК (Intel Core i7-9700K, сокет U3E1, кеш L2 2 МБ / L3 12 МБ; плата Gigabyte Z390 M-CF, BIOS American Megatrends F6 від 2021-11-05, режим UEFI; 2 слоти ChannelA/B-DIMM0 по 16 ГіБ DDR4 @ 2666 МГц Patriot Memory; NVIDIA GeForce GTX 1660 6 ГіБ VRAM і фізичний Wi-Fi адаптер TP-Link) та живе дерево зі 173 пристроїв SetupAPI (PCIe: 24, USB: 37, Диски: 5, Мережа/Аудіо: 15, Проблемні: 0).
+  - «Огляд» (1256x789, stderr порожній): готовність архітектури зросла до 60% (3 із 5 модулів готові: Argus.Core, Argus.Devices, Argus.Telemetry), бейдж версії v0.7.0.
+  - Діагностичний лог у пісочниці підтвердив успішну реєстрацію монітора CfgMgr32 без помилок; тимчасову пісочницю після перевірки видалено.

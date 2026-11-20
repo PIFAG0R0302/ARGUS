@@ -1,0 +1,38 @@
+ARGUS — Звіт про виконання Етапу 10
+Назва: Єдиний скомпільований C#-рушій клонування ОС CopyOS (`Argus.Migration`) і покроковий графічний майстер
+Дата: 19 листопада 2026 року
+Версія: 0.10.0
+
+1. Що зроблено
+- Портовано й об'єднано обидва еталонні скрипти CopyOS (`legacy-scripts/Universal-OS-Inside-Cloner.bat` і `legacy-scripts/Universal-OS-Outside-Cloner.bat`) у скомпільований C#-модуль `Argus.Migration` без PowerShell, тимчасових `.ps1`-файлів і компіляції `Add-Type` на льоту:
+  - `src/Argus.Migration/Engine/NtfsVssCloner.cs`: двобуферний блоковий копіювальник через Win32 P/Invoke (`CreateFileW`, `DeviceIoControl`, `FSCTL_GET_VOLUME_BITMAP`, `FSCTL_LOCK_VOLUME`, `FSCTL_DISMOUNT_VOLUME`, `FSCTL_ALLOW_EXTENDED_DASD_IO`, `VirtualAlloc` 2 × 16 МіБ). Зводить сусідні зайняті кластери в блоки до 16 МіБ, примусово включає перші й останні 8 МіБ розділу, оновлює байт серійного номера тома NTFS (`0x4B`) у первинному та резервному VBR, підтримує `CancellationToken` із звільненням буферів і передає в UI швидкість (МБ/с) і залишковий час (ETA).
+  - `src/Argus.Migration/Engine/MigrationPlanEvaluator.cs`: детермінований фільтр шин (`SATA / NVMe / RAID / ATA / SAS / SCSI` для внутрішнього профілю та лише `USB` для зовнішнього), автовибір між `BLOCK` (однакові сектори, достатній обсяг, без BitLocker) і `VSS + DISM` (менший диск, BitLocker або інші сектори, пошук локального буфера NTFS), захист від вибору системного диска, каталоги завантажувальних драйверів і формування двійкового запису `MountedDevices` (`DMIO:ID:` + GUID для GPT; сигнатура + зміщення для MBR).
+  - `src/Argus.Migration/Engine/IMigrationHostOperations.cs` і `src/Argus.Migration/Engine/WindowsMigrationHostOperations.cs`: реалізація операцій Windows (інспекція живої ОС через WMI і `GetFirmwareType`, опитування дисків `MSFT_Disk` / `MSFT_Partition` / `MSFT_PhysicalDisk`, створення й видалення VSS-знімка `Win32_ShadowCopy`, розмітка через `diskpart.exe`, перевірка й розширення `chkdsk.exe /f /x`, захоплення й розгортання `dism.exe` з парсингом відсотків, перенесення та скидання шляхів перенаправлених тек користувача `User Shell Folders`, правка офлайн-реєстру `SYSTEM` для SATA/NVMe/RAID або USB/USB4/UASP із `BootDriverFlags = 28` і `PollBootPartitionTimeout = 30000`, встановлення завантажувача `bcdboot.exe` / `bcdedit.exe` / `bootsect.exe` із примусовим `/nofirmwaresync` для USB та опційним пріоритетом UEFI для внутрішніх SSD).
+  - `src/Argus.Migration/Engine/WindowsMigrationEngine.cs`: оркестрація всіх фаз міграції з перевіркою прав адміністратора, перевіркою коду підтвердження (`WIPE-DISK-<N>`), записом детального логу (`copyos-migration-*.log`), фіксацією подій у `journal.jsonl` (`MigrationBlockedNotAdmin`, `MigrationBlockedConfirmation`, `MigrationCompleted`, `MigrationCancelled`, `MigrationFailed`) і гарантованим очищенням VSS-знімка, гілок реєстру та тимчасових тек у блоці `finally`.
+- Оновлено `src/Argus.Migration/MigrationModule.cs`: модуль `Argus.Migration` переведено на етап `ArgusModuleStage.Ready` (готовність ядра на екрані «Огляд» — 100 %, 5 із 5 модулів), `IMigrationHostOperations` та `IMigrationEngine` зареєстровано в DI.
+- Реалізовано покроковий майстер CopyOS у `src/Argus.App/ViewModels/MigrationViewModel.cs`, `src/Argus.App/Views/MigrationView.axaml` та `src/Argus.App/App.axaml.cs`:
+  - картка активної ОС (`UEFI`, статус BitLocker, модель, розмір сектора, зайнятий простір);
+  - перемикач профілів («Внутрішній диск» / «Зовнішній носій»), список придатних цільових дисків із попередженням про наявні дані, вибір `UEFI / GPT` або `Legacy / MBR`, вибір режиму (`Авто`, `BLOCK`, `VSS + DISM`), внутрішні опції UEFI-пріоритету й копіювання перенесеного Робочого столу;
+  - блок ручного підтвердження (`WIPE-DISK-<N>`), кнопки «Почати клонування» та «Скасувати», покрокові індикатори фаз (`VSS` -> `Розмітка` -> `Клонування` -> `CHKDSK` -> `Реєстр` -> `Завантажувач`), смуга прогресу, живий мініграфік швидкості (`TelemetrySparkline`, МБ/с) і шлях до логу.
+- Оновлено версію рішення до `0.10.0` у `Directory.Build.props`, оновлено `VersionBadge` у `tests/Argus.App.Tests/ViewModelTests.cs`, додано 6 модульних тестів у `tests/Argus.App.Tests/MigrationEngineTests.cs` (разом 66 тестів) і перезібрано кореневий адміністраторський `Argus.exe`.
+
+2. Виявлені проблеми та як їх виправлено
+- Проблема 1 (компіляція): у `WindowsMigrationHostOperations.cs` виник конфлікт імен `EnumerationOptions` між `System.IO` та `System.Management`, а в `MigrationView.axaml` Avalonia 12 видала попередження `AVLN5001` для застарілої властивості `TextBox.Watermark`.
+  Виправлення: явно вказано `System.IO.EnumerationOptions`, а `Watermark` замінено на `PlaceholderText` (0 попереджень).
+- Проблема 2 (прогін 1 у пісочниці, `stage10_migration.png`): на екрані «Міграція ОС» залишався текст «Опитування активної ОС...». Діагностика показала, що без прав адміністратора WMI-запит до простору імен BitLocker (`root\CIMV2\Security\MicrosoftVolumeEncryption`) щоразу чекає ~5,1 с і повертає `Access denied`, через що три послідовні запити перевищували 15 с.
+  Виправлення: у `DetectBitLockerStatus` додано перевірку `WindowsPrincipal` — у непідвищеному режимі запит до WMI BitLocker пропускається (у верхній панелі чесно показано `BitLocker: перевірка з UAC`, а перед запуском `ExecuteAsync` інспекція завжди виконується з правами адміністратора). У `MigrationViewModel.RefreshEnvironmentAsync()` додано негайне відображення джерела ОС і обробку винятків.
+- Проблема 3 (порядок статусів у `WindowsMigrationEngine`): виклик `Report(CleaningUp)` у блоці `finally` міг перезаписати кінцевий статус `Completed` або `Cancelled`.
+  Виправлення: `CleaningUp` тепер повідомляється перед фінальним статусом, а блок `finally` виконує ідемпотентне доочищення без перезапису фінального стану UI.
+
+3. Результати фінальної перевірки (Прогін 2)
+- Сувора збірка (`TreatWarningsAsErrors=true`) у `Debug` і `Release`: 0 помилок, 0 попереджень.
+- Модульні тести (`Argus.Core.Tests` + `Argus.App.Tests`): 66 із 66 тестів пройдено в `Debug` (`2s 251ms`) і `Release` (`2s 286ms`).
+- Аудит NuGet (`--vulnerable --include-transitive`, `--deprecated`): 0 вразливих і 0 застарілих пакетів у всіх 8 проєктах.
+- Однофайлова пісочниця (`win-x64`, `asInvoker`, `DOTNET_ROOT` і `dotnet` з `PATH` вилучено): 2 файли, 48,03 МБ, 0 файлів `.pdb`.
+- Сканер Windows Defender (`MpCmdRun.exe -Scan -ScanType 3`):
+  - папка пісочниці: код виходу 0 (`found no threats`);
+  - кореневий `Argus.exe` (`48,03 МБ`, версія `0.10.0`, `Subsystem=2 WinGUI`, маніфест `requireAdministrator`): код виходу 0 (`found no threats`).
+- Ізольований запуск без .NET у середовищі:
+  - `--section migration` (`1256x789`, `WS=224,3 МБ`, `stderr` порожній): миттєво завантажилося джерело (`Майкрософт Windows 11 Pro (x64)`, `Том C: · Диск 2`, `SPCC Solid State Disk`, `SATA`, зайнято 194,01 ГіБ із 237,42 ГіБ, сектор 512 Б, `UEFI`, `BitLocker: перевірка з UAC`), виявлено обидва внутрішні цільові диски (`Диск 0 · WDC WD10EZEX-08WN4A0` 931,51 ГіБ `D:` зайнято 185,42 ГіБ; `Диск 1 · ST4000DM004-2CV104` 3726,02 ГіБ `E:` зайнято 2599,22 ГіБ) із виключенням системного Диска 2, автоматично обрано `BLOCK (VSS Bitmap 1-в-1)`, сформовано код підтвердження `WIPE-DISK-0` і показано попередження про UAC та зайняті дані на Диску 0.
+  - `--section overview` (`1256x789`, `WS=224,5 МБ`, `stderr` порожній): індикатор готовності 100 % (5 із 5 модулів у статусі `Готово`), жива телеметрія (`GeForce GTX 1660 · 50 °C`, `Windows 11 (збірка 26300)`), журнал подій без обрізань.
+  - Журнал пісочниці чистий (`Telemetry` 1000 мс + `CfgMgr32`), тимчасову пісочницю після тестування видалено.

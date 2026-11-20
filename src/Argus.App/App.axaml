@@ -1,0 +1,39 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Argus.App.ViewModels"
+             xmlns:views="using:Argus.App.Views"
+             x:Class="Argus.App.App"
+             RequestedThemeVariant="Dark">
+
+  <Application.Styles>
+    <FluentTheme />
+    <StyleInclude Source="avares://Argus/Themes/ArgusTheme.axaml" />
+  </Application.Styles>
+
+  <Application.DataTemplates>
+    <DataTemplate DataType="vm:OverviewViewModel">
+      <views:OverviewView />
+    </DataTemplate>
+    <DataTemplate DataType="vm:MonitoringViewModel">
+      <views:MonitoringView />
+    </DataTemplate>
+    <DataTemplate DataType="vm:DevicesViewModel">
+      <views:DevicesView />
+    </DataTemplate>
+    <DataTemplate DataType="vm:CleanupViewModel">
+      <views:CleanupView />
+    </DataTemplate>
+    <DataTemplate DataType="vm:DisksViewModel">
+      <views:DisksView />
+    </DataTemplate>
+    <DataTemplate DataType="vm:MigrationViewModel">
+      <views:MigrationView />
+    </DataTemplate>
+    <DataTemplate DataType="vm:JournalViewModel">
+      <views:JournalView />
+    </DataTemplate>
+    <DataTemplate DataType="vm:SettingsViewModel">
+      <views:SettingsView />
+    </DataTemplate>
+  </Application.DataTemplates>
+</Application>

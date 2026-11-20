@@ -1,0 +1,272 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Argus.App.ViewModels"
+             xmlns:controls="using:Argus.App.Controls"
+             x:Class="Argus.App.Views.OverviewView"
+             x:DataType="vm:OverviewViewModel">
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Spacing="12" Margin="0,0,4,12">
+
+      <!-- Top Row: 4 Main Live Percentage Radial Gauges from Monitoring + System Disk -->
+      <UniformGrid Columns="4">
+        <Border Classes="panel" Margin="0,0,10,0" Padding="8,5">
+          <controls:TelemetryArcGauge Height="132"
+                                      IsStandby="{Binding CpuStandby}"
+                                      Value="{Binding CpuGaugeValue}"
+                                      Maximum="100"
+                                      DisplayValue="{Binding CpuGaugeDisplay}"
+                                      Unit="%"
+                                      Label="Процесор"
+                                      SubLabel="{Binding CpuGaugeSubLabel}"
+                                      AccentStart="#7C5CFF"
+                                      AccentEnd="#38D9F5" />
+        </Border>
+        <Border Classes="panel" Margin="0,0,10,0" Padding="8,5">
+          <controls:TelemetryArcGauge Height="132"
+                                      IsStandby="{Binding RamStandby}"
+                                      Value="{Binding RamGaugeValue}"
+                                      Maximum="100"
+                                      DisplayValue="{Binding RamGaugeDisplay}"
+                                      Unit="%"
+                                      Label="Оперативна пам'ять"
+                                      SubLabel="{Binding RamGaugeSubLabel}"
+                                      AccentStart="#6366F1"
+                                      AccentEnd="#38D9F5" />
+        </Border>
+        <Border Classes="panel" Margin="0,0,10,0" Padding="8,5">
+          <controls:TelemetryArcGauge Height="132"
+                                      IsStandby="{Binding GpuStandby}"
+                                      Value="{Binding GpuGaugeValue}"
+                                      Maximum="100"
+                                      DisplayValue="{Binding GpuGaugeDisplay}"
+                                      Unit="%"
+                                      Label="Відеокарта"
+                                      SubLabel="{Binding GpuGaugeSubLabel}"
+                                      AccentStart="#8B5CF6"
+                                      AccentEnd="#2DD4A8" />
+        </Border>
+        <Border Classes="panel" Padding="8,5">
+          <controls:TelemetryArcGauge Height="132"
+                                      Value="{Binding SystemDiskUsedPercent}"
+                                      Maximum="100"
+                                      DisplayValue="{Binding SystemDiskDisplay}"
+                                      Unit="%"
+                                      Label="Системний диск"
+                                      SubLabel="{Binding SystemDiskSubLabel}"
+                                      AccentStart="#38D9F5"
+                                      AccentEnd="#9B82FF" />
+        </Border>
+      </UniformGrid>
+
+      <!-- Main Two-Column User Dashboard -->
+      <Grid ColumnDefinitions="*,14,*">
+
+        <!-- Left Column: Hardware Architecture & Node Parameters -->
+        <StackPanel Grid.Column="0" Spacing="12">
+          <Border Classes="panel-hero" Padding="15,12">
+            <StackPanel Spacing="9">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Classes="section-heading" Text="Архітектура ПК" VerticalAlignment="Center" />
+                <Button Grid.Column="1"
+                        Classes="argus-secondary"
+                        Padding="10,4"
+                        FontSize="11.5"
+                        Content="Пристрої"
+                        Command="{Binding OpenDevicesCommand}" />
+              </Grid>
+
+              <Border Classes="tile" Padding="11,8">
+                <StackPanel Spacing="2">
+                  <TextBlock FontSize="11" Foreground="{StaticResource ArgusTextMutedBrush}" Text="ПРОЦЕСОР" />
+                  <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" Text="{Binding CpuArchitectureText}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Classes="metric-mono" FontSize="11" Text="{Binding CpuCacheDetailText}" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+              </Border>
+
+              <Border Classes="tile" Padding="11,8">
+                <StackPanel Spacing="2">
+                  <TextBlock FontSize="11" Foreground="{StaticResource ArgusTextMutedBrush}" Text="МОДУЛІ ОПЕРАТИВНОЇ ПАМ'ЯТІ" />
+                  <TextBlock FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" Text="{Binding RamArchitectureText}" TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
+
+              <Border Classes="tile" Padding="11,8">
+                <StackPanel Spacing="2">
+                  <TextBlock FontSize="11" Foreground="{StaticResource ArgusTextMutedBrush}" Text="ВІДЕОКАРТА" />
+                  <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" Text="{Binding GpuArchitectureText}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Classes="metric-mono" FontSize="11" Text="{Binding LiveGpuSummaryText}" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+              </Border>
+
+              <Border Classes="tile" Padding="11,8">
+                <StackPanel Spacing="2">
+                  <TextBlock FontSize="11" Foreground="{StaticResource ArgusTextMutedBrush}" Text="СИСТЕМНА ПЛАТА ТА BIOS / UEFI" />
+                  <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" Text="{Binding MotherboardArchitectureText}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Classes="metric-mono" FontSize="11" Text="{Binding BiosArchitectureText}" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </Border>
+
+          <!-- Node Live Parameters -->
+          <Border Classes="panel" Padding="15,12">
+            <StackPanel Spacing="9">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Classes="section-heading" Text="Параметри вузла" VerticalAlignment="Center" />
+                <Button Grid.Column="1"
+                        Classes="argus-secondary"
+                        Padding="10,4"
+                        FontSize="11.5"
+                        Content="Моніторинг"
+                        Command="{Binding OpenMonitoringCommand}" />
+              </Grid>
+
+              <Grid ColumnDefinitions="*,10,*">
+                <Border Grid.Column="0" Classes="tile" Padding="10,8">
+                  <StackPanel Spacing="2">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Classes="body-muted" FontSize="11.5" Text="CPU зараз" />
+                      <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="12" Text="{Binding LiveCpuSummaryText}" />
+                    </Grid>
+                    <controls:TelemetrySparkline Height="22" Values="{Binding CpuSparklineValues}" LineColor="#38D9F5" Margin="0,3,0,0" />
+                  </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2" Classes="tile" Padding="10,8">
+                  <StackPanel Spacing="2">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Classes="body-muted" FontSize="11.5" Text="ОЗП зараз" />
+                      <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="11.5" Text="{Binding LiveRamSummaryText}" />
+                    </Grid>
+                    <controls:TelemetrySparkline Height="22" Values="{Binding RamSparklineValues}" LineColor="#9B82FF" Margin="0,3,0,0" />
+                  </StackPanel>
+                </Border>
+              </Grid>
+
+              <Border Classes="tile" Padding="11,8">
+                <StackPanel Spacing="5">
+                  <Grid ColumnDefinitions="Auto,*">
+                    <TextBlock Classes="body-muted" FontSize="12" Text="Система" />
+                    <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="12" HorizontalAlignment="Right" Text="{Binding OsText}" />
+                  </Grid>
+                  <Grid ColumnDefinitions="Auto,*">
+                    <TextBlock Classes="body-muted" FontSize="12" Text="Опитування" />
+                    <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="12" HorizontalAlignment="Right" Text="{Binding TelemetryIntervalText}" />
+                  </Grid>
+                  <Grid ColumnDefinitions="Auto,*">
+                    <TextBlock Classes="body-muted" FontSize="12" Text="Датчики" />
+                    <TextBlock Grid.Column="1" FontSize="12" HorizontalAlignment="Right" Foreground="{StaticResource ArgusEmeraldBrush}" Text="{Binding SensorTierText}" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <!-- Right Column: Quick Cleanup Analysis + Connected Physical Disks -->
+        <StackPanel Grid.Column="2" Spacing="12">
+
+          <!-- Cleanup Summary & Quick Analyze Card -->
+          <Border Classes="panel-hero" Padding="15,12">
+            <StackPanel Spacing="9">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Classes="section-heading" Text="Очищення системи" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                  <Button Classes="argus-primary"
+                          Padding="11,5"
+                          FontSize="11.5"
+                          IsEnabled="{Binding !IsCleanupBusy}"
+                          Content="Аналізувати"
+                          Command="{Binding AnalyzeCleanupFromOverviewCommand}" />
+                  <Button Classes="argus-secondary"
+                          Padding="10,5"
+                          FontSize="11.5"
+                          Content="Відкрити"
+                          Command="{Binding OpenCleanupCommand}" />
+                </StackPanel>
+              </Grid>
+
+              <Border Classes="tile" Padding="12,9">
+                <StackPanel Spacing="6">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock FontSize="12" Foreground="{StaticResource ArgusTextSecondaryBrush}" Text="Знайдено тимчасових файлів і кешу" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusCyanBrush}" Text="{Binding CleanupFoundSummaryText}" />
+                  </Grid>
+
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" FontSize="11.5" Foreground="{StaticResource ArgusTextMutedBrush}" Text="{Binding CleanupStatusText}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
+                    <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="11.5" Foreground="{StaticResource ArgusVioletSoftBrush}" Text="{Binding CleanupProgressText}" />
+                  </Grid>
+
+                  <ProgressBar Minimum="0"
+                               Maximum="100"
+                               Value="{Binding CleanupProgressPercent}"
+                               Height="6"
+                               CornerRadius="3"
+                               Background="#161E42"
+                               Foreground="{StaticResource ArgusCyanBrush}" />
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </Border>
+
+          <!-- Connected Physical Disks Card -->
+          <Border Classes="panel" Padding="15,12">
+            <StackPanel Spacing="9">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="2">
+                  <TextBlock Classes="section-heading" Text="Підключені диски" />
+                  <TextBlock FontSize="11.5" Foreground="{StaticResource ArgusTextMutedBrush}" Text="{Binding DisksFleetSummaryText}" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        Classes="argus-secondary"
+                        Padding="10,5"
+                        FontSize="11.5"
+                        VerticalAlignment="Center"
+                        Content="Усі диски"
+                        Command="{Binding OpenDisksCommand}" />
+              </Grid>
+
+              <ItemsControl ItemsSource="{Binding ConnectedDisks}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:OverviewDiskSummaryItem">
+                    <Border Classes="tile" Margin="0,0,0,6" Padding="11,8">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,10,0">
+                          <StackPanel Orientation="Horizontal" Spacing="7">
+                            <TextBlock Text="{Binding Title}"
+                                       FontSize="12.5"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center" />
+                            <Border Classes="pill" Classes.pill-ready="{Binding IsSsdOrNvme}" Padding="6,1" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding MediaBadge}" FontSize="10" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                            </Border>
+                          </StackPanel>
+                          <TextBlock Classes="metric-mono" FontSize="11" Text="{Binding DetailsText}" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+
+                        <Border Grid.Column="1"
+                                Classes="pill"
+                                Classes.pill-ready="{Binding IsHealthy}"
+                                Classes.pill-warn="{Binding IsCaution}"
+                                Classes.pill-danger="{Binding IsCritical}"
+                                Padding="8,2"
+                                VerticalAlignment="Center">
+                          <TextBlock Text="{Binding HealthLabel}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                        </Border>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Grid>
+
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

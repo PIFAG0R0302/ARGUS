@@ -1,0 +1,47 @@
+ARGUS — Звіт про виконання Етапу 5
+Назва: Дворівневе ядро телеметрії в реальному часі (без WinRing0) та кореневий Argus.exe із правами адміністратора
+Дата: 19 листопада 2026 року
+Версія: 0.5.0
+
+1. Що зроблено
+- Реалізовано повноцінне ядро телеметрії реального часу в модулі Argus.Telemetry (переведено зі стану «Каркас» у «Готово», готовність ядра — 40%, 2 із 5 модулів):
+  - Native/PdhNative.cs — мовонезалежна обгортка Win32 PDH через PdhAddEnglishCounterW для надійної роботи на будь-якій локалізації Windows 10/11 без сторонніх драйверів.
+  - Providers/WindowsCpuTelemetryProvider.cs — точне загальне й попотокове завантаження CPU через NtQuerySystemInformation(SystemProcessorPerformanceInformation), жива динамічна частота в МГц (включно з Turbo Boost) через CallNtPowerInformation і PDH % Processor Performance та топологія фізичних ядер і логічних потоків через GetLogicalProcessorInformationEx.
+  - Providers/WindowsMemoryTelemetryProvider.cs — обсяг, зайнятість і відсоток оперативної пам'яті через Win32 GlobalMemoryStatusEx.
+  - Providers/NvmlGpuTelemetryProvider.cs та WindowsFallbackGpuTelemetryProvider.cs — динамічне підключення офіційної бібліотеки nvml.dll для відеокарт NVIDIA (завантаження ядра, точний обсяг і зайнятість VRAM понад 4 ГіБ, температура, частота ядра, споживання у Вт та оберти/відсоток вентилятора) і універсальний резервний контур Windows WDDM PDH (GPU Engine / GPU Adapter Memory + WMI/реєстр) для відеокарт AMD та Intel.
+  - Providers/WindowsStorageTelemetryProvider.cs — швидкість читання й запису фізичних дисків через PDH PhysicalDisk та зчитування реальної температури накопичувачів через нативний Win32 IOCTL_STORAGE_QUERY_PROPERTY (StorageDeviceTemperatureProperty) із резервним запитом MSFT_StorageReliabilityCounter за наявності прав адміністратора (з тротлінгом раз на 10 с).
+  - Providers/AcpiThermalSensorProvider.cs та PawnIoSensorProvider.cs — прозоре зчитування реальних термальних зон ACPI через PDH (Рівень 1) та опційний міст підписаного драйвера PawnIO (Рівень 2) без жодного використання чи пакування WinRing0.sys.
+  - ArgusTelemetryService.cs — фоновий цикл опитування з динамічним інтервалом TelemetryIntervalMs, записом у потокобезпечний кільцевий буфер RingBuffer<TelemetrySnapshot> (до 3600 зразків), публікацією TelemetryUpdatedEvent у шину IArgusEventBus та ізоляцією помилок кожного окремого провайдера.
+- Підключено живий потік телеметрії до інтерфейсу Argus.App:
+  - App.axaml.cs запускає ITelemetryService на старті й коректно зупиняє на виході; додано подію SettingsChangedEvent для миттєвого оновлення інтервалу опитування й режиму сенсорів без перезапуску.
+  - MonitoringView / MonitoringViewModel — оживлено всі 4 кругові шкали Skia (CPU, RAM, GPU, пікова реальна температура із зазначенням джерела), додано матрицю завантаження по кожному потоку CPU, детальну картку відеоадаптера, список фізичних накопичувачів (I/O й температура) та додаткові сенсори.
+  - OverviewView / OverviewViewModel — додано живі зведення CPU, ОЗП і відеокарти у блоці «Параметри вузла», а бейдж версії у MainWindowViewModel тепер читається автоматично з метаданих збірки.
+- Додано кореневий виконуваний файл Argus.exe (e:\Antigravity projects\ARGUS\Argus.exe):
+  - Створено окремий маніфест src/Argus.App/app.admin.manifest із requestedExecutionLevel="requireAdministrator" та перемикач -p:ArgusRequireAdmin=true в Argus.App.csproj.
+  - У build.ps1 додано прапорець -PublishRootExe, який збирає автономний однофайловий Argus.exe (win-x64, без консольного вікна, із вбудованою іконкою та маніфестом адміністратора) просто в корінь проєкту, водночас звичайні збірки й пісочниця залишаються в режимі asInvoker.
+- Розширено модульні тести: додано tests/Argus.App.Tests/TelemetryEngineTests.cs (7 нових тестів: математика завантаження ядер CPU, конвертація ACPI з фільтрацією некоректних значень, парсинг індексів дисків, стани PawnIO, ізоляція збоїв у ArgusTelemetryService, оновлення MonitoringViewModel і живий системний замір Рівня 1 на Windows) — разом 44 тести.
+
+2. Виявлені проблеми та як їх виправлено
+- Проблема 1: У ArgusTelemetryService викликався відсутній метод RingBuffer.TakeLatest замість фактичного API Snapshot().
+  Виправлення: Переведено GetHistory на зріз останніх N елементів із _history.Snapshot().
+- Проблема 2: Подія SettingsChangedEvent була відсутня в Argus.Core, через що зміни інтервалу в налаштуваннях не оновлювали підписи моніторингу на льоту.
+  Виправлення: Додано record SettingsChangedEvent у Argus.Core/Configuration/ArgusSettings.cs та публікацію з SettingsViewModel після збереження і скидання.
+- Проблема 3: Аналізатори xunit.v3 (xUnit1031 / xUnit1051) заблокували синхронне очікування SampleOnceAsync() у тесті MonitoringViewModel.
+  Виправлення: Тест переведено на async Task із передачею TestContext.Current.CancellationToken.
+- Проблема 4: Під час візуального перегляду скриншотів першого прогону виявлено три моменти:
+  1) бейдж у боковій панелі показував захардкоджену версію v0.4.0 замість v0.5.0;
+  2) висота шкал (200 px) на екрані «Моніторинг» зсувала третій накопичувач частково за нижній край вікна 1240x780;
+  3) нижня картка «Параметри вузла» на екрані «Огляд» підходила впритул до нижньої рамки.
+  Виправлення: Бейдж версії у MainWindowViewModel переведено на автоматичне читання версії збірки (+ перевірка в ViewModelTests); у MonitoringView висоту шкал скориговано до 174 px, у OverviewView — до 186 px.
+
+3. Результати перевірки в ізольованій пісочниці (два прогони)
+- Сувора збірка (TreatWarningsAsErrors=true) у Debug і Release: 0 помилок, 0 попереджень.
+- Модульні тести (Argus.Core.Tests + Argus.App.Tests, xunit.v3 / MTP): 44 із 44 тестів пройдено в Debug і Release (включно із живим заміром Рівня 1 на Windows).
+- Аудит NuGet (--vulnerable --include-transitive, --deprecated): 0 вразливих і 0 застарілих пакетів у всіх 8 проєктах.
+- Сканер Windows Defender (MpCmdRun.exe -Scan -ScanType 3):
+  - однофайлова збірка у пісочниці (47,89 МБ, 0 файлів .pdb): 0 загроз (код виходу 0);
+  - кореневий Argus.exe із правами адміністратора (47,89 МБ, версія 0.5.0, підсистема WinGUI=2, вбудований маніфест requireAdministrator перевірено з PE-ресурсу RT_MANIFEST): 0 загроз (код виходу 0).
+- Ізольований запуск однофайлового Argus.exe без .NET у PATH і без DOTNET_ROOT (прогін 2):
+  - «Моніторинг»: 1256x789, stderr порожній; реальні показники на живому залізі (Intel Core i7-9700K — 24,1% і 4600 МГц по всіх 8 потоках, RAM 15,2 / 31,9 ГіБ, NVIDIA GeForce GTX 1660 — 10%, VRAM 1,7 / 6,0 ГіБ, 49 °C, усі 3 фізичні диски WDC / ST4000 / SPCC у полі зору).
+  - «Огляд»: 1256x789, stderr порожній; 40% готовності ядра (Argus.Core і Argus.Telemetry — «Готово»), бейдж v0.5.0, живі зведення CPU, ОЗП і GPU.
+  - Діагностичний лог у пісочниці підтвердив чистий старт циклу опитування без помилок; тимчасову пісочницю після перевірки видалено.

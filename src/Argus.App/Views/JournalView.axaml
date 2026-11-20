@@ -1,0 +1,85 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Argus.App.ViewModels"
+             x:Class="Argus.App.Views.JournalView"
+             x:DataType="vm:JournalViewModel">
+
+  <!-- Fully Adaptive Full-Height Operation Journal -->
+  <Grid RowDefinitions="Auto,12,*" Margin="0,0,4,6">
+
+    <!-- Filter & Search Header -->
+    <Border Grid.Row="0" Classes="panel-hero" Padding="14,11">
+      <StackPanel Spacing="9">
+        <Grid ColumnDefinitions="*,10,Auto">
+          <TextBox Grid.Column="0"
+                   Classes="argus-input"
+                   Text="{Binding SearchQuery}"
+                   PlaceholderText="Пошук у журналі за дією, модулем або деталями операції…" />
+          <Button Grid.Column="2"
+                  Classes="argus-secondary"
+                  Padding="12,6"
+                  FontSize="12"
+                  Content="Оновити"
+                  Command="{Binding RefreshEntriesCommand}" />
+        </Grid>
+
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+            <Button Classes="argus-secondary" Classes.selected="{Binding IsFilterAll}" Padding="10,4" FontSize="11.5" Content="Усі" Command="{Binding SetFilterAllCommand}" />
+            <Button Classes="argus-secondary" Classes.selected="{Binding IsFilterInfo}" Padding="10,4" FontSize="11.5" Content="Інфо" Command="{Binding SetFilterInfoCommand}" />
+            <Button Classes="argus-secondary" Classes.selected="{Binding IsFilterSuccess}" Padding="10,4" FontSize="11.5" Content="Успіх" Command="{Binding SetFilterSuccessCommand}" />
+            <Button Classes="argus-secondary" Classes.selected="{Binding IsFilterWarning}" Padding="10,4" FontSize="11.5" Content="Увага" Command="{Binding SetFilterWarningCommand}" />
+            <Button Classes="argus-secondary" Classes.selected="{Binding IsFilterError}" Padding="10,4" FontSize="11.5" Content="Помилки" Command="{Binding SetFilterErrorCommand}" />
+          </StackPanel>
+
+          <TextBlock Grid.Column="1"
+                     Classes="metric-mono"
+                     FontSize="11.5"
+                     VerticalAlignment="Center"
+                     Text="{Binding CountSummaryText}" />
+        </Grid>
+      </StackPanel>
+    </Border>
+
+    <!-- Adaptive Full-Height Journal Feed -->
+    <Border Grid.Row="2" Classes="panel" Padding="14,12">
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <ItemsControl ItemsSource="{Binding FilteredEntries}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:JournalRowItem">
+              <Border Classes="tile" Margin="0,0,4,6" Padding="12,9">
+                <Grid ColumnDefinitions="72,68,140,190,*">
+                  <TextBlock Grid.Column="0" Classes="metric-mono" FontSize="11.5" Text="{Binding TimeText}" VerticalAlignment="Center" />
+                  <Border Grid.Column="1" Classes="pill" Padding="7,2" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding SeverityLabel}" FontSize="10.5" Foreground="{StaticResource ArgusCyanBrush}" />
+                  </Border>
+                  <TextBlock Grid.Column="2"
+                             FontSize="12"
+                             Foreground="{StaticResource ArgusVioletSoftBrush}"
+                             Text="{Binding ModuleId}"
+                             TextTrimming="CharacterEllipsis"
+                             Margin="6,0,10,0"
+                             VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="3"
+                             FontSize="12"
+                             FontWeight="SemiBold"
+                             Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                             Text="{Binding Action}"
+                             TextTrimming="CharacterEllipsis"
+                             Margin="0,0,12,0"
+                             VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="4"
+                             FontSize="12"
+                             Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                             Text="{Binding Details}"
+                             TextWrapping="Wrap"
+                             VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Border>
+  </Grid>
+</UserControl>

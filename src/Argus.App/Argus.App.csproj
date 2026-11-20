@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Argus.App</RootNamespace>
+    <AssemblyName>Argus</AssemblyName>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationManifest Condition="'$(ArgusRequireAdmin)' == 'true'">app.admin.manifest</ApplicationManifest>
+    <ApplicationManifest Condition="'$(ArgusRequireAdmin)' != 'true'">app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\argus.ico</ApplicationIcon>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <CopyOutputSymbolsToPublishDirectory Condition="'$(Configuration)' == 'Release'">false</CopyOutputSymbolsToPublishDirectory>
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+  </PropertyGroup>
+
+  <Target Name="StripNativePdbsOnReleasePublish" AfterTargets="ComputeFilesToPublish" Condition="'$(Configuration)' == 'Release'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Argus.App.Tests" />
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="Avalonia.Skia" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Argus.Core\Argus.Core.csproj" />
+    <ProjectReference Include="..\Argus.Telemetry\Argus.Telemetry.csproj" />
+    <ProjectReference Include="..\Argus.Devices\Argus.Devices.csproj" />
+    <ProjectReference Include="..\Argus.Maintenance\Argus.Maintenance.csproj" />
+    <ProjectReference Include="..\Argus.Migration\Argus.Migration.csproj" />
+  </ItemGroup>
+</Project>

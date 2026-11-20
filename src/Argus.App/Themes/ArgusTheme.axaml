@@ -1,0 +1,312 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <Styles.Resources>
+    <!-- Core Base Palette: Deep Observatory Blue-Violet -->
+    <Color x:Key="ArgusObsidianBlue">#060916</Color>
+    <Color x:Key="ArgusAbyssIndigo">#0B1026</Color>
+    <Color x:Key="ArgusNebulaSlate">#111735</Color>
+    <Color x:Key="ArgusNebulaElevated">#171F45</Color>
+    <Color x:Key="ArgusTwilightEdge">#242E63</Color>
+    <Color x:Key="ArgusTwilightBright">#3A478F</Color>
+    <Color x:Key="ArgusIonViolet">#7C5CFF</Color>
+    <Color x:Key="ArgusIonVioletSoft">#A48BFF</Color>
+    <Color x:Key="ArgusTelemetryCyan">#38D9F5</Color>
+
+    <!-- Semantic Status Colors -->
+    <Color x:Key="ArgusSignalEmerald">#2DD4A8</Color>
+    <Color x:Key="ArgusSolarAmber">#F5A623</Color>
+    <Color x:Key="ArgusThermalCoral">#F45B69</Color>
+
+    <!-- Text Hierarchy -->
+    <Color x:Key="ArgusStarlight">#EDF1FF</Color>
+    <Color x:Key="ArgusMistBlue">#95A0CC</Color>
+    <Color x:Key="ArgusDimSlate">#5E6A96</Color>
+
+    <!-- Named Brushes -->
+    <SolidColorBrush x:Key="ArgusBgCanvasBrush" Color="{StaticResource ArgusObsidianBlue}" />
+    <SolidColorBrush x:Key="ArgusBgRailBrush" Color="{StaticResource ArgusAbyssIndigo}" />
+    <SolidColorBrush x:Key="ArgusBgPanelBrush" Color="{StaticResource ArgusNebulaSlate}" />
+    <SolidColorBrush x:Key="ArgusBgCardBrush" Color="{StaticResource ArgusNebulaElevated}" />
+    <SolidColorBrush x:Key="ArgusBorderBrush" Color="{StaticResource ArgusTwilightEdge}" />
+    <SolidColorBrush x:Key="ArgusBorderBrightBrush" Color="{StaticResource ArgusTwilightBright}" />
+    <SolidColorBrush x:Key="ArgusVioletBrush" Color="{StaticResource ArgusIonViolet}" />
+    <SolidColorBrush x:Key="ArgusVioletSoftBrush" Color="{StaticResource ArgusIonVioletSoft}" />
+    <SolidColorBrush x:Key="ArgusCyanBrush" Color="{StaticResource ArgusTelemetryCyan}" />
+    <SolidColorBrush x:Key="ArgusEmeraldBrush" Color="{StaticResource ArgusSignalEmerald}" />
+    <SolidColorBrush x:Key="ArgusAmberBrush" Color="{StaticResource ArgusSolarAmber}" />
+    <SolidColorBrush x:Key="ArgusCoralBrush" Color="{StaticResource ArgusThermalCoral}" />
+    <SolidColorBrush x:Key="ArgusTextPrimaryBrush" Color="{StaticResource ArgusStarlight}" />
+    <SolidColorBrush x:Key="ArgusTextSecondaryBrush" Color="{StaticResource ArgusMistBlue}" />
+    <SolidColorBrush x:Key="ArgusTextMutedBrush" Color="{StaticResource ArgusDimSlate}" />
+
+    <!-- Subtle Atmosphere & Signature Gradient Brushes -->
+    <LinearGradientBrush x:Key="ArgusWorkspaceBackdrop" StartPoint="0%,0%" EndPoint="100%,100%">
+      <GradientStop Color="#060916" Offset="0" />
+      <GradientStop Color="#0B1028" Offset="0.58" />
+      <GradientStop Color="#120E2E" Offset="1" />
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="ArgusAccentLineBrush" StartPoint="0%,0%" EndPoint="100%,0%">
+      <GradientStop Color="#38D9F5" Offset="0" />
+      <GradientStop Color="#7C5CFF" Offset="0.55" />
+      <GradientStop Color="#242E63" Offset="1" />
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="ArgusHeroCardBorderBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+      <GradientStop Color="#5238D9F5" Offset="0" />
+      <GradientStop Color="#667C5CFF" Offset="0.45" />
+      <GradientStop Color="#242E63" Offset="1" />
+    </LinearGradientBrush>
+
+    <!-- Font Families -->
+    <FontFamily x:Key="ArgusMonoFont">Cascadia Mono, Consolas, Courier New, monospace</FontFamily>
+
+    <!-- Navigation Vector Geometries (16x16 coordinate box) -->
+    <StreamGeometry x:Key="IconOverview">M2,2 H7 V7 H2 Z M9,2 H14 V7 H9 Z M2,9 H7 V14 H2 Z M9,9 H14 V14 H9 Z</StreamGeometry>
+    <StreamGeometry x:Key="IconMonitoring">M1,9 H4 L6,3 L9,13 L11,7 L12.5,9 H15</StreamGeometry>
+    <StreamGeometry x:Key="IconDevices">M4,4 H12 V12 H4 Z M6,1 V4 M10,1 V4 M6,12 V15 M10,12 V15 M1,6 H4 M1,10 H4 M12,6 H15 M12,10 H15</StreamGeometry>
+    <StreamGeometry x:Key="IconCleanup">M3,4 H13 M5,4 V13 H11 V4 M6.5,2 H9.5 M7,7 V11 M9,7 V11</StreamGeometry>
+    <StreamGeometry x:Key="IconDisks">M2,4 C2,2.8 4.7,2 8,2 C11.3,2 14,2.8 14,4 V12 C14,13.2 11.3,14 8,14 C4.7,14 2,13.2 2,12 Z M2,8 C2,9.2 4.7,10 8,10 C11.3,10 14,9.2 14,8</StreamGeometry>
+    <StreamGeometry x:Key="IconMigration">M2,5 H11 M8,2 L11,5 L8,8 M14,11 H5 M8,8 L5,11 L8,14</StreamGeometry>
+    <StreamGeometry x:Key="IconJournal">M3,2 H13 V14 H3 Z M5.5,5.5 H10.5 M5.5,8.5 H10.5 M5.5,11.5 H8.5</StreamGeometry>
+    <StreamGeometry x:Key="IconSettings">M2,4 H14 M2,8 H14 M2,12 H14 M5,2.5 V5.5 M11,6.5 V9.5 M7,10.5 V13.5</StreamGeometry>
+
+    <!-- Window Chrome & Privilege Vector Icons -->
+    <StreamGeometry x:Key="IconWinMinimize">M2,8 H14</StreamGeometry>
+    <StreamGeometry x:Key="IconWinMaximize">M3,3 H13 V13 H3 Z</StreamGeometry>
+    <StreamGeometry x:Key="IconWinRestore">M3,5 H11 V13 H3 Z M5,5 V3 H13 V11 H11</StreamGeometry>
+    <StreamGeometry x:Key="IconWinClose">M3,3 L13,13 M13,3 L3,13</StreamGeometry>
+    <StreamGeometry x:Key="IconShield">M8,1.5 L13.5,3.8 V7.8 C13.5,11.2 11.1,13.6 8,14.8 C4.9,13.6 2.5,11.2 2.5,7.8 V3.8 Z</StreamGeometry>
+  </Styles.Resources>
+
+  <!-- Typography Roles -->
+  <Style Selector="TextBlock.page-title">
+    <Setter Property="FontSize" Value="22" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.page-subtitle">
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextSecondaryBrush}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <Style Selector="TextBlock.section-heading">
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.body-muted">
+    <Setter Property="FontSize" Value="12.5" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextSecondaryBrush}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <Style Selector="TextBlock.metric-mono">
+    <Setter Property="FontFamily" Value="{StaticResource ArgusMonoFont}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusCyanBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.metric-large">
+    <Setter Property="FontFamily" Value="{StaticResource ArgusMonoFont}" />
+    <Setter Property="FontSize" Value="22" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+  </Style>
+
+  <!-- Panel & Card Surfaces (Hierarchical Corner Radii: 12px Panels, 8px Inner Tiles, 6px Pills) -->
+  <Style Selector="Border.panel">
+    <Setter Property="Background" Value="{StaticResource ArgusBgPanelBrush}" />
+    <Setter Property="BorderBrush" Value="{StaticResource ArgusBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Padding" Value="20" />
+  </Style>
+
+  <Style Selector="Border.panel-hero">
+    <Setter Property="Background" Value="{StaticResource ArgusBgPanelBrush}" />
+    <Setter Property="BorderBrush" Value="{StaticResource ArgusHeroCardBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Padding" Value="20" />
+  </Style>
+
+  <Style Selector="Border.tile">
+    <Setter Property="Background" Value="{StaticResource ArgusBgCardBrush}" />
+    <Setter Property="BorderBrush" Value="{StaticResource ArgusBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="14,12" />
+  </Style>
+
+  <Style Selector="Border.pill">
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="9,3" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Background" Value="#1A2049" />
+    <Setter Property="BorderBrush" Value="#3E498C" />
+  </Style>
+
+  <Style Selector="Border.pill-ready">
+    <Setter Property="Background" Value="#0E2E2B" />
+    <Setter Property="BorderBrush" Value="#2DD4A8" />
+  </Style>
+
+  <Style Selector="Border.pill-warn">
+    <Setter Property="Background" Value="#2E220D" />
+    <Setter Property="BorderBrush" Value="#F5A623" />
+  </Style>
+
+  <Style Selector="Border.pill-danger">
+    <Setter Property="Background" Value="#31131D" />
+    <Setter Property="BorderBrush" Value="#F45B69" />
+  </Style>
+
+  <!-- Navigation Rail Button -->
+  <Style Selector="Button.nav-item">
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Left" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="12,10" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextSecondaryBrush}" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Button.nav-item:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#141B3E" />
+    <Setter Property="BorderBrush" Value="#2B3670" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+  </Style>
+
+  <Style Selector="Button.nav-item.active /template/ ContentPresenter">
+    <Setter Property="Background" Value="#1C2152" />
+    <Setter Property="BorderBrush" Value="{StaticResource ArgusVioletBrush}" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+  </Style>
+
+  <!-- Primary & Secondary Action Buttons -->
+  <Style Selector="Button.argus-primary">
+    <Setter Property="Background" Value="#5E42E8" />
+    <Setter Property="Foreground" Value="#FFFFFF" />
+    <Setter Property="BorderBrush" Value="#8F75FF" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="16,9" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Button.argus-primary:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#7358FA" />
+    <Setter Property="BorderBrush" Value="#38D9F5" />
+    <Setter Property="Foreground" Value="#FFFFFF" />
+  </Style>
+
+  <Style Selector="Button.argus-secondary">
+    <Setter Property="Background" Value="#161D42" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+    <Setter Property="BorderBrush" Value="{StaticResource ArgusBorderBrightBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="14,9" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Button.argus-secondary:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#1F2859" />
+    <Setter Property="BorderBrush" Value="{StaticResource ArgusVioletBrush}" />
+  </Style>
+
+  <Style Selector="Button.argus-secondary.selected /template/ ContentPresenter">
+    <Setter Property="Background" Value="#21265C" />
+    <Setter Property="BorderBrush" Value="{StaticResource ArgusCyanBrush}" />
+    <Setter Property="Foreground" Value="#FFFFFF" />
+  </Style>
+
+  <!-- Profile Selector Buttons -->
+  <Style Selector="Button.profile-card">
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="Background" Value="{StaticResource ArgusBgCardBrush}" />
+    <Setter Property="BorderBrush" Value="{StaticResource ArgusBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="16" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Button.profile-card.selected /template/ ContentPresenter">
+    <Setter Property="Background" Value="#1B2150" />
+    <Setter Property="BorderBrush" Value="{StaticResource ArgusCyanBrush}" />
+  </Style>
+
+  <!-- TextBox & NumericUpDown Dark Blue-Violet Styling -->
+  <Style Selector="TextBox.argus-input">
+    <Setter Property="Background" Value="#0A0F24" />
+    <Setter Property="BorderBrush" Value="{StaticResource ArgusBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+    <Setter Property="Padding" Value="12,8" />
+  </Style>
+
+  <Style Selector="NumericUpDown.argus-numeric">
+    <Setter Property="Background" Value="#0A0F24" />
+    <Setter Property="BorderBrush" Value="{StaticResource ArgusBorderBrush}" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+    <Setter Property="FontFamily" Value="{StaticResource ArgusMonoFont}" />
+    <Setter Property="CornerRadius" Value="8" />
+  </Style>
+
+  <!-- Custom Window Chrome Buttons -->
+  <Style Selector="Button.titlebar-btn">
+    <Setter Property="Width" Value="42" />
+    <Setter Property="Height" Value="38" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="0" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextSecondaryBrush}" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Button.titlebar-btn:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#18204A" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+  </Style>
+
+  <Style Selector="Button.titlebar-close:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#C93346" />
+    <Setter Property="Foreground" Value="#FFFFFF" />
+  </Style>
+
+  <Style Selector="Button.privilege-pill">
+    <Setter Property="Background" Value="#2A1F0B" />
+    <Setter Property="BorderBrush" Value="#F5A623" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="10,4" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusAmberBrush}" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Button.privilege-pill:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#3C2C10" />
+    <Setter Property="BorderBrush" Value="#FFD076" />
+  </Style>
+
+  <Style Selector="Button.privilege-pill.elevated">
+    <Setter Property="Background" Value="#0D2C28" />
+    <Setter Property="BorderBrush" Value="#2DD4A8" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusEmeraldBrush}" />
+    <Setter Property="Cursor" Value="Arrow" />
+  </Style>
+</Styles>

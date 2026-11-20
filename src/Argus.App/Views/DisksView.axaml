@@ -1,0 +1,241 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Argus.App.ViewModels"
+             x:Class="Argus.App.Views.DisksView"
+             x:DataType="vm:DisksViewModel">
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Spacing="12" Margin="0,0,4,12">
+
+      <!-- Top Safe Policy, Status & 0..100% Optimization Progress Header -->
+      <Border Classes="panel-hero" Padding="14,10">
+        <StackPanel Spacing="8">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,12,0" VerticalAlignment="Center">
+              <WrapPanel Orientation="Horizontal">
+                <TextBlock Classes="section-heading" Text="Політика безпеки та S.M.A.R.T." VerticalAlignment="Center" Margin="0,0,8,4" />
+                <Border Classes="pill pill-ready" Padding="7,2" Margin="0,0,6,4">
+                  <TextBlock Text="SSD / NVMe: безпечна оптимізація" FontSize="10.5" Foreground="{StaticResource ArgusEmeraldBrush}" />
+                </Border>
+                <Border Classes="pill" Padding="7,2" Margin="0,0,6,4">
+                  <TextBlock Text="HDD: дефрагментація" FontSize="10.5" Foreground="{StaticResource ArgusCyanBrush}" />
+                </Border>
+                <Border Classes="pill" Padding="7,2" Margin="0,0,6,4">
+                  <TextBlock Text="{Binding FleetSummaryText}" FontSize="10.5" Foreground="{StaticResource ArgusVioletSoftBrush}" />
+                </Border>
+              </WrapPanel>
+
+              <TextBlock FontSize="12"
+                         Classes.warn-text="{Binding !StatusIsSuccess}"
+                         Text="{Binding StatusBannerText}"
+                         TextWrapping="Wrap">
+                <TextBlock.Styles>
+                  <Style Selector="TextBlock">
+                    <Setter Property="Foreground" Value="{StaticResource ArgusEmeraldBrush}" />
+                  </Style>
+                  <Style Selector="TextBlock.warn-text">
+                    <Setter Property="Foreground" Value="{StaticResource ArgusAmberBrush}" />
+                  </Style>
+                </TextBlock.Styles>
+              </TextBlock>
+            </StackPanel>
+
+            <Button Grid.Column="1"
+                    Classes="argus-secondary"
+                    Padding="12,7"
+                    FontSize="12"
+                    IsEnabled="{Binding !IsBusy}"
+                    Content="Оновити диски"
+                    Command="{Binding RefreshDisksCommand}"
+                    VerticalAlignment="Center" />
+          </Grid>
+
+          <!-- 0..100% Defragmentation / TRIM / Scan Progress Bar -->
+          <StackPanel Spacing="4">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Grid.Column="0"
+                         FontSize="11.5"
+                         Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                         Text="{Binding OperationStageText}"
+                         TextTrimming="CharacterEllipsis" />
+              <TextBlock Grid.Column="1"
+                         Classes="metric-mono"
+                         FontSize="11.5"
+                         Foreground="{StaticResource ArgusCyanBrush}"
+                         Text="{Binding OperationProgressText}" />
+            </Grid>
+            <ProgressBar Minimum="0"
+                         Maximum="100"
+                         Value="{Binding OperationProgressPercent}"
+                         Height="6"
+                         CornerRadius="3"
+                         Background="#161E42"
+                         Foreground="{StaticResource ArgusCyanBrush}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Physical Disks & S.M.A.R.T. Cards -->
+      <Border Classes="panel" Padding="14,10">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="section-heading" Text="Фізичні накопичувачі та діагностика" />
+
+          <ItemsControl ItemsSource="{Binding Disks}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:PhysicalDiskCardItem">
+                <Border Classes="tile" Margin="0,0,0,5" Padding="11,7">
+                  <Grid ColumnDefinitions="*,Auto,Auto">
+
+                    <!-- Left: Model, Bus, Capacity, S/N & S.M.A.R.T. Summary -->
+                    <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,12,0" VerticalAlignment="Center">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding Title}"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                   VerticalAlignment="Center" />
+                        <Border Classes="pill"
+                                Classes.pill-ready="{Binding IsSsdOrNvme}"
+                                Padding="7,1"
+                                VerticalAlignment="Center">
+                          <TextBlock Text="{Binding MediaBadge}"
+                                     FontSize="10.5"
+                                     FontWeight="SemiBold"
+                                     Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                        </Border>
+                      </StackPanel>
+
+                      <TextBlock Classes="metric-mono"
+                                 FontSize="11.5"
+                                 Text="{Binding BusAndCapacityText}"
+                                 TextTrimming="CharacterEllipsis" />
+                      <TextBlock FontSize="11"
+                                 Foreground="{StaticResource ArgusTextMutedBrush}"
+                                 Text="{Binding SerialText}"
+                                 TextTrimming="CharacterEllipsis" />
+                      <TextBlock FontSize="11"
+                                 Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                 Text="{Binding SmartDetailsText}"
+                                 TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+
+                    <!-- Middle: S.M.A.R.T. Health & Temp Badges -->
+                    <StackPanel Grid.Column="1"
+                                Orientation="Horizontal"
+                                Spacing="6"
+                                Margin="0,0,12,0"
+                                VerticalAlignment="Center">
+                      <Border Classes="pill"
+                              Classes.pill-ready="{Binding IsHealthy}"
+                              Classes.pill-warn="{Binding IsCaution}"
+                              Classes.pill-danger="{Binding IsCritical}"
+                              Padding="9,3">
+                        <TextBlock Text="{Binding HealthLabel}"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                      </Border>
+
+                      <Border Classes="pill" Padding="9,3" IsVisible="{Binding HasTemperature}">
+                        <TextBlock Classes="metric-mono"
+                                   FontSize="11"
+                                   Text="{Binding TemperatureText}" />
+                      </Border>
+                    </StackPanel>
+
+                    <!-- Right: Action Button -->
+                    <StackPanel Grid.Column="2"
+                                Orientation="Horizontal"
+                                Spacing="6"
+                                VerticalAlignment="Center">
+                      <Button Classes="argus-primary"
+                              Padding="13,6"
+                              FontSize="11.5"
+                              IsVisible="{Binding HasDriveLetter}"
+                              Content="{Binding OptimizeButtonLabel}"
+                              ToolTip.Tip="{Binding OptimizeTooltip}"
+                              Command="{Binding OptimizeCommand}" />
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <!-- Visual Large-Folder Space Map -->
+      <Border Classes="panel-hero" Padding="14,11">
+        <StackPanel Spacing="9">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+              <TextBlock Classes="section-heading" Text="Карта найбільших тек на томі" />
+              <TextBlock Classes="metric-mono"
+                         FontSize="11.5"
+                         Text="{Binding SelectedVolumeSummaryText}"
+                         TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+
+            <ItemsControl Grid.Column="1" ItemsSource="{Binding VolumeTabs}" VerticalAlignment="Center">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Orientation="Horizontal" Spacing="6" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:VolumeTabItem">
+                  <Button Classes="argus-secondary"
+                          Classes.selected="{Binding IsSelected}"
+                          Padding="12,5"
+                          FontSize="12"
+                          Content="{Binding Label}"
+                          Command="{Binding SelectCommand}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </Grid>
+
+          <ItemsControl ItemsSource="{Binding LargestFolders}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <UniformGrid Columns="2" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:FolderSpaceRowItem">
+                <Border Classes="tile" Margin="0,0,8,6" Padding="11,7">
+                  <StackPanel Spacing="4">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Grid.Column="0"
+                                 FontSize="12.5"
+                                 FontWeight="SemiBold"
+                                 Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                 Text="{Binding Name}"
+                                 TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="1"
+                                 Classes="metric-mono"
+                                 FontSize="12"
+                                 Text="{Binding SizeText}" />
+                    </Grid>
+                    <ProgressBar Minimum="0"
+                                 Maximum="100"
+                                 Value="{Binding BarPercent}"
+                                 Height="6"
+                                 CornerRadius="3"
+                                 Background="#1A2248"
+                                 Foreground="{StaticResource ArgusCyanBrush}" />
+                    <TextBlock FontSize="11"
+                               Foreground="{StaticResource ArgusTextMutedBrush}"
+                               Text="{Binding DetailText}"
+                               TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

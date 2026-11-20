@@ -1,0 +1,32 @@
+## .NET / Visual Studio / Rider / VS Code
+bin/
+obj/
+out/
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.cache
+TestResults/*.trx
+TestResults/*.xml
+BenchmarkDotNet.Artifacts/
+
+## Logs & temporary artifacts
+*.log
+*.tmp
+logs/
+publish/
+vm-tests/
+/Argus.exe
+ArgusSetup/*.exe
+ArgusSetup/*.zip
+*.pfx
+*.p12
+
+## OS files
+Thumbs.db
+Desktop.ini
+.DS_Store

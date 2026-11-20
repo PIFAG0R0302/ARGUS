@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Argus.Migration</RootNamespace>
+    <AssemblyName>Argus.Migration</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Argus.App.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="System.Management" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Argus.Core\Argus.Core.csproj" />
+  </ItemGroup>
+</Project>

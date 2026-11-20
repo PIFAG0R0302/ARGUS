@@ -1,0 +1,46 @@
+ARGUS — Звіт про виконання Етапу 4
+Назва: Віконна оболонка, права доступу й запобіжники (UAC, трей, System Restore, логування)
+Дата: 19 листопада 2026 року
+Версія: 0.4.0
+
+1. Що зроблено
+- Створено власну багаторозмірну іконку Argus (16, 32, 48 і 256 px) у src/Argus.App/Assets/argus.ico та src/Argus.App/Assets/argus-icon.png, підключену як ресурси застосунку та іконку виконуваного файлу.
+- Реалізовано футуристичну безрамкову верхню панель вікна у src/Argus.App/MainWindow.axaml та MainWindow.axaml.cs (WindowDecorations="BorderOnly", ExtendClientAreaToDecorationsHint="True", висота 38 px) зі збереженням системного Windows Snap, перетягуванням вікна, подвійним кліком для розгортання, компенсацією OffScreenMargin, індикатором прав доступу UAC та векторними кнопками згортання, розгортання й закриття.
+- Додано системний трей (TrayIcon + NativeMenu: «Відкрити ARGUS», «Моніторинг», «Журнал і налаштування», «Вийти повністю»), згортання в трей замість закриття за налаштуванням MinimizeToTrayOnClose і тихий запуск у трей за прапорцем --minimized без миготіння вікна.
+- Реалізовано захист від повторного запуску (Mutex Local\Argus_Desktop_SingleInstance) із подією активації Local\Argus_Desktop_ActivateEvent у Program.cs та App.axaml.cs: повторний запуск пробуджує й виводить на передній план уже запущений екземпляр, навіть якщо той працює приховано в системному треї.
+- Додано контракти IPrivilegeService та IStartupRegistrationService у src/Argus.Core/Contracts/System/SystemShellContracts.cs і їхню Windows-реалізацію в Argus.Maintenance:
+  - WindowsPrivilegeService — перевірка прав адміністратора й одноразове підвищення прав (UAC) в один клік через ProcessStartInfo з Verb="runas" і прапорцем --allow-multi-instance; повсякденний запуск лишається у режимі asInvoker для сумісності з автозапуском Windows і чистих тестів без UAC-бар'єра.
+  - WindowsStartupRegistrationService — запис і зняття автозапуску в HKCU\Software\Microsoft\Windows\CurrentVersion\Run із параметром --minimized.
+  - WindowsRestorePointService — реальне створення контрольної точки відновлення Windows через WMI (root\default:SystemRestore, CreateRestorePoint) із перевіркою прав адміністратора, розшифруванням кодів помилок WMI та записом у журнал операцій.
+- Додано потокобезпечний структурований файловий логер із щоденною ротацією ArgusFileLoggerProvider (src/Argus.Core/Logging/ArgusFileLoggerProvider.cs): файли data\logs\argus-yyyyMMdd.log, збереження останніх 7 днів, перехоплення необроблених винятків AppDomain і TaskScheduler.
+- Оновлено екран «Журнал і налаштування» (SettingsView / SettingsViewModel): додано перемикач автозапуску Windows, блок «Захист системи (System Restore)» із кнопкою ручного створення точки та відображенням шляхів до конфігурації й діагностичних логів.
+- Розширено модульні тести: додано FileLoggerTests у tests/Argus.Core.Tests, SystemServicesTests і нові сценарії ViewModelTests у tests/Argus.App.Tests (разом 37 тестів).
+
+2. Виявлені проблеми та як їх виправлено
+- Проблема 1: Компілятор не знайшов метод розширення ILoggingBuilder.AddProvider у Microsoft.Extensions.Logging.Abstractions.
+  Виправлення: У ArgusFileLoggerProvider реєстрацію переведено на builder.Services.AddSingleton<ILoggerProvider>(...).
+- Проблема 2: Генератор P/Invoke [LibraryImport] у Program.cs видав помилки SYSLIB1062 / CS0227 через відсутність AllowUnsafeBlocks.
+  Виправлення: У src/Argus.App/Argus.App.csproj увімкнено <AllowUnsafeBlocks>true</AllowUnsafeBlocks>.
+- Проблема 3: У Avalonia 12 властивість ExtendClientAreaChromeHints вилучено (помилка XAML AVLN2000).
+  Виправлення: Використано актуальний API Avalonia 12 — WindowDecorations="BorderOnly" разом із ExtendClientAreaToDecorationsHint="True".
+- Проблема 4: Під час візуального перегляду скриншотів першого прогону виявлено три дефекти:
+  1) лінія кнопки «Згорнути» у верхній панелі не відображалася (Path із нульовою висотою M2,8 H14 за Stretch="Uniform");
+  2) у SettingsView права колонка із журналом центрувалася по вертикалі замість вирівнювання за верхнім краєм;
+  3) локальне значення Foreground у TextBlock статусу System Restore перекрило б стиль .warn-text для попереджень.
+  Виправлення: Іконку згортання замінено на чіткий Border 11x1,5 px; у SettingsView блок System Restore піднято на початок правої колонки з VerticalAlignment="Top"; колір статусу винесено в стилі TextBlock і TextBlock.warn-text з атрибутом Classes.warn-text.
+- Проблема 5: Перший варіант перехоплення повторного запуску через FindWindowW не пробуджував екземпляр, запущений тихо в треї (--minimized), а клік по дочірніх елементах кнопки в шапці міг перехоплюватися перетягуванням вікна.
+  Виправлення: Додано іменовану подію Local\Argus_Desktop_ActivateEvent із ThreadPool.RegisterWaitForSingleObject і AllowSetForegroundWindow; у MainWindow.axaml.cs додано перевірку IsInsideButton для перетягування й подвійного кліку.
+
+3. Результати перевірки в ізольованій пісочниці (два прогони)
+- Сувора збірка (TreatWarningsAsErrors=true) у Debug і Release: 0 помилок, 0 попереджень.
+- Модульні тести (Argus.Core.Tests + Argus.App.Tests, xunit.v3 / MTP): 37 із 37 тестів пройдено в Debug і Release.
+- Аудит NuGet (--vulnerable --include-transitive, --deprecated): 0 вразливих і 0 застарілих пакетів у всіх 8 проєктах (включно із System.Management 10.0.15).
+- Сканер Windows Defender (MpCmdRun.exe -Scan -ScanType 3): загроз не виявлено в портативній збірці win-x64 (236 файлів, 106,83 МБ, 0 файлів .pdb, код виходу 0).
+- Ізольований запуск без .NET у PATH і без DOTNET_ROOT:
+  - «Огляд»: відкрився без помилок (1256x789, WS 149,2 МБ, stderr порожній).
+  - «Журнал і налаштування»: відкрився без помилок (1256x789, WS 149,6 МБ, stderr порожній).
+  - Тихий запуск у трей (--minimized): процес стабільний без видимого вікна (VisibleMainHwnd=0, WS 108,4 МБ, stderr порожній).
+  - Пробудження з трею другим запуском: другий процес сигналізував подію активації й коректно завершився з кодом 0, а перший миттєво відкрив головне вікно (1256x789).
+- Перевірено артефакти діагностики в пісочниці: створилися data\logs\argus-20261119.log (547 байтів) та data\logs\journal.jsonl (1098 байтів), після перевірки тимчасову пісочницю очищено.
+- Візуально перевірено фінальні скриншоти (stage4_v2_overview.png і stage4_v2_settings.png): безрамкова шапка, іконки вікна, щит UAC і компонування налаштувань відображаються чітко й без обрізань.
+- Release-збірка Argus.exe оновлена до версії 0.4.0 і готова до запуску через Launch-Argus.cmd.
