@@ -35,9 +35,11 @@ if ([string]::IsNullOrWhiteSpace($userName)) {
     git config user.email "PIFAG0R0302@users.noreply.github.com"
 }
 
-gh auth setup-git --hostname github.com 2>$null
+$prevEap = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+gh auth setup-git --hostname github.com 2>$null | Out-Null
 
-git add -A
+git add -A 2>$null
 $status = git status --porcelain
 if (-not [string]::IsNullOrWhiteSpace($status)) {
     git commit -m "Release ARGUS $tag"
@@ -47,12 +49,8 @@ if (-not [string]::IsNullOrWhiteSpace($status)) {
 $remotes = git remote
 if ($remotes -notcontains 'origin') {
     $repoExists = $false
-    try {
-        gh repo view $Repository --json name 2>$null | Out-Null
-        if ($LASTEXITCODE -eq 0) { $repoExists = $true }
-    } catch {
-        $repoExists = $false
-    }
+    gh repo view $Repository --json name 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) { $repoExists = $true }
 
     if ($repoExists) {
         git remote add origin "https://github.com/$Repository.git"
@@ -66,6 +64,7 @@ if ($remotes -notcontains 'origin') {
     git branch -M main
     git push -u origin main
 }
+$ErrorActionPreference = $prevEap
 
 $setupExe    = Join-Path $SetupDir "Argus-Setup-$version-win-x64.exe"
 $portableZip = Join-Path $SetupDir "Argus-Portable-$version-win-x64.zip"
@@ -94,6 +93,8 @@ $notesFile = Join-Path $env:TEMP "argus_release_notes_$version.md"
 [System.IO.File]::WriteAllText($notesFile, $notes, [System.Text.UTF8Encoding]::new($false))
 
 # Check if release already exists
+$prevEap = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
 $relExists = $false
 gh release view $tag --repo $Repository 2>$null | Out-Null
 if ($LASTEXITCODE -eq 0) { $relExists = $true }
@@ -104,7 +105,9 @@ if ($relExists) {
 } else {
     gh release create $tag $setupExe $portableZip $shaSums $cerFile $guideFile --title "ARGUS $tag" --notes-file $notesFile --repo $Repository
 }
-if ($LASTEXITCODE -ne 0) { throw "gh release failed with exit code $LASTEXITCODE" }
+$relExit = $LASTEXITCODE
+$ErrorActionPreference = $prevEap
+if ($relExit -ne 0) { throw "gh release failed with exit code $relExit" }
 
 Remove-Item $notesFile -Force -ErrorAction SilentlyContinue
 Write-Host "RELEASE_PUBLISHED: https://github.com/$Repository/releases/tag/$tag" -ForegroundColor Green
