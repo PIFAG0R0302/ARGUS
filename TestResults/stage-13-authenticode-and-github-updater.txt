@@ -1,0 +1,41 @@
+ЗВІТ ПРО ВПРОВАДЖЕННЯ ЦИФРОВОГО ПІДПИСУ AUTHENTICODE ТА ОНОВЛЕНЬ З GITHUB (ARGUS v1.0.0)
+========================================================================================
+Дата: 2026-11-20
+Версія релізу: 1.0.0
+Публічний репозиторій: https://github.com/PIFAG0R0302/ARGUS
+Опублікований реліз: https://github.com/PIFAG0R0302/ARGUS/releases/tag/v1.0.0
+Ліцензія: MIT
+
+1. ЦИФРОВИЙ ПІДПИС AUTHENTICODE
+-------------------------------
+- Створено сертифікат підпису коду в `Cert:\CurrentUser\My`:
+  * Суб'єкт: `CN=Argus Open Source Release, O=Argus`
+  * Алгоритм: RSA-3072 / SHA-256
+  * Відбиток (Thumbprint): `9D1B22482AC32CEA02F398527F9409FCA09EA78D`
+  * Строк дії: до 2031-11-20
+- Публічний сертифікат експортовано у `certs/Argus-CodeSigning.cer` та включено до `ArgusSetup/`.
+- Скрипт `scripts/Initialize-CodeSigningCert.ps1` автоматизує ініціалізацію сертифіката та підтримує подальшу заміну на комерційний сертифікат (Certum Open Source / SignPath) через параметр `-SignCertThumbprint` у `scripts/Build-Release.ps1`.
+- Підписано як сам бінарник `Argus.exe`, так і інсталятор `Argus-Setup-1.0.0-win-x64.exe` через `Set-AuthenticodeSignature` із міткою часу DigiCert.
+
+2. СЕРВІС ОНОВЛЕНЬ З GITHUB RELEASES (`GitHubAppUpdateService`)
+---------------------------------------------------------------
+- У `Argus.Core` (`SystemShellContracts.cs`, `ArgusSettings.cs`) додано контракти `IAppUpdateService`, `AppUpdateCheckResult`, `AppUpdateDownloadResult`, подію `UpdateAvailableEvent` і параметри `CheckUpdatesOnStartup`, `GitHubUpdateRepository` (`PIFAG0R0302/ARGUS`) та `TrustedSignerThumbprint`.
+- У `Argus.Maintenance` (`GitHubAppUpdateService.cs`) реалізовано:
+  * Запит останнього релізу через `https://api.github.com/repos/PIFAG0R0302/ARGUS/releases/latest`.
+  * Потокове завантаження нового інсталятора з індикацією прогресу 0–100 %.
+  * Обов'язкову звірку контрольної суми SHA-256 із файлом `SHA256SUMS.txt` релізу.
+  * Нативну перевірку вбудованого цифрового підпису Authenticode через Win32 CryptoAPI (`crypt32.dll`: `CryptQueryObject`, `CertGetCertificateContextProperty`) і звірку відбитка сертифіката з `TrustedSignerThumbprint` (при невідповідності файл автоматично видаляється, а запуск блокується).
+- У `SettingsView.axaml` / `SettingsViewModel.cs` додано блок «Оновлення з GitHub» із кнопкою «Перевірити оновлення», перемикачем тихої перевірки під час старту, карткою знайденого оновлення, діалогом підтвердження «Ви точно хочете завантажити оновлення з GitHub і запустити інсталятор?» та шкалою завантаження.
+- У `MainWindow.axaml` / `MainWindowViewModel.cs` додано індикатор доступного оновлення у верхній панелі вікна для швидкого переходу до встановлення.
+
+3. ТЕСТУВАННЯ ТА ПУБЛІКАЦІЯ НА GITHUB
+-------------------------------------
+- Додано набір тестів `AppUpdaterAndSigningTests.cs` (перевірка виявлення нової версії, успішної верифікації SHA-256 і відбитка сертифіката, блокування підміненого SHA-256 або чужого сертифіката з видаленням файлу та сценарію підтвердження у `SettingsViewModel`).
+- Суворі збірки `Debug` і `Release`: 0 попереджень, 0 помилок, пройдено 87 із 87 тестів.
+- Перевірка Windows Defender (`MpCmdRun.exe`): код виходу 0 (0 загроз).
+- Створено публічний репозиторій `PIFAG0R0302/ARGUS`, вивантажено гілку `main` та опубліковано реліз `v1.0.0` через `scripts/Publish-GitHubRelease.ps1`:
+  * `Argus-Setup-1.0.0-win-x64.exe` (43,32 МБ, SHA-256: `c1d2a289ba2452810a2c0c5a48e3d71a17b0d872a09d63d03f713870b7d088af`)
+  * `Argus-Portable-1.0.0-win-x64.zip` (42,72 МБ, SHA-256: `70fe171c8eea05980e093fcb7032a37c2bace95f02936e02b384cabb3b571658`)
+  * `SHA256SUMS.txt`
+  * `Argus-CodeSigning.cer`
+  * `USER-GUIDE.md`
