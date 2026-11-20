@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.IO.Compression;
 using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -136,8 +137,10 @@ public sealed partial class GitHubAppUpdateService : IAppUpdateService, IDisposa
                            TryParseVersion(CurrentVersion, out var currentVer) &&
                            latestVer > currentVer;
 
-            string? installerName = null;
-            string? installerUrl = null;
+            string? zipName = null;
+            string? zipUrl = null;
+            string? exeName = null;
+            string? exeUrl = null;
             string? checksumsUrl = null;
 
             if (root.TryGetProperty("assets", out var assetsProp) && assetsProp.ValueKind == JsonValueKind.Array)
@@ -155,14 +158,24 @@ public sealed partial class GitHubAppUpdateService : IAppUpdateService, IDisposa
                     {
                         checksumsUrl = aUrl;
                     }
-                    else if (aName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
-                             (installerUrl is null || aName.Contains("Setup", StringComparison.OrdinalIgnoreCase)))
+                    else if (aName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
+                             (zipUrl is null || aName.Contains("Portable", StringComparison.OrdinalIgnoreCase)))
                     {
-                        installerName = aName;
-                        installerUrl = aUrl;
+                        zipName = aName;
+                        zipUrl = aUrl;
+                    }
+                    else if (aName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
+                             (exeUrl is null || aName.Contains("Setup", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        exeName = aName;
+                        exeUrl = aUrl;
                     }
                 }
             }
+
+            // Prefer in-place ZIP patch archive so updates replace files directly without running a second setup wizard.
+            string? installerName = zipUrl is not null ? zipName : exeName;
+            string? installerUrl = zipUrl ?? exeUrl;
 
             string statusMsg = isNewer
                 ? $"Знайдено нову версію v{latestVersionStr} на GitHub ({repo})."
@@ -233,12 +246,13 @@ public sealed partial class GitHubAppUpdateService : IAppUpdateService, IDisposa
         Directory.CreateDirectory(_updatesDirectory);
         string fileName = !string.IsNullOrWhiteSpace(update.InstallerFileName)
             ? Path.GetFileName(update.InstallerFileName)
-            : $"Argus-Setup-{update.LatestVersion}-win-x64.exe";
+            : $"Argus-Portable-{update.LatestVersion}-win-x64.zip";
         string targetPath = Path.Combine(_updatesDirectory, fileName);
+        string? stageDir = null;
 
         try
         {
-            progress?.Report((5, $"Завантаження {fileName} з GitHub…"));
+            progress?.Report((5, $"Завантаження пакета оновлення {fileName} з GitHub…"));
 
             using (var response = await _httpClient.GetAsync(update.InstallerDownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false))
             {
@@ -303,16 +317,41 @@ public sealed partial class GitHubAppUpdateService : IAppUpdateService, IDisposa
                 }
             }
 
+            bool isZipPatch = fileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+            string fileToVerifySignature = targetPath;
+
+            if (isZipPatch)
+            {
+                progress?.Report((88, "Розпакування пакета оновлення…"));
+                stageDir = Path.Combine(_updatesDirectory, $"stage-{NormalizeVersionString(update.LatestVersion)}");
+                SafeDeleteDirectory(stageDir);
+                Directory.CreateDirectory(stageDir);
+                ZipFile.ExtractToDirectory(targetPath, stageDir, overwriteFiles: true);
+
+                string stagedExe = Path.Combine(stageDir, "Argus.exe");
+                if (!File.Exists(stagedExe))
+                {
+                    SafeDeleteDirectory(stageDir);
+                    SafeDeleteFile(targetPath);
+                    const string err = "У пакеті оновлення (.zip) не знайдено файлу Argus.exe. Оновлення скасовано.";
+                    await _journal.RecordAsync("argus.updater", OperationSeverity.Error, "UpdatePackageInvalid", err, succeeded: false).ConfigureAwait(false);
+                    return new AppUpdateDownloadResult(false, null, actualSha256, null, false, err);
+                }
+
+                fileToVerifySignature = stagedExe;
+            }
+
             progress?.Report((92, "Перевірка цифрового підпису Authenticode…"));
-            var (isSigned, thumbprint, _) = _signatureInspector(targetPath);
+            var (isSigned, thumbprint, _) = _signatureInspector(fileToVerifySignature);
             string expectedThumbprint = (_settingsStore.Current.TrustedSignerThumbprint ?? string.Empty)
                 .Replace(" ", string.Empty, StringComparison.Ordinal)
                 .ToUpperInvariant();
 
             if (!isSigned || string.IsNullOrWhiteSpace(thumbprint))
             {
+                SafeDeleteDirectory(stageDir);
                 SafeDeleteFile(targetPath);
-                const string err = "Завантажений інсталятор не має цифрового підпису Authenticode. Встановлення заблоковано.";
+                const string err = "Завантажене оновлення не має цифрового підпису Authenticode. Оновлення заблоковано.";
                 await _journal.RecordAsync("argus.updater", OperationSeverity.Error, "UpdateUnsignedBlocked", err, succeeded: false).ConfigureAwait(false);
                 return new AppUpdateDownloadResult(false, null, actualSha256, null, false, err);
             }
@@ -320,13 +359,21 @@ public sealed partial class GitHubAppUpdateService : IAppUpdateService, IDisposa
             if (!string.IsNullOrWhiteSpace(expectedThumbprint) &&
                 !string.Equals(thumbprint, expectedThumbprint, StringComparison.OrdinalIgnoreCase))
             {
+                SafeDeleteDirectory(stageDir);
                 SafeDeleteFile(targetPath);
-                string err = $"Відбиток сертифіката інсталятора ({thumbprint}) не збігається з довіреним сертифікатом ARGUS ({expectedThumbprint}). Встановлення заблоковано.";
+                string err = $"Відбиток сертифіката оновлення ({thumbprint}) не збігається з довіреним сертифікатом ARGUS ({expectedThumbprint}). Оновлення заблоковано.";
                 await _journal.RecordAsync("argus.updater", OperationSeverity.Error, "UpdateUntrustedSignerBlocked", err, succeeded: false).ConfigureAwait(false);
                 return new AppUpdateDownloadResult(false, null, actualSha256, thumbprint, false, err);
             }
 
-            progress?.Report((100, $"Оновлення v{update.LatestVersion} завантажено й перевірено (SHA-256 + Authenticode)."));
+            string launchPath = targetPath;
+            if (isZipPatch && stageDir is not null)
+            {
+                progress?.Report((96, "Підготовка сценарію оновлення встановленої програми…"));
+                launchPath = WriteInPlaceUpdateScript(stageDir, targetPath, NormalizeVersionString(update.LatestVersion));
+            }
+
+            progress?.Report((100, $"Оновлення v{update.LatestVersion} перевірено (SHA-256 + Authenticode). Застосування…"));
 
             await _journal.RecordAsync(
                 "argus.updater",
@@ -336,14 +383,15 @@ public sealed partial class GitHubAppUpdateService : IAppUpdateService, IDisposa
 
             return new AppUpdateDownloadResult(
                 Succeeded: true,
-                LocalInstallerPath: targetPath,
+                LocalInstallerPath: launchPath,
                 VerifiedSha256: actualSha256,
                 SignerThumbprint: thumbprint,
                 SignatureVerified: true,
-                StatusMessage: $"Інсталятор v{update.LatestVersion} успішно перевірено за SHA-256 і підписом ({thumbprint[..12]}…).");
+                StatusMessage: $"Оновлення v{update.LatestVersion} перевірено за SHA-256 і підписом ({thumbprint[..12]}…). Перезапуск…");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            SafeDeleteDirectory(stageDir);
             SafeDeleteFile(targetPath);
             return new AppUpdateDownloadResult(
                 Succeeded: false,
@@ -364,6 +412,32 @@ public sealed partial class GitHubAppUpdateService : IAppUpdateService, IDisposa
 
         try
         {
+            if (installerPath.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase))
+            {
+                string installDir = ResolveInstallDirectory();
+                bool needsElevation = !CanWriteToDirectory(installDir);
+
+                var cmdPsi = needsElevation
+                    ? new ProcessStartInfo
+                    {
+                        FileName = "cmd.exe",
+                        Arguments = $"/c \"\"{installerPath}\"\"",
+                        UseShellExecute = true,
+                        Verb = "runas",
+                        WindowStyle = ProcessWindowStyle.Hidden
+                    }
+                    : new ProcessStartInfo
+                    {
+                        FileName = "cmd.exe",
+                        Arguments = $"/c \"\"{installerPath}\"\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+
+                Process.Start(cmdPsi);
+                return true;
+            }
+
             var psi = new ProcessStartInfo
             {
                 FileName = installerPath,
@@ -375,6 +449,108 @@ public sealed partial class GitHubAppUpdateService : IAppUpdateService, IDisposa
         catch
         {
             return false;
+        }
+    }
+
+    internal string WriteInPlaceUpdateScript(string stageDir, string zipArchivePath, string newVersion)
+    {
+        string installDir = ResolveInstallDirectory();
+        string targetExePath = Path.Combine(installDir, "Argus.exe");
+        int currentPid = Environment.ProcessId;
+        string scriptPath = Path.Combine(_updatesDirectory, "apply-update.cmd");
+
+        var sb = new StringBuilder();
+        sb.AppendLine("@echo off");
+        sb.AppendLine("chcp 65001 >nul");
+        sb.AppendLine("setlocal enableextensions");
+        sb.AppendLine($"set \"PID={currentPid}\"");
+        sb.AppendLine($"set \"STAGE={stageDir}\"");
+        sb.AppendLine($"set \"DEST={installDir}\"");
+        sb.AppendLine($"set \"ZIP={zipArchivePath}\"");
+        sb.AppendLine($"set \"VER={newVersion}\"");
+        sb.AppendLine("set \"RETRIES=0\"");
+        sb.AppendLine(":wait_exit");
+        sb.AppendLine("tasklist /FI \"PID eq %PID%\" 2>nul | find /I \"%PID%\" >nul");
+        sb.AppendLine("if %ERRORLEVEL%==0 (");
+        sb.AppendLine("  set /a RETRIES+=1");
+        sb.AppendLine("  if %RETRIES% LSS 20 (");
+        sb.AppendLine("    timeout /t 1 /nobreak >nul");
+        sb.AppendLine("    goto wait_exit");
+        sb.AppendLine("  )");
+        sb.AppendLine(")");
+        sb.AppendLine("set \"COPY_TRY=0\"");
+        sb.AppendLine(":copy_exe");
+        sb.AppendLine("copy /Y \"%STAGE%\\Argus.exe\" \"%DEST%\\Argus.exe\" >nul 2>&1");
+        sb.AppendLine("if errorlevel 1 (");
+        sb.AppendLine("  set /a COPY_TRY+=1");
+        sb.AppendLine("  if %COPY_TRY% LSS 8 (");
+        sb.AppendLine("    timeout /t 1 /nobreak >nul");
+        sb.AppendLine("    goto copy_exe");
+        sb.AppendLine("  )");
+        sb.AppendLine(")");
+        sb.AppendLine("if exist \"%STAGE%\\USER-GUIDE.md\" copy /Y \"%STAGE%\\USER-GUIDE.md\" \"%DEST%\\USER-GUIDE.md\" >nul 2>&1");
+        sb.AppendLine("if exist \"%STAGE%\\rules\" xcopy /E /I /Y \"%STAGE%\\rules\\*\" \"%DEST%\\rules\\\" >nul 2>&1");
+        sb.AppendLine("set \"UNINST_KEY=HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{D4B9F2E1-8A4C-4F92-B73E-1C5E9F80A311}_is1\"");
+        sb.AppendLine("reg query \"%UNINST_KEY%\" >nul 2>&1 && (");
+        sb.AppendLine("  reg add \"%UNINST_KEY%\" /v DisplayVersion /t REG_SZ /d \"%VER%\" /f >nul 2>&1");
+        sb.AppendLine("  reg add \"%UNINST_KEY%\" /v DisplayName /t REG_SZ /d \"ARGUS %VER%\" /f >nul 2>&1");
+        sb.AppendLine(")");
+        sb.AppendLine("rmdir /S /Q \"%STAGE%\" >nul 2>&1");
+        sb.AppendLine("del /F /Q \"%ZIP%\" >nul 2>&1");
+        sb.AppendLine($"start \"\" \"{targetExePath}\"");
+        sb.AppendLine("(goto) 2>nul & del /F /Q \"%~f0\"");
+
+        File.WriteAllText(scriptPath, sb.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        return scriptPath;
+    }
+
+    private static string ResolveInstallDirectory()
+    {
+        string? procPath = Environment.ProcessPath;
+        if (!string.IsNullOrWhiteSpace(procPath))
+        {
+            string? dir = Path.GetDirectoryName(procPath);
+            if (!string.IsNullOrWhiteSpace(dir))
+            {
+                return dir;
+            }
+        }
+
+        return AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
+
+    private static bool CanWriteToDirectory(string dir)
+    {
+        try
+        {
+            string probe = Path.Combine(dir, $".argus_upd_probe_{Guid.NewGuid():N}.tmp");
+            File.WriteAllText(probe, "ok");
+            File.Delete(probe);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void SafeDeleteDirectory(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, recursive: true);
+            }
+        }
+        catch
+        {
+            // Ignore cleanup errors
         }
     }
 

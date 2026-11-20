@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -186,6 +187,71 @@ public sealed class AppUpdaterAndSigningTests : IDisposable
         Assert.True(exitRequested);
     }
 
+    [Fact]
+    public async Task GitHubAppUpdateService_PrefersZipPatchAndGeneratesInPlaceApplyCmdScript()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var eventBus = new ArgusEventBus(NullLogger<ArgusEventBus>.Instance);
+        using var settingsStore = new JsonArgusSettingsStore(
+            NullLogger<JsonArgusSettingsStore>.Instance,
+            Path.Combine(_tempDir, "settings_zip.json"));
+        await settingsStore.SaveAsync(new ArgusSettings
+        {
+            GitHubUpdateRepository = "argus-org/ARGUS",
+            TrustedSignerThumbprint = TrustedThumbprint
+        }, ct);
+
+        using var journal = new FileBackedOperationJournal(
+            eventBus,
+            NullLogger<FileBackedOperationJournal>.Instance,
+            Path.Combine(_tempDir, "journal_zip.jsonl"));
+
+        // Build a real valid ZIP patch archive containing Argus.exe
+        byte[] zipBytes;
+        using (var ms = new MemoryStream())
+        {
+            using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                var entry = archive.CreateEntry("Argus.exe");
+                await using var entryStream = entry.Open();
+                byte[] exeData = Encoding.UTF8.GetBytes("SIGNED-ARGUS-V1.0.2-EXE");
+                await entryStream.WriteAsync(exeData, ct);
+            }
+
+            zipBytes = ms.ToArray();
+        }
+
+        string zipSha256 = Convert.ToHexStringLower(SHA256.HashData(zipBytes));
+        string sumsBody = $"{zipSha256}  Argus-Portable-1.0.2-win-x64.zip\n";
+
+        string updatesDir = Path.Combine(_tempDir, "updates_zip");
+        using var updater = new GitHubAppUpdateService(
+            settingsStore,
+            journal,
+            eventBus,
+            httpHandler: new FakeGitHubZipHttpHandler("v1.0.2", zipBytes, sumsBody),
+            currentVersionOverride: "1.0.1",
+            updatesDirectoryOverride: updatesDir,
+            signatureInspector: path => (path.EndsWith("Argus.exe", StringComparison.OrdinalIgnoreCase), TrustedThumbprint, "Argus Open Source Release"));
+
+        var check = await updater.CheckForUpdateAsync(ct);
+        Assert.True(check.Succeeded);
+        Assert.True(check.IsUpdateAvailable);
+        Assert.Equal("Argus-Portable-1.0.2-win-x64.zip", check.InstallerFileName);
+
+        var download = await updater.DownloadAndVerifyUpdateAsync(check, cancellationToken: ct);
+        Assert.True(download.Succeeded, download.StatusMessage);
+        Assert.True(download.SignatureVerified);
+        Assert.NotNull(download.LocalInstallerPath);
+        Assert.EndsWith("apply-update.cmd", download.LocalInstallerPath, StringComparison.OrdinalIgnoreCase);
+        Assert.True(File.Exists(download.LocalInstallerPath));
+
+        string cmdContent = await File.ReadAllTextAsync(download.LocalInstallerPath, ct);
+        Assert.Contains("copy /Y \"%STAGE%\\Argus.exe\" \"%DEST%\\Argus.exe\"", cmdContent, StringComparison.Ordinal);
+        Assert.Contains("set \"VER=1.0.2\"", cmdContent, StringComparison.Ordinal);
+        Assert.Contains("DisplayVersion", cmdContent, StringComparison.Ordinal);
+    }
+
     public void Dispose()
     {
         try
@@ -302,6 +368,63 @@ public sealed class AppUpdaterAndSigningTests : IDisposable
             {
                 var content = new ByteArrayContent(installerBytes);
                 content.Headers.ContentLength = installerBytes.Length;
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = content
+                });
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+        }
+    }
+
+    private sealed class FakeGitHubZipHttpHandler(string latestTag, byte[] zipBytes, string sumsBody) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            string url = request.RequestUri?.ToString() ?? string.Empty;
+            if (url.EndsWith("/releases/latest", StringComparison.OrdinalIgnoreCase))
+            {
+                string json = $$"""
+                {
+                  "tag_name": "{{latestTag}}",
+                  "name": "ARGUS {{latestTag}}",
+                  "body": "In-place patch update",
+                  "html_url": "https://github.com/argus-org/ARGUS/releases/tag/{{latestTag}}",
+                  "assets": [
+                    {
+                      "name": "Argus-Setup-1.0.2-win-x64.exe",
+                      "browser_download_url": "https://github.com/argus-org/ARGUS/releases/download/{{latestTag}}/Argus-Setup-1.0.2-win-x64.exe"
+                    },
+                    {
+                      "name": "Argus-Portable-1.0.2-win-x64.zip",
+                      "browser_download_url": "https://github.com/argus-org/ARGUS/releases/download/{{latestTag}}/Argus-Portable-1.0.2-win-x64.zip"
+                    },
+                    {
+                      "name": "SHA256SUMS.txt",
+                      "browser_download_url": "https://github.com/argus-org/ARGUS/releases/download/{{latestTag}}/SHA256SUMS.txt"
+                    }
+                  ]
+                }
+                """;
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(json, Encoding.UTF8, "application/json")
+                });
+            }
+
+            if (url.EndsWith("SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(sumsBody, Encoding.UTF8, "text/plain")
+                });
+            }
+
+            if (url.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                var content = new ByteArrayContent(zipBytes);
+                content.Headers.ContentLength = zipBytes.Length;
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = content
