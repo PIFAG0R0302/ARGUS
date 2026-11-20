@@ -77,7 +77,7 @@ function Invoke-OptionalSign {
 
     Write-Host "Signing $([System.IO.Path]::GetFileName($FilePath)) with Authenticode ($($cert.Thumbprint)) ..." -ForegroundColor Cyan
     $sig = $null
-    if (-not [string]::IsNullOrWhiteSpace($TimestampUrl)) {
+    if (-not [string]::IsNullOrWhiteSpace($TimestampUrl) -and $TimestampUrl -ne 'none') {
         try {
             $sig = Set-AuthenticodeSignature -FilePath $FilePath -Certificate $cert -HashAlgorithm SHA256 -TimestampServer $TimestampUrl -ErrorAction Stop
         } catch {
