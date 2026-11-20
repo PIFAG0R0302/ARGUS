@@ -33,7 +33,7 @@ public sealed class ViewModelTests : IDisposable
         var vm = env.Main;
 
         Assert.Equal(ArgusSectionId.Overview, vm.ActiveSection.SectionId);
-        Assert.Equal("v1.0.0", vm.VersionBadge);
+        Assert.Equal("v1.0.1", vm.VersionBadge);
         Assert.Equal(7, vm.PrimaryNavigation.Count);
         Assert.Single(vm.FooterNavigation);
 
@@ -116,7 +116,7 @@ public sealed class ViewModelTests : IDisposable
         Assert.True(persisted.MinimizeToTrayOnClose);
         Assert.True(env.Startup.IsEnabled());
         Assert.True(vm.HasSaveFeedback);
-        Assert.Contains(vm.JournalEntries, static j => j.Action == "SettingsSaved");
+        Assert.Contains(env.Journal.GetRecent(10), static j => j.Action == "SettingsSaved");
 
         await vm.CreateRestorePointNowCommand.ExecuteAsync(null);
         Assert.True(vm.HasRestoreFeedback);
@@ -130,7 +130,7 @@ public sealed class ViewModelTests : IDisposable
         Assert.False(reset.EnablePawnIoExtendedSensors);
         Assert.False(reset.StartWithWindows);
         Assert.False(env.Startup.IsEnabled());
-        Assert.Contains(vm.JournalEntries, static j => j.Action == "SettingsReset");
+        Assert.Contains(env.Journal.GetRecent(10), static j => j.Action == "SettingsReset");
     }
 
     private TestEnv CreateEnv(bool isAdmin)
@@ -254,6 +254,7 @@ public sealed class ViewModelTests : IDisposable
         ExitBox exitBox) : IDisposable
     {
         public JsonArgusSettingsStore SettingsStore { get; } = settingsStore;
+        public FileBackedOperationJournal Journal { get; } = journal;
         public SettingsViewModel Settings { get; } = settings;
         public MainWindowViewModel Main { get; } = main;
         public FakePrivilegeService Privilege { get; } = privilege;
@@ -264,7 +265,7 @@ public sealed class ViewModelTests : IDisposable
         public void Dispose()
         {
             Main.Dispose();
-            journal.Dispose();
+            Journal.Dispose();
             SettingsStore.Dispose();
         }
     }

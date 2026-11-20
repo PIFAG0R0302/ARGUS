@@ -30,7 +30,7 @@
 
 ## Встановлення та збірка
 
-Готовий інсталятор `Argus-Setup-1.0.0-win-x64.exe` та портативний архів `Argus-Portable-1.0.0-win-x64.zip` доступні в розділі [Releases](https://github.com/PIFAG0R0302/ARGUS/releases).
+Готовий інсталятор `Argus-Setup-*-win-x64.exe` та портативний архів `Argus-Portable-*-win-x64.zip` доступні в розділі [Releases](https://github.com/PIFAG0R0302/ARGUS/releases).
 
 Для локальної збірки з вихідного коду:
 

@@ -268,6 +268,16 @@ public sealed partial class GitHubAppUpdateService : IAppUpdateService, IDisposa
                             progress?.Report((pct, string.Format(CultureInfo.CurrentCulture, "Завантажено {0:0.0} із {1:0.0} МБ…", mbDone, mbTotal)));
                         }
                     }
+                    else
+                    {
+                        double mbDone = readTotal / (1024.0 * 1024.0);
+                        int pct = Math.Clamp(5 + (int)Math.Min(73, mbDone * 1.5), 5, 78);
+                        if (pct >= lastReportedPct + 2)
+                        {
+                            lastReportedPct = pct;
+                            progress?.Report((pct, string.Format(CultureInfo.CurrentCulture, "Завантажено {0:0.0} МБ…", mbDone)));
+                        }
+                    }
                 }
             }
 
@@ -421,25 +431,42 @@ public sealed partial class GitHubAppUpdateService : IAppUpdateService, IDisposa
                 return (false, null, null);
             }
 
-            certContext = CertEnumCertificatesInStore(certStore, IntPtr.Zero);
-            if (certContext == IntPtr.Zero)
-            {
-                return (false, null, null);
-            }
-
             byte* hashBuf = stackalloc byte[64];
-            uint hashLen = 64;
-            string? thumbprint = null;
-            if (CertGetCertificateContextProperty(certContext, CertSha1HashPropId, (IntPtr)hashBuf, ref hashLen) && hashLen > 0)
+            char* nameBuf = stackalloc char[256];
+            string? fallbackThumbprint = null;
+            string? fallbackSubject = null;
+
+            while ((certContext = CertEnumCertificatesInStore(certStore, certContext)) != IntPtr.Zero)
             {
-                thumbprint = Convert.ToHexString(new ReadOnlySpan<byte>(hashBuf, (int)hashLen));
+                uint hashLen = 64;
+                string? thumbprint = null;
+                if (CertGetCertificateContextProperty(certContext, CertSha1HashPropId, (IntPtr)hashBuf, ref hashLen) && hashLen > 0)
+                {
+                    thumbprint = Convert.ToHexString(new ReadOnlySpan<byte>(hashBuf, (int)hashLen));
+                }
+
+                uint chars = CertGetNameStringW(certContext, CertSimpleDisplayType, 0, IntPtr.Zero, (IntPtr)nameBuf, 256);
+                string? subject = chars > 1 ? new string(nameBuf, 0, (int)chars - 1) : null;
+
+                if (string.IsNullOrWhiteSpace(thumbprint))
+                {
+                    continue;
+                }
+
+                if (fallbackThumbprint is null)
+                {
+                    fallbackThumbprint = thumbprint;
+                    fallbackSubject = subject;
+                }
+
+                if (!string.IsNullOrWhiteSpace(subject) &&
+                    subject.Contains("Argus", StringComparison.OrdinalIgnoreCase))
+                {
+                    return (true, thumbprint, subject);
+                }
             }
 
-            char* nameBuf = stackalloc char[256];
-            uint chars = CertGetNameStringW(certContext, CertSimpleDisplayType, 0, IntPtr.Zero, (IntPtr)nameBuf, 256);
-            string? subject = chars > 1 ? new string(nameBuf, 0, (int)chars - 1) : null;
-
-            return (!string.IsNullOrWhiteSpace(thumbprint), thumbprint, subject);
+            return (!string.IsNullOrWhiteSpace(fallbackThumbprint), fallbackThumbprint, fallbackSubject);
         }
         catch
         {

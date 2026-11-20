@@ -66,7 +66,7 @@
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Spacing="2" Margin="0,0,12,0">
                   <TextBlock Text="Автозапуск разом із Windows" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
-                  <TextBlock Classes="body-muted" Text="Тихий старт у системному треї через HKCU\...\Run без UAC-запиту." />
+                  <TextBlock Classes="body-muted" Text="Тихий старт у системному треї під час входу в Windows." />
                 </StackPanel>
                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding StartWithWindows}" OnContent="" OffContent="" VerticalAlignment="Center" />
               </Grid>
@@ -233,33 +233,6 @@
                 <TextBlock FontSize="11.5" Foreground="{StaticResource ArgusTextMutedBrush}" Text="{Binding LogsDirectoryPath, StringFormat='Діагностичні логи: {0}'}" TextWrapping="Wrap" />
               </StackPanel>
             </Border>
-          </StackPanel>
-        </Border>
-
-        <Border Classes="panel">
-          <StackPanel Spacing="12">
-            <TextBlock Classes="section-heading" Text="Журнал подій системи" />
-            <ScrollViewer MaxHeight="260" VerticalAlignment="Top">
-              <ItemsControl ItemsSource="{Binding JournalEntries}">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="vm:JournalRowItem">
-                    <Border Classes="tile" Margin="0,0,0,8" Padding="12,10">
-                      <StackPanel Spacing="4">
-                        <Grid ColumnDefinitions="Auto,10,*,Auto">
-                          <TextBlock Grid.Column="0" Classes="metric-mono" Text="{Binding TimeText}" />
-                          <TextBlock Grid.Column="2" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" Text="{Binding Action}" />
-                          <Border Grid.Column="3" Classes="pill">
-                            <TextBlock Text="{Binding SeverityLabel}" FontSize="10.5" Foreground="{StaticResource ArgusCyanBrush}" />
-                          </Border>
-                        </Grid>
-                        <TextBlock FontSize="11.5" Foreground="{StaticResource ArgusVioletSoftBrush}" Text="{Binding ModuleId}" />
-                        <TextBlock Classes="body-muted" Text="{Binding Details}" />
-                      </StackPanel>
-                    </Border>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </ScrollViewer>
           </StackPanel>
         </Border>
       </StackPanel>

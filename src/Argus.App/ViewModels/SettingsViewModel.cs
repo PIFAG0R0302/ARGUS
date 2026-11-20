@@ -20,7 +20,6 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
     private readonly IAppUpdateService? _updateService;
     private readonly Action? _requestAppExit;
     private readonly Action<Action> _uiDispatch;
-    private readonly IDisposable _journalSubscription;
     private AppUpdateCheckResult? _latestUpdateResult;
     private int _updateBusyGate;
 
@@ -151,7 +150,6 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
 
         SettingsFilePath = settingsStore.SettingsFilePath;
         LogsDirectoryPath = Path.Combine(Path.GetDirectoryName(settingsStore.SettingsFilePath) ?? ArgusPaths.GetDataDirectory(), "logs");
-        JournalEntries = [];
 
         if (_updateService is not null)
         {
@@ -161,19 +159,15 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
         else
         {
             var asmVer = typeof(SettingsViewModel).Assembly.GetName().Version;
-            CurrentVersionText = asmVer is not null ? $"v{asmVer.Major}.{asmVer.Minor}.{asmVer.Build}" : "v1.0.0";
+            CurrentVersionText = asmVer is not null ? $"v{asmVer.Major}.{asmVer.Minor}.{asmVer.Build}" : "v1.0.1";
         }
 
         ApplyFromSettings(settingsStore.Current);
         StartWithWindows = settingsStore.Current.StartWithWindows || TryReadStartupEnabled();
-        RefreshJournal();
-
-        _journalSubscription = eventBus.Subscribe<OperationJournalEntryAddedEvent>(_ => _uiDispatch(RefreshJournal));
     }
 
     public string SettingsFilePath { get; }
     public string LogsDirectoryPath { get; }
-    public ObservableCollection<JournalRowItem> JournalEntries { get; }
 
     public bool CanCheckForUpdates => !IsCheckingUpdates && !IsDownloadingUpdate;
     public bool CanDownloadUpdate => IsUpdateAvailable && !IsCheckingUpdates && !IsDownloadingUpdate;
@@ -486,19 +480,8 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
         GitHubUpdateRepository = settings.GitHubUpdateRepository;
     }
 
-    private void RefreshJournal()
-    {
-        var entries = _journal.GetRecent(40).Reverse().ToArray();
-        JournalEntries.Clear();
-        foreach (var entry in entries)
-        {
-            JournalEntries.Add(new JournalRowItem(entry));
-        }
-    }
-
     public void Dispose()
     {
-        _journalSubscription.Dispose();
     }
 
     private sealed class DirectUpdateProgress(Action<(int Percent, string Stage)> callback) : IProgress<(int Percent, string Stage)>
