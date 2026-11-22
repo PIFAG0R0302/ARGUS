@@ -194,11 +194,11 @@
                     Content="{Binding SuspiciousFilterLabel}"
                     Command="{Binding ToggleOnlySuspiciousCommand}"
                     ToolTip.Tip="Показати лише з'єднання з евристичними попередженнями (підозрілі шляхи, порти майнінгу/C2, підміна системних імен, зовнішні IP без PTR)" />
-            <Button Classes="filter-pill" Content="Усі" Command="{Binding SetConnectionFilterCommand}" CommandParameter="Усі" />
-            <Button Classes="filter-pill" Content="ESTABLISHED" Command="{Binding SetConnectionFilterCommand}" CommandParameter="ESTABLISHED" />
-            <Button Classes="filter-pill" Content="LISTENING" Command="{Binding SetConnectionFilterCommand}" CommandParameter="LISTENING" />
-            <Button Classes="filter-pill" Content="TCP" Command="{Binding SetConnectionFilterCommand}" CommandParameter="TCP" />
-            <Button Classes="filter-pill" Content="UDP" Command="{Binding SetConnectionFilterCommand}" CommandParameter="UDP" />
+            <Button Classes="filter-pill" Classes.selected="{Binding IsConnFilterAll}" Content="Усі" Command="{Binding SetConnectionFilterCommand}" CommandParameter="Усі" />
+            <Button Classes="filter-pill" Classes.selected="{Binding IsConnFilterEstablished}" Content="ESTABLISHED" Command="{Binding SetConnectionFilterCommand}" CommandParameter="ESTABLISHED" />
+            <Button Classes="filter-pill" Classes.selected="{Binding IsConnFilterListening}" Content="LISTENING" Command="{Binding SetConnectionFilterCommand}" CommandParameter="LISTENING" />
+            <Button Classes="filter-pill" Classes.selected="{Binding IsConnFilterTcp}" Content="TCP" Command="{Binding SetConnectionFilterCommand}" CommandParameter="TCP" />
+            <Button Classes="filter-pill" Classes.selected="{Binding IsConnFilterUdp}" Content="UDP" Command="{Binding SetConnectionFilterCommand}" CommandParameter="UDP" />
           </StackPanel>
 
           <StackPanel Grid.Column="2"

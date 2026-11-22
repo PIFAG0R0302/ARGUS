@@ -257,4 +257,34 @@ public sealed class Phase2ViewModelTests
         Assert.Same(second, selected);
         Assert.Contains("9", second.CpuText, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task NetworkViewModel_ConnectionFilterPillsClearOnlySuspiciousAndUpdateSelectionFlags()
+    {
+        using var uiMode = new AppUiModeService(new FakeSettingsStore(), new StubPrivilege(false), new ArgusEventBus(NullLogger<ArgusEventBus>.Instance));
+        using var vm = new NetworkViewModel(new FakeNetworkMgr(), uiMode: uiMode, autoLoadOnInit: false);
+
+        await vm.RefreshAsync();
+        Assert.True(vm.IsConnFilterAll);
+        Assert.False(vm.OnlySuspiciousConnections);
+        Assert.Single(vm.Connections);
+
+        // Enable "Лише підозрілі" (fake connection is clean, so list becomes empty and all main pills deselect)
+        vm.ToggleOnlySuspiciousCommand.Execute(null);
+        Assert.True(vm.OnlySuspiciousConnections);
+        Assert.False(vm.IsConnFilterAll);
+        Assert.Empty(vm.Connections);
+
+        // Clicking "Усі" must automatically turn off OnlySuspiciousConnections and restore the list
+        vm.SetConnectionFilterCommand.Execute("Усі");
+        Assert.False(vm.OnlySuspiciousConnections);
+        Assert.True(vm.IsConnFilterAll);
+        Assert.Single(vm.Connections);
+
+        // Switching to "ESTABLISHED" updates active pill flag
+        vm.SetConnectionFilterCommand.Execute("ESTABLISHED");
+        Assert.True(vm.IsConnFilterEstablished);
+        Assert.False(vm.IsConnFilterAll);
+        Assert.Single(vm.Connections);
+    }
 }

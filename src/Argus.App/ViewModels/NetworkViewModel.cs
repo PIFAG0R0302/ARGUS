@@ -364,10 +364,26 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
     private string _searchQuery = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsConnFilterAll))]
+    [NotifyPropertyChangedFor(nameof(IsConnFilterEstablished))]
+    [NotifyPropertyChangedFor(nameof(IsConnFilterListening))]
+    [NotifyPropertyChangedFor(nameof(IsConnFilterTcp))]
+    [NotifyPropertyChangedFor(nameof(IsConnFilterUdp))]
     private string _connectionFilter = "Усі";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsConnFilterAll))]
+    [NotifyPropertyChangedFor(nameof(IsConnFilterEstablished))]
+    [NotifyPropertyChangedFor(nameof(IsConnFilterListening))]
+    [NotifyPropertyChangedFor(nameof(IsConnFilterTcp))]
+    [NotifyPropertyChangedFor(nameof(IsConnFilterUdp))]
     private bool _onlySuspiciousConnections;
+
+    public bool IsConnFilterAll => !OnlySuspiciousConnections && ConnectionFilter == "Усі";
+    public bool IsConnFilterEstablished => !OnlySuspiciousConnections && ConnectionFilter == "ESTABLISHED";
+    public bool IsConnFilterListening => !OnlySuspiciousConnections && ConnectionFilter == "LISTENING";
+    public bool IsConnFilterTcp => !OnlySuspiciousConnections && ConnectionFilter == "TCP";
+    public bool IsConnFilterUdp => !OnlySuspiciousConnections && ConnectionFilter == "UDP";
 
     [ObservableProperty]
     private int _suspiciousConnectionCount;
@@ -622,6 +638,7 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
     [RelayCommand]
     private void SetConnectionFilter(string filter)
     {
+        OnlySuspiciousConnections = false;
         ConnectionFilter = string.IsNullOrWhiteSpace(filter) ? "Усі" : filter;
     }
 
