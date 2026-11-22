@@ -7,7 +7,8 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Repository = 'PIFAG0R0302/ARGUS',
+    [string]$Repository = 'PIFAG0R0302/ARGUS-Updates',
+    [string]$SourceRepository = 'PIFAG0R0302/ARGUS',
     [string]$SetupDir = ''
 )
 
@@ -45,24 +46,33 @@ if (-not [string]::IsNullOrWhiteSpace($status)) {
     git commit -m "Release ARGUS $tag"
 }
 
-# Create or connect remote repository
+# Create or connect remote source repository (Private)
 $remotes = git remote
 if ($remotes -notcontains 'origin') {
     $repoExists = $false
-    gh repo view $Repository --json name 2>$null | Out-Null
+    gh repo view $SourceRepository --json name 2>$null | Out-Null
     if ($LASTEXITCODE -eq 0) { $repoExists = $true }
 
     if ($repoExists) {
-        git remote add origin "https://github.com/$Repository.git"
+        git remote add origin "https://github.com/$SourceRepository.git"
         git branch -M main
         git push -u origin main
     } else {
-        gh repo create $Repository --public --description "ARGUS — нативний моніторинг, очищення, діагностика дисків і клонування Windows (CopyOS) на .NET 10 + Avalonia/Skia" --source=. --remote=origin --push
+        gh repo create $SourceRepository --private --description "ARGUS — нативний моніторинг, очищення, діагностика дисків і клонування Windows (CopyOS) на .NET 10 + Avalonia/Skia" --source=. --remote=origin --push
         if ($LASTEXITCODE -ne 0) { throw "gh repo create failed with exit code $LASTEXITCODE" }
     }
 } else {
     git branch -M main
     git push -u origin main
+}
+
+# Ensure public releases-only repository exists (without source code)
+$relRepoExists = $false
+gh repo view $Repository --json name 2>$null | Out-Null
+if ($LASTEXITCODE -eq 0) { $relRepoExists = $true }
+if (-not $relRepoExists) {
+    gh repo create $Repository --public --description "ARGUS official releases & auto-update distribution (Windows x64)"
+    if ($LASTEXITCODE -ne 0) { throw "gh repo create ($Repository) failed with exit code $LASTEXITCODE" }
 }
 $ErrorActionPreference = $prevEap
 

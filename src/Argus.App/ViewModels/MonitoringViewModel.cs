@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using Argus.App.Services;
 using Argus.Core.Configuration;
+using Argus.Core.Contracts.System;
 using Argus.Core.Contracts.Telemetry;
 using Argus.Core.Events;
 using Argus.Core.Extensions;
@@ -9,6 +11,88 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Argus.App.ViewModels;
+
+public enum ExpertInspectorTab
+{
+    Processes,
+    Services,
+    LocalPorts
+}
+
+public sealed class ProcessRowItem
+{
+    public ProcessRowItem(ProcessInspectItem item)
+    {
+        Pid = item.Pid;
+        PidText = item.Pid.ToString(CultureInfo.InvariantCulture);
+        Name = item.Name;
+        WorkingSetBytes = item.WorkingSetBytes;
+        double mb = item.WorkingSetBytes / (1024.0 * 1024.0);
+        MemoryText = string.Format(CultureInfo.CurrentCulture, "{0:0.0} МБ", mb);
+        ThreadCount = item.ThreadCount;
+        ThreadsText = $"{item.ThreadCount} пот.";
+        ExecutablePath = string.IsNullOrWhiteSpace(item.ExecutablePath)
+            ? (item.IsSystemOrProtected ? "Системний / захищений процес" : "Шлях недоступний")
+            : item.ExecutablePath;
+        HasExecutablePath = !string.IsNullOrWhiteSpace(item.ExecutablePath);
+        IsSystemOrProtected = item.IsSystemOrProtected;
+    }
+
+    public int Pid { get; }
+    public string PidText { get; }
+    public string Name { get; }
+    public long WorkingSetBytes { get; }
+    public string MemoryText { get; }
+    public int ThreadCount { get; }
+    public string ThreadsText { get; }
+    public string ExecutablePath { get; }
+    public bool HasExecutablePath { get; }
+    public bool IsSystemOrProtected { get; }
+}
+
+public sealed class WindowsServiceRowItem
+{
+    public WindowsServiceRowItem(WindowsServiceInspectItem item)
+    {
+        ServiceName = item.ServiceName;
+        DisplayName = item.DisplayName;
+        Status = item.Status;
+        StartType = item.StartType;
+        CanStop = item.CanStop;
+        IsRunning = item.Status.Contains("Працює", StringComparison.OrdinalIgnoreCase) ||
+                    item.Status.Contains("Running", StringComparison.OrdinalIgnoreCase);
+        IsStopped = item.Status.Contains("Зупинено", StringComparison.OrdinalIgnoreCase) ||
+                    item.Status.Contains("Stopped", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public string ServiceName { get; }
+    public string DisplayName { get; }
+    public string Status { get; }
+    public string StartType { get; }
+    public bool CanStop { get; }
+    public bool IsRunning { get; }
+    public bool IsStopped { get; }
+}
+
+public sealed class LocalPortRowItem
+{
+    public LocalPortRowItem(LocalPortInspectItem item)
+    {
+        Protocol = item.Protocol;
+        EndpointText = $"{item.LocalAddress}:{item.LocalPort}";
+        State = string.IsNullOrWhiteSpace(item.State) ? "—" : item.State;
+        Pid = item.Pid;
+        PidText = item.Pid.ToString(CultureInfo.InvariantCulture);
+        ProcessName = item.ProcessName;
+    }
+
+    public string Protocol { get; }
+    public string EndpointText { get; }
+    public string State { get; }
+    public int Pid { get; }
+    public string PidText { get; }
+    public string ProcessName { get; }
+}
 
 public sealed partial class CoreLoadItem : ObservableObject
 {
@@ -89,11 +173,17 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
     private readonly ITelemetryService _telemetryService;
     private readonly ISensorTierStatusProvider _tierStatusProvider;
     private readonly ITelemetryReportExporter? _reportExporter;
+    private readonly ISystemInspectorService? _systemInspector;
     private readonly Action<Action> _uiDispatch;
     private readonly IDisposable _telemetrySubscription;
     private readonly IDisposable _settingsSubscription;
     private readonly IDisposable _alertSubscription;
     private volatile bool _isUiActive = true;
+    private int _inspectorBusyGate;
+    private bool _inspectorLoadedOnce;
+    private IReadOnlyList<ProcessInspectItem> _allProcesses = [];
+    private IReadOnlyList<WindowsServiceInspectItem> _allServices = [];
+    private IReadOnlyList<LocalPortInspectItem> _allLocalPorts = [];
 
     public MonitoringViewModel(
         IArgusSettingsStore settingsStore,
@@ -101,11 +191,15 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
         ISensorTierStatusProvider tierStatusProvider,
         IArgusEventBus eventBus,
         Action<Action>? uiDispatch = null,
-        ITelemetryReportExporter? reportExporter = null)
+        ITelemetryReportExporter? reportExporter = null,
+        AppUiModeService? uiMode = null,
+        ISystemInspectorService? systemInspector = null)
         : base(
             ArgusSectionId.Monitoring,
             "Моніторинг у реальному часі",
-            "Жива телеметрія CPU, RAM, GPU, VRAM, векторні графіки Skia, сповіщення й експорт звітів")
+            "Жива телеметрія CPU, RAM, GPU, VRAM, векторні графіки Skia, сповіщення й експорт звітів",
+            uiMode,
+            uiDispatch)
     {
         _settingsStore = settingsStore ?? throw new ArgumentNullException(nameof(settingsStore));
         _telemetryService = telemetryService ?? throw new ArgumentNullException(nameof(telemetryService));
@@ -113,10 +207,14 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
         ArgumentNullException.ThrowIfNull(eventBus);
         _uiDispatch = uiDispatch ?? (static action => action());
         _reportExporter = reportExporter;
+        _systemInspector = systemInspector;
 
         CoreLoads = [];
         StorageItems = [];
         ExtraSensors = [];
+        FilteredProcesses = [];
+        FilteredServices = [];
+        FilteredLocalPorts = [];
 
         RefreshSettingsLabels();
         RebuildChartSeries();
@@ -149,15 +247,106 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
     {
         bool wasActive = _isUiActive;
         _isUiActive = active;
-        if (active && !wasActive && _telemetryService.Latest is { } latest)
+        if (active && !wasActive)
         {
-            _uiDispatch(() => ApplySnapshot(latest));
+            if (_telemetryService.Latest is { } latest)
+            {
+                _uiDispatch(() => ApplySnapshot(latest));
+            }
+
+            if (IsExpertMode && !_inspectorLoadedOnce && _systemInspector is not null)
+            {
+                _ = RefreshInspectorAsync();
+            }
+        }
+    }
+
+    protected override void OnExpertModeChanged(bool isExpertMode)
+    {
+        if (isExpertMode)
+        {
+            if (_isUiActive && _systemInspector is not null)
+            {
+                _ = RefreshInspectorAsync();
+            }
+        }
+        else
+        {
+            PendingTerminateProcess = null;
+            ShowInspectorElevationCallout = false;
         }
     }
 
     public ObservableCollection<CoreLoadItem> CoreLoads { get; }
     public ObservableCollection<StorageRowItem> StorageItems { get; }
     public ObservableCollection<ExtraSensorItem> ExtraSensors { get; }
+    public ObservableCollection<ProcessRowItem> FilteredProcesses { get; }
+    public ObservableCollection<WindowsServiceRowItem> FilteredServices { get; }
+    public ObservableCollection<LocalPortRowItem> FilteredLocalPorts { get; }
+
+    // Expert Diagnostics State (loaded lazily only when IsExpertMode is ON)
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsProcessesTab))]
+    [NotifyPropertyChangedFor(nameof(IsServicesTab))]
+    [NotifyPropertyChangedFor(nameof(IsLocalPortsTab))]
+    [NotifyPropertyChangedFor(nameof(ShowContextualInspectorUac))]
+    private ExpertInspectorTab _activeInspectorTab = ExpertInspectorTab.Processes;
+
+    public bool IsProcessesTab => ActiveInspectorTab == ExpertInspectorTab.Processes;
+    public bool IsServicesTab => ActiveInspectorTab == ExpertInspectorTab.Services;
+    public bool IsLocalPortsTab => ActiveInspectorTab == ExpertInspectorTab.LocalPorts;
+
+    [ObservableProperty]
+    private string _inspectorSearchQuery = string.Empty;
+
+    [ObservableProperty]
+    private bool _isInspectorLoading;
+
+    [ObservableProperty]
+    private string _processesTabLabel = "Процеси (PID)";
+
+    [ObservableProperty]
+    private string _servicesTabLabel = "Служби Windows";
+
+    [ObservableProperty]
+    private string _localPortsTabLabel = "Локальні порти";
+
+    [ObservableProperty]
+    private string _inspectorSummaryText = "Натисніть «Оновити», щоб прочитати процеси, служби та локальні порти";
+
+    [ObservableProperty]
+    private bool _hasInspectorFeedback;
+
+    [ObservableProperty]
+    private string _inspectorFeedbackText = string.Empty;
+
+    [ObservableProperty]
+    private bool _inspectorFeedbackIsSuccess = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowContextualInspectorUac))]
+    private bool _showInspectorElevationCallout;
+
+    [ObservableProperty]
+    private string _inspectorElevationReason = "Перегляд процесів, служб і портів працює без прав адміністратора. Для керування службами Windows або завершення захищених процесів потрібне підвищення прав (UAC).";
+
+    public bool ShowContextualInspectorUac => !IsAdministrator && (IsServicesTab || ShowInspectorElevationCallout);
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPendingTerminate))]
+    [NotifyPropertyChangedFor(nameof(PendingTerminatePrompt))]
+    private ProcessRowItem? _pendingTerminateProcess;
+
+    public bool HasPendingTerminate => PendingTerminateProcess is not null;
+
+    public string PendingTerminatePrompt => PendingTerminateProcess is { } p
+        ? $"Завершити процес «{p.Name}» (PID {p.Pid})?"
+        : string.Empty;
+
+    partial void OnInspectorSearchQueryChanged(string value)
+    {
+        ApplyInspectorFilter();
+    }
 
     [ObservableProperty]
     private string _samplingSummary = string.Empty;
@@ -307,6 +496,286 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
 
     [ObservableProperty]
     private bool _hasExtraSensors;
+
+    [RelayCommand]
+    private void SelectProcessesTab()
+    {
+        ActiveInspectorTab = ExpertInspectorTab.Processes;
+        PendingTerminateProcess = null;
+        ApplyInspectorFilter();
+        if (IsExpertMode && _allProcesses.Count == 0 && _systemInspector is not null)
+        {
+            _ = RefreshInspectorAsync();
+        }
+    }
+
+    [RelayCommand]
+    private void SelectServicesTab()
+    {
+        ActiveInspectorTab = ExpertInspectorTab.Services;
+        PendingTerminateProcess = null;
+        ApplyInspectorFilter();
+        if (IsExpertMode && _allServices.Count == 0 && _systemInspector is not null)
+        {
+            _ = RefreshInspectorAsync();
+        }
+    }
+
+    [RelayCommand]
+    private void SelectLocalPortsTab()
+    {
+        ActiveInspectorTab = ExpertInspectorTab.LocalPorts;
+        PendingTerminateProcess = null;
+        ApplyInspectorFilter();
+        if (IsExpertMode && _allLocalPorts.Count == 0 && _systemInspector is not null)
+        {
+            _ = RefreshInspectorAsync();
+        }
+    }
+
+    [RelayCommand]
+    public async Task RefreshInspectorAsync()
+    {
+        if (_systemInspector is null || !IsExpertMode || Interlocked.CompareExchange(ref _inspectorBusyGate, 1, 0) != 0)
+        {
+            return;
+        }
+
+        _uiDispatch(() => IsInspectorLoading = true);
+        try
+        {
+            var processesTask = _systemInspector.GetProcessesAsync();
+            var servicesTask = _systemInspector.GetServicesAsync();
+            var portsTask = _systemInspector.GetLocalPortsAsync();
+            await Task.WhenAll(processesTask, servicesTask, portsTask).ConfigureAwait(false);
+
+            var processes = await processesTask.ConfigureAwait(false);
+            var services = await servicesTask.ConfigureAwait(false);
+            var ports = await portsTask.ConfigureAwait(false);
+
+            _uiDispatch(() =>
+            {
+                _inspectorLoadedOnce = true;
+                _allProcesses = processes;
+                _allServices = services;
+                _allLocalPorts = ports;
+
+                ProcessesTabLabel = $"Процеси ({processes.Count})";
+                ServicesTabLabel = $"Служби ({services.Count})";
+                LocalPortsTabLabel = $"Порти ({ports.Count})";
+
+                ApplyInspectorFilter();
+            });
+        }
+        catch (Exception ex)
+        {
+            _uiDispatch(() =>
+            {
+                InspectorFeedbackIsSuccess = false;
+                InspectorFeedbackText = $"Не вдалося оновити діагностику: {ex.Message}";
+                HasInspectorFeedback = true;
+            });
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _inspectorBusyGate, 0);
+            _uiDispatch(() => IsInspectorLoading = false);
+        }
+    }
+
+    [RelayCommand]
+    private void OpenProcessFolder(ProcessRowItem? row)
+    {
+        if (_systemInspector is null || row is null || !row.HasExecutablePath)
+        {
+            return;
+        }
+
+        bool opened = _systemInspector.OpenProcessFolder(row.ExecutablePath);
+        InspectorFeedbackIsSuccess = opened;
+        InspectorFeedbackText = opened
+            ? $"Відкрито теку процесу «{row.Name}»."
+            : $"Не вдалося відкрити теку для «{row.Name}».";
+        HasInspectorFeedback = true;
+    }
+
+    [RelayCommand]
+    private void RequestTerminateProcess(ProcessRowItem? row)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        PendingTerminateProcess = row;
+    }
+
+    [RelayCommand]
+    private void CancelTerminateProcess()
+    {
+        PendingTerminateProcess = null;
+    }
+
+    [RelayCommand]
+    private async Task ConfirmTerminateProcessAsync()
+    {
+        var target = PendingTerminateProcess;
+        PendingTerminateProcess = null;
+
+        if (_systemInspector is null || target is null)
+        {
+            return;
+        }
+
+        var result = await _systemInspector.TerminateProcessAsync(target.Pid).ConfigureAwait(false);
+        _uiDispatch(() =>
+        {
+            InspectorFeedbackIsSuccess = result.Succeeded;
+            InspectorFeedbackText = result.Message;
+            HasInspectorFeedback = true;
+
+            if (result.RequiresElevation)
+            {
+                ShowInspectorElevationCallout = true;
+                InspectorElevationReason = result.Message;
+            }
+        });
+
+        if (result.Succeeded)
+        {
+            await RefreshInspectorAsync().ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand]
+    private Task StartServiceAsync(WindowsServiceRowItem? row) =>
+        ControlServiceCoreAsync(row, ServiceControlAction.Start);
+
+    [RelayCommand]
+    private Task StopServiceAsync(WindowsServiceRowItem? row) =>
+        ControlServiceCoreAsync(row, ServiceControlAction.Stop);
+
+    [RelayCommand]
+    private Task RestartServiceAsync(WindowsServiceRowItem? row) =>
+        ControlServiceCoreAsync(row, ServiceControlAction.Restart);
+
+    private async Task ControlServiceCoreAsync(WindowsServiceRowItem? row, ServiceControlAction action)
+    {
+        if (_systemInspector is null || row is null)
+        {
+            return;
+        }
+
+        var result = await _systemInspector.ControlServiceAsync(row.ServiceName, action).ConfigureAwait(false);
+        _uiDispatch(() =>
+        {
+            InspectorFeedbackIsSuccess = result.Succeeded;
+            InspectorFeedbackText = result.Message;
+            HasInspectorFeedback = true;
+
+            if (result.RequiresElevation)
+            {
+                ShowInspectorElevationCallout = true;
+                InspectorElevationReason = result.Message;
+            }
+        });
+
+        if (result.Succeeded)
+        {
+            await RefreshInspectorAsync().ConfigureAwait(false);
+        }
+    }
+
+    private void ApplyInspectorFilter()
+    {
+        string query = InspectorSearchQuery?.Trim() ?? string.Empty;
+        const int maxVisible = 120;
+
+        if (IsProcessesTab)
+        {
+            FilteredProcesses.Clear();
+            int matched = 0;
+            foreach (var p in _allProcesses)
+            {
+                if (!string.IsNullOrEmpty(query) &&
+                    !p.Name.Contains(query, StringComparison.OrdinalIgnoreCase) &&
+                    !p.Pid.ToString(CultureInfo.InvariantCulture).Contains(query, StringComparison.OrdinalIgnoreCase) &&
+                    !(p.ExecutablePath?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
+                {
+                    continue;
+                }
+
+                matched++;
+                if (FilteredProcesses.Count < maxVisible)
+                {
+                    FilteredProcesses.Add(new ProcessRowItem(p));
+                }
+            }
+
+            InspectorSummaryText = $"Показано {FilteredProcesses.Count} із {matched} процесів (усього {_allProcesses.Count})";
+        }
+        else if (IsServicesTab)
+        {
+            FilteredServices.Clear();
+            int matched = 0;
+            foreach (var s in _allServices)
+            {
+                if (!string.IsNullOrEmpty(query) &&
+                    !s.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase) &&
+                    !s.ServiceName.Contains(query, StringComparison.OrdinalIgnoreCase) &&
+                    !s.Status.Contains(query, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                matched++;
+                if (FilteredServices.Count < maxVisible)
+                {
+                    FilteredServices.Add(new WindowsServiceRowItem(s));
+                }
+            }
+
+            InspectorSummaryText = $"Показано {FilteredServices.Count} із {matched} служб (усього {_allServices.Count})";
+        }
+        else
+        {
+            FilteredLocalPorts.Clear();
+            int matched = 0;
+            foreach (var port in _allLocalPorts)
+            {
+                if (!string.IsNullOrEmpty(query) &&
+                    !port.Protocol.Contains(query, StringComparison.OrdinalIgnoreCase) &&
+                    !port.LocalAddress.Contains(query, StringComparison.OrdinalIgnoreCase) &&
+                    !port.LocalPort.ToString(CultureInfo.InvariantCulture).Contains(query, StringComparison.OrdinalIgnoreCase) &&
+                    !port.ProcessName.Contains(query, StringComparison.OrdinalIgnoreCase) &&
+                    !port.Pid.ToString(CultureInfo.InvariantCulture).Contains(query, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                matched++;
+                if (FilteredLocalPorts.Count < maxVisible)
+                {
+                    FilteredLocalPorts.Add(new LocalPortRowItem(port));
+                }
+            }
+
+            InspectorSummaryText = $"Показано {FilteredLocalPorts.Count} із {matched} локальних портів (усього {_allLocalPorts.Count})";
+        }
+    }
+
+    private Action<ArgusSectionId>? _navigateToSection;
+
+    public void AttachNavigator(Action<ArgusSectionId> navigate)
+    {
+        _navigateToSection = navigate;
+    }
+
+    [RelayCommand]
+    private void OpenFullProcesses()
+    {
+        _navigateToSection?.Invoke(ArgusSectionId.Processes);
+    }
 
     [RelayCommand]
     private void SelectWindow30() => SetTimeWindow(30);
@@ -760,6 +1229,7 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
 
     public void Dispose()
     {
+        DetachUiMode();
         _telemetrySubscription.Dispose();
         _settingsSubscription.Dispose();
         _alertSubscription.Dispose();

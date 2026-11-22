@@ -12,7 +12,7 @@
         <StackPanel Spacing="14">
           <TextBlock Classes="section-heading" Text="Параметри телеметрії та оболонки" />
 
-          <Grid ColumnDefinitions="*,140" RowDefinitions="Auto,10,Auto,10,Auto,10,Auto,10,Auto">
+          <Grid ColumnDefinitions="*,140" RowDefinitions="Auto,10,Auto,10,Auto,10,Auto,10,Auto,10,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Classes="body-muted" Text="Інтервал опитування датчиків (мс)" VerticalAlignment="Center" />
             <NumericUpDown Grid.Row="0" Grid.Column="1" Classes="argus-numeric" Minimum="250" Maximum="10000" Increment="250" Value="{Binding TelemetryIntervalMs}" />
 
@@ -27,10 +27,50 @@
 
             <TextBlock Grid.Row="8" Grid.Column="0" Classes="body-muted" Text="Поріг заповнення RAM (%)" VerticalAlignment="Center" />
             <NumericUpDown Grid.Row="8" Grid.Column="1" Classes="argus-numeric" Minimum="50" Maximum="99" Increment="1" Value="{Binding RamUsageAlertPercent}" />
+
+            <TextBlock Grid.Row="10" Grid.Column="0" Classes="body-muted" Text="Поріг критично малого місця на диску (%)" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Row="10" Grid.Column="1" Classes="argus-numeric" Minimum="2" Maximum="50" Increment="1" Value="{Binding DiskFreeSpaceAlertPercent}" />
           </Grid>
 
           <Border Classes="tile">
             <StackPanel Spacing="10">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="2" Margin="0,0,12,0">
+                  <TextBlock Text="Увімкнути системний трей" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Classes="body-muted" Text="Показує іконку в треї та сповіщення ЛИШЕ про перегрів CPU/GPU, критично мале місце на диску й погіршення S.M.A.R.T." />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnableSystemTray}" OnContent="" OffContent="" VerticalAlignment="Center" />
+              </Grid>
+
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="2" Margin="0,0,12,0">
+                  <TextBlock Text="Згортати в системний трей" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Classes="body-muted" Text="Натискання «Закрити» ховає вікно в трей (працює, коли системний трей увімкнено)." />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1"
+                              IsChecked="{Binding MinimizeToTrayOnClose}"
+                              IsEnabled="{Binding EnableSystemTray}"
+                              OnContent=""
+                              OffContent=""
+                              VerticalAlignment="Center" />
+              </Grid>
+
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="2" Margin="0,0,12,0">
+                  <TextBlock Text="Сповіщати про погіршення S.M.A.R.T. дисків" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Classes="body-muted" Text="Попереджає про перехід накопичувача в стан «Увага» або «Критичний»." />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnableSmartDegradationAlert}" OnContent="" OffContent="" VerticalAlignment="Center" />
+              </Grid>
+
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="2" Margin="0,0,12,0">
+                  <TextBlock Text="Експертний режим за замовчуванням" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Classes="body-muted" Text="Синхронізується з перемикачем у вкладках (процеси, служби, порти, Instance ID, деталі S.M.A.R.T.)." />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1" IsChecked="{Binding ExpertModeEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
+              </Grid>
+
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Spacing="2" Margin="0,0,12,0">
                   <TextBlock Text="Перевіряти оновлення під час запуску" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
@@ -57,16 +97,8 @@
 
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Spacing="2" Margin="0,0,12,0">
-                  <TextBlock Text="Згортати в системний трей" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
-                  <TextBlock Classes="body-muted" Text="Натискання «Закрити» ховає вікно в трей замість повного завершення." />
-                </StackPanel>
-                <ToggleSwitch Grid.Column="1" IsChecked="{Binding MinimizeToTrayOnClose}" OnContent="" OffContent="" VerticalAlignment="Center" />
-              </Grid>
-
-              <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Spacing="2" Margin="0,0,12,0">
                   <TextBlock Text="Автозапуск разом із Windows" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
-                  <TextBlock Classes="body-muted" Text="Тихий старт у системному треї під час входу в Windows." />
+                  <TextBlock Classes="body-muted" Text="Тихий старт у фоновому режимі під час входу в Windows." />
                 </StackPanel>
                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding StartWithWindows}" OnContent="" OffContent="" VerticalAlignment="Center" />
               </Grid>
@@ -211,6 +243,31 @@
                       Command="{Binding CreateRestorePointNowCommand}"
                       VerticalAlignment="Center" />
             </Grid>
+
+            <!-- Contextual UAC Callout for System Restore -->
+            <Border Classes="uac-callout" IsVisible="{Binding NeedsElevation}">
+              <Grid ColumnDefinitions="Auto,10,*,12,Auto">
+                <Path Grid.Column="0"
+                      Width="16"
+                      Height="16"
+                      Stretch="Uniform"
+                      Data="{StaticResource IconShield}"
+                      Stroke="{StaticResource ArgusAmberBrush}"
+                      StrokeThickness="1.6"
+                      VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2"
+                           FontSize="11.5"
+                           Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                           Text="Створення контрольної точки відновлення Windows потребує прав адміністратора (UAC)."
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="4"
+                        Classes="privilege-pill"
+                        Content="Підвищити права (UAC)"
+                        Command="{Binding RequestElevationCommand}"
+                        VerticalAlignment="Center" />
+              </Grid>
+            </Border>
 
             <TextBlock FontSize="12.5"
                        TextWrapping="Wrap"

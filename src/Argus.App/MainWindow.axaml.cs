@@ -128,6 +128,7 @@ public sealed partial class MainWindow : Window
     {
         if (!_allowClose &&
             _settingsStore is not null &&
+            _settingsStore.Current.EnableSystemTray &&
             _settingsStore.Current.MinimizeToTrayOnClose)
         {
             e.Cancel = true;
@@ -199,12 +200,15 @@ public sealed partial class MainWindow : Window
         {
             Key.D1 or Key.NumPad1 => ArgusSectionId.Overview,
             Key.D2 or Key.NumPad2 => ArgusSectionId.Monitoring,
-            Key.D3 or Key.NumPad3 => ArgusSectionId.Devices,
-            Key.D4 or Key.NumPad4 => ArgusSectionId.Cleanup,
-            Key.D5 or Key.NumPad5 => ArgusSectionId.Disks,
-            Key.D6 or Key.NumPad6 => ArgusSectionId.Migration,
-            Key.D7 or Key.NumPad7 => ArgusSectionId.Journal,
-            Key.D8 or Key.NumPad8 => ArgusSectionId.Settings,
+            Key.D3 or Key.NumPad3 => ArgusSectionId.Network,
+            Key.D4 or Key.NumPad4 => ArgusSectionId.Devices,
+            Key.D5 or Key.NumPad5 => ArgusSectionId.Cleanup,
+            Key.D6 or Key.NumPad6 => ArgusSectionId.Disks,
+            Key.D7 or Key.NumPad7 => ArgusSectionId.Migration,
+            Key.D8 or Key.NumPad8 => ArgusSectionId.Processes,
+            Key.D9 or Key.NumPad9 => ArgusSectionId.StartupAndServices,
+            Key.D0 or Key.NumPad0 => ArgusSectionId.Journal,
+            Key.OemComma => ArgusSectionId.Settings,
             _ => null
         };
 

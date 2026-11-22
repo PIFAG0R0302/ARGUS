@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
+using Argus.App.Services;
 using Argus.Core.Contracts.Devices;
 using Argus.Core.Events;
 using Argus.Core.Extensions;
@@ -46,6 +48,12 @@ public sealed class DeviceNodeRowItem
             ? $"Драйвер: {node.DriverVersion}"
             : $"Драйвер: {node.DriverVersion} ({node.DriverDate})";
         InstanceId = node.InstanceId;
+        BasicDriverText = string.IsNullOrWhiteSpace(node.DriverVersion)
+            ? "—"
+            : $"Драйвер {node.DriverVersion}";
+        ExpertClassHardwareSummary = $"Клас: {node.Category} · Шина: {node.BusType} · Постачальник: {node.Manufacturer}";
+        string datePart = string.IsNullOrWhiteSpace(node.DriverDate) ? "н/д" : node.DriverDate;
+        ExpertDriverAndProblemDetail = $"Драйвер: {node.DriverVersion} (дата: {datePart}) · Код проблеми: {node.ProblemCode}";
 
         IsOk = node.Status == DeviceStatus.Ok;
         IsProblem = node.Status is DeviceStatus.Warning or DeviceStatus.Error;
@@ -63,6 +71,9 @@ public sealed class DeviceNodeRowItem
     public string CategoryAndManufacturer { get; }
     public string BusType { get; }
     public string DriverSummary { get; }
+    public string BasicDriverText { get; }
+    public string ExpertClassHardwareSummary { get; }
+    public string ExpertDriverAndProblemDetail { get; }
     public string InstanceId { get; }
     public string StatusLabel { get; }
     public bool IsOk { get; }
@@ -145,15 +156,26 @@ public sealed partial class DevicesViewModel : SectionViewModelBase, IDisposable
     [ObservableProperty]
     private string _filterProblemsLabel = "Проблемні (0)";
 
+    [ObservableProperty]
+    private bool _hasExpertActionFeedback;
+
+    [ObservableProperty]
+    private string _expertActionFeedback = string.Empty;
+
+    public Action<string>? CopyToClipboardHandler { get; set; }
+
     public DevicesViewModel(
         IDeviceProvider? deviceProvider = null,
         IArgusEventBus? eventBus = null,
         Action<Action>? uiDispatch = null,
-        bool autoLoadOnInit = true)
+        bool autoLoadOnInit = true,
+        AppUiModeService? uiMode = null)
         : base(
             ArgusSectionId.Devices,
             "Пристрої та конфігурація",
-            "Специфікація CPU/RAM/BIOS/GPU, живе дерево пристроїв SetupAPI та події підключення")
+            "Специфікація CPU/RAM/BIOS/GPU, живе дерево пристроїв SetupAPI та події підключення",
+            uiMode,
+            uiDispatch)
     {
         _deviceProvider = deviceProvider;
         _uiDispatch = uiDispatch ?? (static action => action());
@@ -212,6 +234,39 @@ public sealed partial class DevicesViewModel : SectionViewModelBase, IDisposable
 
     [RelayCommand]
     private void FilterProblems() => SetFilterMode(DeviceFilterMode.Problems);
+
+    [RelayCommand]
+    private void CopyInstanceId(string? instanceId)
+    {
+        if (string.IsNullOrWhiteSpace(instanceId))
+        {
+            return;
+        }
+
+        CopyToClipboardHandler?.Invoke(instanceId);
+        ExpertActionFeedback = $"Скопійовано Instance ID: {instanceId}";
+        HasExpertActionFeedback = true;
+    }
+
+    [RelayCommand]
+    private void OpenDeviceManager()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "devmgmt.msc",
+                UseShellExecute = true
+            });
+            ExpertActionFeedback = "Відкрито Диспетчер пристроїв Windows (devmgmt.msc).";
+            HasExpertActionFeedback = true;
+        }
+        catch (Exception ex)
+        {
+            ExpertActionFeedback = $"Не вдалося відкрити Диспетчер пристроїв: {ex.Message}";
+            HasExpertActionFeedback = true;
+        }
+    }
 
     public void SetFilterMode(DeviceFilterMode mode)
     {
@@ -413,6 +468,7 @@ public sealed partial class DevicesViewModel : SectionViewModelBase, IDisposable
 
     public void Dispose()
     {
+        DetachUiMode();
         _topologySubscription?.Dispose();
     }
 }

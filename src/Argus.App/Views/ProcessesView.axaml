@@ -1,0 +1,250 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Argus.App.ViewModels"
+             x:Class="Argus.App.Views.ProcessesView"
+             x:DataType="vm:ProcessesViewModel">
+
+  <Grid RowDefinitions="Auto,12,*">
+
+    <!-- Top Control Panel -->
+    <Border Grid.Row="0" Classes="panel-hero">
+      <StackPanel Spacing="10">
+
+        <!-- Contextual On-Demand UAC Banner -->
+        <Border Classes="uac-callout" IsVisible="{Binding NeedsElevation}">
+          <Grid ColumnDefinitions="Auto,10,*,Auto">
+            <Path Grid.Column="0"
+                  Width="16"
+                  Height="16"
+                  Stretch="Uniform"
+                  Data="{StaticResource IconShield}"
+                  Stroke="{StaticResource ArgusAmberBrush}"
+                  StrokeThickness="1.5"
+                  VerticalAlignment="Center" />
+            <TextBlock Grid.Column="2"
+                       FontSize="12"
+                       Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                       TextWrapping="Wrap"
+                       VerticalAlignment="Center"
+                       Text="Перегляд процесів, CPU %, RAM і Disk I/O працює без прав адміністратора. Для завершення привілейованих процесів потрібні права адміністратора (UAC)." />
+            <Button Grid.Column="3"
+                    Margin="12,0,0,0"
+                    Classes="privilege-pill"
+                    Content="Підвищити права (UAC)"
+                    Command="{Binding RequestElevationCommand}"
+                    VerticalAlignment="Center" />
+          </Grid>
+        </Border>
+
+        <!-- Mandatory Kill/Terminate Confirmation Banner -->
+        <Border Background="#2D1219"
+                BorderBrush="{StaticResource ArgusCoralBrush}"
+                BorderThickness="1"
+                CornerRadius="9"
+                Padding="12,9"
+                IsVisible="{Binding IsTerminateConfirmationOpen}">
+          <Grid ColumnDefinitions="*,12,Auto">
+            <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+              <TextBlock FontSize="12.5"
+                         FontWeight="SemiBold"
+                         Foreground="{StaticResource ArgusCoralBrush}"
+                         Text="Підтвердження завершення процесу" />
+              <TextBlock FontSize="12"
+                         Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                         TextWrapping="Wrap"
+                         Text="{Binding TerminatePromptText}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Button Classes="argus-primary"
+                      Background="{StaticResource ArgusCoralBrush}"
+                      Padding="12,6"
+                      FontSize="12"
+                      Content="Так, завершити"
+                      Command="{Binding ConfirmTerminateCommand}" />
+              <Button Classes="argus-secondary"
+                      Padding="12,6"
+                      FontSize="12"
+                      Content="Скасувати"
+                      Command="{Binding CancelTerminateCommand}" />
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <!-- Row 1: Sort Pills + Refresh + Inline Expert Mode Toggle -->
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <TextBlock Text="Сортування:"
+                       FontSize="12"
+                       Foreground="{StaticResource ArgusTextMutedBrush}"
+                       Margin="0,0,4,0"
+                       VerticalAlignment="Center" />
+            <Button Classes="filter-pill" Classes.selected="{Binding IsSortByRam}" Content="За RAM" Command="{Binding SetSortCommand}" CommandParameter="RAM" />
+            <Button Classes="filter-pill" Classes.selected="{Binding IsSortByCpu}" Content="За CPU %" Command="{Binding SetSortCommand}" CommandParameter="CPU" />
+            <Button Classes="filter-pill" Classes.selected="{Binding IsSortByDisk}" Content="За Disk I/O" Command="{Binding SetSortCommand}" CommandParameter="DISK" />
+            <Button Classes="filter-pill" Classes.selected="{Binding IsSortByName}" Content="За назвою" Command="{Binding SetSortCommand}" CommandParameter="NAME" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Button Classes="argus-secondary"
+                    Padding="12,6"
+                    FontSize="12"
+                    Content="Оновити"
+                    IsEnabled="{Binding !IsLoading}"
+                    Command="{Binding RefreshCommand}" />
+            <Border Classes="expert-toggle-bar"
+                    ToolTip.Tip="У базовому режимі критичні системні процеси Windows приховано. Увімкніть «Експертний режим», щоб бачити їх (із захистом від завершення).">
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="Експертний режим"
+                           FontSize="11.5"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource ArgusVioletSoftBrush}"
+                           VerticalAlignment="Center" />
+                <ToggleSwitch IsChecked="{Binding IsExpertMode}"
+                              OnContent=""
+                              OffContent=""
+                              MinWidth="0"
+                              Padding="0"
+                              VerticalAlignment="Center" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Grid>
+
+        <!-- Row 2: Full-width Search Box -->
+        <TextBox Classes="argus-input"
+                 MinWidth="260"
+                 Text="{Binding SearchQuery}"
+                 PlaceholderText="Пошук процесу за назвою, PID або шляхом до .exe..." />
+
+        <!-- Summary & Action Feedback -->
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0"
+                     FontSize="12"
+                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                     Text="{Binding SummaryText}"
+                     VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1"
+                     FontSize="12"
+                     Foreground="{StaticResource ArgusCyanBrush}"
+                     IsVisible="{Binding HasActionFeedback}"
+                     Text="{Binding ActionFeedback}"
+                     TextTrimming="CharacterEllipsis"
+                     MaxWidth="480"
+                     VerticalAlignment="Center" />
+        </Grid>
+      </StackPanel>
+    </Border>
+
+    <!-- Live Process Table -->
+    <Border Grid.Row="2" Classes="panel" Padding="14">
+      <Grid RowDefinitions="Auto,*">
+        <!-- Column Header Strip -->
+        <Grid Grid.Row="0" ColumnDefinitions="72,10,*,10,74,10,92,10,164,10,152" Margin="12,0,18,8">
+          <TextBlock Grid.Column="0" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextMutedBrush}" Text="PID" />
+          <TextBlock Grid.Column="2" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextMutedBrush}" Text="ПРОЦЕС ТА ШЛЯХ .EXE" />
+          <TextBlock Grid.Column="4" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextMutedBrush}" Text="CPU %" HorizontalAlignment="Right" />
+          <TextBlock Grid.Column="6" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextMutedBrush}" Text="RAM" HorizontalAlignment="Right" />
+          <TextBlock Grid.Column="8" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextMutedBrush}" Text="DISK I/O (R / W)" HorizontalAlignment="Right" />
+          <TextBlock Grid.Column="10" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextMutedBrush}" Text="ДІЇ" HorizontalAlignment="Right" />
+        </Grid>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding Processes}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ProcessRowViewModel">
+                <Border Classes="tile" Padding="12,8" Margin="0,0,4,6">
+                  <Grid ColumnDefinitions="72,10,*,10,74,10,92,10,164,10,152">
+                    <Border Grid.Column="0" Classes="pill" Padding="6,2" HorizontalAlignment="Left" VerticalAlignment="Center">
+                      <TextBlock Classes="metric-mono" FontSize="11" Foreground="{StaticResource ArgusCyanBrush}" Text="{Binding PidText}" />
+                    </Border>
+
+                    <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
+                      <WrapPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Name}"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                   Margin="0,0,8,0"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding ThreadsText}"
+                                   FontSize="10.5"
+                                   Foreground="{StaticResource ArgusTextMutedBrush}"
+                                   Margin="0,0,6,0"
+                                   VerticalAlignment="Center" />
+                        <Border Classes="pill"
+                                Padding="6,1"
+                                Background="#261B0A"
+                                BorderBrush="{StaticResource ArgusAmberBrush}"
+                                IsVisible="{Binding IsCriticalSystem}"
+                                ToolTip.Tip="Критичний системний процес Windows — завершення заблоковано."
+                                VerticalAlignment="Center">
+                          <TextBlock Text="Захищено ОС"
+                                     FontSize="10"
+                                     FontWeight="SemiBold"
+                                     Foreground="{StaticResource ArgusAmberBrush}" />
+                        </Border>
+                      </WrapPanel>
+
+                      <TextBlock Classes="metric-mono"
+                                 FontSize="10.5"
+                                 Foreground="{StaticResource ArgusTextMutedBrush}"
+                                 Text="{Binding ExecutablePath}"
+                                 TextTrimming="CharacterEllipsis"
+                                 ToolTip.Tip="{Binding ExecutablePath}" />
+                    </StackPanel>
+
+                    <TextBlock Grid.Column="4"
+                               Classes="metric-mono"
+                               FontSize="12"
+                               HorizontalAlignment="Right"
+                               VerticalAlignment="Center"
+                               Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                               Text="{Binding CpuText}" />
+
+                    <TextBlock Grid.Column="6"
+                               Classes="metric-mono"
+                               FontSize="12"
+                               HorizontalAlignment="Right"
+                               VerticalAlignment="Center"
+                               Foreground="{StaticResource ArgusCyanBrush}"
+                               Text="{Binding MemoryText}" />
+
+                    <TextBlock Grid.Column="8"
+                               Classes="metric-mono"
+                               FontSize="11"
+                               HorizontalAlignment="Right"
+                               VerticalAlignment="Center"
+                               Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                               Text="{Binding DiskIoText}" />
+
+                    <StackPanel Grid.Column="10"
+                                Orientation="Horizontal"
+                                Spacing="6"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center">
+                      <Button Classes="argus-secondary"
+                              Padding="8,4"
+                              FontSize="11"
+                              Content="Тека"
+                              IsEnabled="{Binding HasExecutablePath}"
+                              Command="{Binding OpenFolderCommand}"
+                              ToolTip.Tip="Відкрити розташування .exe у Провіднику" />
+                      <Button Classes="argus-secondary"
+                              Padding="9,4"
+                              FontSize="11"
+                              Foreground="{StaticResource ArgusCoralBrush}"
+                              Content="Завершити"
+                              IsEnabled="{Binding CanTerminate}"
+                              Command="{Binding RequestTerminateCommand}"
+                              ToolTip.Tip="Завершити процес (з обов'язковим підтвердженням)" />
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

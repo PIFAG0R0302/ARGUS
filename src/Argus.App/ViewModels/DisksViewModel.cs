@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Windows.Input;
+using Argus.App.Services;
 using Argus.Core.Contracts.Maintenance;
 using Argus.Core.Extensions;
 using Argus.Maintenance.Cleanup;
@@ -36,7 +37,8 @@ public sealed class PhysicalDiskCardItem
             ? string.Join(", ", info.DriveLetters.Select(static l => $"{l}:"))
             : "без літери";
 
-        BusAndCapacityText = $"{info.BusType} · {info.PartitionStyle} · {sizeText} · Томи: {volumesText}";
+        BasicCapacityText = $"{sizeText} · Томи: {volumesText}";
+        BusAndCapacityText = $"Шина: {info.BusType} · Стиль розділів: {info.PartitionStyle} · {sizeText} · Томи: {volumesText}";
         SerialText = $"S/N: {info.SerialNumber}";
 
         IsHealthy = info.Smart.Health == SmartHealthStatus.Healthy;
@@ -102,6 +104,7 @@ public sealed class PhysicalDiskCardItem
     public string Title { get; }
     public string MediaBadge { get; }
     public bool IsSsdOrNvme { get; }
+    public string BasicCapacityText { get; }
     public string BusAndCapacityText { get; }
     public string SerialText { get; }
     public string HealthLabel { get; }
@@ -164,7 +167,7 @@ public sealed class FolderSpaceRowItem
     public double BarPercent { get; }
 }
 
-public sealed partial class DisksViewModel : SectionViewModelBase
+public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
 {
     private readonly IDiskOptimizer? _diskOptimizer;
     private readonly IDiskSpaceAnalyzer? _spaceAnalyzer;
@@ -207,11 +210,14 @@ public sealed partial class DisksViewModel : SectionViewModelBase
         IDiskOptimizer? diskOptimizer = null,
         IDiskSpaceAnalyzer? spaceAnalyzer = null,
         Action<Action>? uiDispatch = null,
-        bool autoLoadOnInit = true)
+        bool autoLoadOnInit = true,
+        AppUiModeService? uiMode = null)
         : base(
             ArgusSectionId.Disks,
             "Диски й діагностика",
-            "Розпізнавання HDD / SSD / NVMe, S.M.A.R.T., безпечна оптимізація та карта найбільших тек")
+            "Розпізнавання HDD / SSD / NVMe, S.M.A.R.T., безпечна оптимізація та карта найбільших тек",
+            uiMode,
+            uiDispatch)
     {
         _diskOptimizer = diskOptimizer;
         _spaceAnalyzer = spaceAnalyzer;
@@ -375,7 +381,10 @@ public sealed partial class DisksViewModel : SectionViewModelBase
             _uiDispatch(() =>
             {
                 StatusIsSuccess = result.Succeeded;
-                StatusBannerText = result.Summary;
+                StatusBannerText = result.Summary.Replace(
+                    "запустіть кореневий Argus.exe або натисніть щит UAC",
+                    "натисніть кнопку «Підвищити права (UAC)» вище або щит UAC у верхній панелі",
+                    StringComparison.OrdinalIgnoreCase);
                 if (result.Succeeded)
                 {
                     SetProgress(100, $"Оптимізація тома {letter}: завершена");
@@ -512,5 +521,10 @@ public sealed partial class DisksViewModel : SectionViewModelBase
         {
             LargestFolders.Add(new FolderSpaceRowItem(node));
         }
+    }
+
+    public void Dispose()
+    {
+        DetachUiMode();
     }
 }

@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Argus.App.Tests" />
+    <InternalsVisibleTo Include="Argus.Core.Tests" />
   </ItemGroup>
 
   <ItemGroup>

@@ -5,28 +5,44 @@
              x:Class="Argus.App.Views.MonitoringView"
              x:DataType="vm:MonitoringViewModel">
 
-  <!-- Sticky Top Gauges & Live Dynamics Chart (Row 0) + Scrollable Hardware Details Below (Row 2) -->
-  <Grid RowDefinitions="Auto,10,*" Margin="0,0,4,6">
+  <!-- Compact Top Status & Expert Toggle Bar (Row 0) + Smoothly Scrollable Workspace Below (Row 2) -->
+  <Grid RowDefinitions="Auto,8,*" Margin="0,0,4,6">
 
-    <!-- PINNED TOP HEADER: Status Strip + Alert Banner + 4 Gauges + Live Chart with Series Filters -->
-    <StackPanel Grid.Row="0" Spacing="8">
-      <!-- Sensor Tier & Sampling Status Strip -->
-      <Border Classes="tile" Padding="14,7">
-        <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+    <!-- PINNED COMPACT TOP BAR: Sensor Tier, Sampling Status & Inline Expert Mode Toggle -->
+    <StackPanel Grid.Row="0" Spacing="6">
+      <!-- Sensor Tier, Sampling Status Strip & Inline Expert Mode Toggle -->
+      <Border Classes="tile" Padding="12,5">
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Column="0"
                      FontSize="12"
                      Foreground="{StaticResource ArgusEmeraldBrush}"
                      Text="{Binding SensorModeSummary}"
                      TextTrimming="CharacterEllipsis"
                      VerticalAlignment="Center" />
-          <TextBlock Grid.Column="1" Classes="metric-mono" Margin="14,0,0,0" Text="{Binding SamplingSummary}" VerticalAlignment="Center" />
-          <TextBlock Grid.Column="2" Classes="metric-mono" Margin="14,0,0,0" Text="{Binding HistorySummary}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Classes="metric-mono" Margin="12,0,0,0" Text="{Binding SamplingSummary}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="2" Classes="metric-mono" Margin="12,0,0,0" Text="{Binding HistorySummary}" VerticalAlignment="Center" />
           <TextBlock Grid.Column="3"
                      FontSize="11.5"
-                     Margin="14,0,0,0"
+                     Margin="12,0,12,0"
                      Foreground="{StaticResource ArgusTextMutedBrush}"
                      Text="{Binding LastUpdatedText}"
                      VerticalAlignment="Center" />
+
+          <Border Grid.Column="4"
+                  Classes="expert-toggle-bar"
+                  ToolTip.Tip="Увімкніть, щоб відкрити експертну діагностику: процеси (PID), служби Windows і локальні порти.">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <TextBlock Text="Експертний режим"
+                         FontSize="11.5"
+                         FontWeight="SemiBold"
+                         Foreground="{StaticResource ArgusVioletSoftBrush}"
+                         VerticalAlignment="Center" />
+              <ToggleSwitch IsChecked="{Binding IsExpertMode}"
+                            OnContent=""
+                            OffContent=""
+                            VerticalAlignment="Center" />
+            </StackPanel>
+          </Border>
         </Grid>
       </Border>
 
@@ -50,9 +66,14 @@
                   Command="{Binding DismissAlertCommand}" />
         </Grid>
       </Border>
+    </StackPanel>
 
-      <!-- Four Live Skia Radial Gauges (Pinned) -->
-      <UniformGrid Columns="4">
+    <!-- SMOOTH SCROLLABLE WORKSPACE: 4 Gauges + Skia Chart + Expert Diagnostics (when enabled) + Lower Hardware Details -->
+    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+      <StackPanel Spacing="10" Margin="0,0,2,10">
+
+        <!-- Four Live Skia Radial Gauges -->
+        <UniformGrid Columns="4">
         <Border Classes="panel" Margin="0,0,10,0" Padding="8,4">
           <controls:TelemetryArcGauge Height="130"
                                       IsStandby="{Binding CpuStandby}"
@@ -250,11 +271,297 @@
           </TextBlock>
         </StackPanel>
       </Border>
-    </StackPanel>
 
-    <!-- SCROLLABLE LOWER SECTION: Per-Core CPU + GPU / Storage / Extra Sensors -->
-    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-      <Grid ColumnDefinitions="*,14,*" Margin="0,0,2,8">
+        <!-- Expert Mode System Inspector Card (Lazy-loaded ONLY when IsExpertMode is ON) -->
+        <Border Classes="panel-hero" Padding="15,12" IsVisible="{Binding IsExpertMode}">
+          <StackPanel Spacing="10">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                <TextBlock Classes="section-heading" Text="Експертна діагностика системи" />
+                <TextBlock FontSize="11.5"
+                           Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                           Text="{Binding InspectorSummaryText}" />
+              </StackPanel>
+
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Button Classes="argus-secondary"
+                        Padding="10,5"
+                        FontSize="11.5"
+                        Content="Вкладка «Процеси» →"
+                        Command="{Binding OpenFullProcessesCommand}"
+                        ToolTip.Tip="Відкрити повноцінний диспетчер процесів із CPU %, RAM і Disk I/O" />
+                <Button Classes="argus-secondary"
+                        Classes.selected="{Binding IsProcessesTab}"
+                        Padding="10,5"
+                        FontSize="11.5"
+                        Content="{Binding ProcessesTabLabel}"
+                        Command="{Binding SelectProcessesTabCommand}" />
+                <Button Classes="argus-secondary"
+                        Classes.selected="{Binding IsServicesTab}"
+                        Padding="10,5"
+                        FontSize="11.5"
+                        Content="{Binding ServicesTabLabel}"
+                        Command="{Binding SelectServicesTabCommand}" />
+                <Button Classes="argus-secondary"
+                        Classes.selected="{Binding IsLocalPortsTab}"
+                        Padding="10,5"
+                        FontSize="11.5"
+                        Content="{Binding LocalPortsTabLabel}"
+                        Command="{Binding SelectLocalPortsTabCommand}" />
+              </StackPanel>
+            </Grid>
+
+            <!-- Search & Refresh Bar -->
+            <Grid ColumnDefinitions="*,10,Auto">
+              <TextBox Grid.Column="0"
+                       Classes="argus-input"
+                       Text="{Binding InspectorSearchQuery}"
+                       PlaceholderText="Пошук за назвою процесу, PID, службою або портом…" />
+              <Button Grid.Column="2"
+                      Classes="argus-secondary"
+                      Padding="12,7"
+                      FontSize="12"
+                      IsEnabled="{Binding !IsInspectorLoading}"
+                      Content="Оновити"
+                      Command="{Binding RefreshInspectorCommand}" />
+            </Grid>
+
+            <!-- Contextual UAC Callout for Services or Protected Processes -->
+            <Border Classes="uac-callout" IsVisible="{Binding ShowContextualInspectorUac}">
+              <Grid ColumnDefinitions="Auto,10,*,12,Auto">
+                <Path Grid.Column="0"
+                      Width="16"
+                      Height="16"
+                      Stretch="Uniform"
+                      Data="{StaticResource IconShield}"
+                      Stroke="{StaticResource ArgusAmberBrush}"
+                      StrokeThickness="1.6"
+                      VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2"
+                           FontSize="12"
+                           Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                           Text="{Binding InspectorElevationReason}"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="4"
+                        Classes="privilege-pill"
+                        Content="Підвищити права (UAC)"
+                        Command="{Binding RequestElevationCommand}"
+                        VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <!-- Inline Confirmation Strip before Terminating a Process -->
+            <Border Classes="pill-danger"
+                    CornerRadius="8"
+                    Padding="12,8"
+                    IsVisible="{Binding HasPendingTerminate}">
+              <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Grid.Column="0"
+                           FontSize="12"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                           Text="{Binding PendingTerminatePrompt}"
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="1"
+                        Classes="argus-primary"
+                        Margin="10,0,6,0"
+                        Padding="10,4"
+                        FontSize="11.5"
+                        Content="Так, завершити"
+                        Command="{Binding ConfirmTerminateProcessCommand}" />
+                <Button Grid.Column="2"
+                        Classes="argus-secondary"
+                        Padding="10,4"
+                        FontSize="11.5"
+                        Content="Скасувати"
+                        Command="{Binding CancelTerminateProcessCommand}" />
+              </Grid>
+            </Border>
+
+            <!-- Inspector Action Feedback -->
+            <TextBlock FontSize="11.5"
+                       IsVisible="{Binding HasInspectorFeedback}"
+                       Classes.warn-text="{Binding !InspectorFeedbackIsSuccess}"
+                       Text="{Binding InspectorFeedbackText}"
+                       TextWrapping="Wrap">
+              <TextBlock.Styles>
+                <Style Selector="TextBlock">
+                  <Setter Property="Foreground" Value="{StaticResource ArgusEmeraldBrush}" />
+                </Style>
+                <Style Selector="TextBlock.warn-text">
+                  <Setter Property="Foreground" Value="{StaticResource ArgusAmberBrush}" />
+                </Style>
+              </TextBlock.Styles>
+            </TextBlock>
+
+            <!-- Sub-tab 1: Processes (PID) -->
+            <ScrollViewer MaxHeight="380" VerticalScrollBarVisibility="Auto" IsVisible="{Binding IsProcessesTab}">
+              <ItemsControl ItemsSource="{Binding FilteredProcesses}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ProcessRowItem">
+                    <Border Classes="tile" Margin="0,0,4,5" Padding="10,6">
+                      <Grid ColumnDefinitions="64,170,84,64,*,Auto">
+                        <Border Grid.Column="0" Classes="pill" Padding="6,1" HorizontalAlignment="Left" VerticalAlignment="Center">
+                          <TextBlock Classes="metric-mono" FontSize="10.5" Text="{Binding PidText}" />
+                        </Border>
+                        <TextBlock Grid.Column="1"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                   Text="{Binding Name}"
+                                   TextTrimming="CharacterEllipsis"
+                                   Margin="6,0,8,0"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="2"
+                                   Classes="metric-mono"
+                                   FontSize="11.5"
+                                   Text="{Binding MemoryText}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="3"
+                                   FontSize="11"
+                                   Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                   Text="{Binding ThreadsText}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="4"
+                                   FontSize="11"
+                                   Foreground="{StaticResource ArgusTextMutedBrush}"
+                                   Text="{Binding ExecutablePath}"
+                                   TextTrimming="CharacterEllipsis"
+                                   Margin="8,0,10,0"
+                                   VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                          <Button Classes="argus-secondary"
+                                  Padding="8,3"
+                                  FontSize="11"
+                                  IsEnabled="{Binding HasExecutablePath}"
+                                  Content="Відкрити теку"
+                                  Command="{Binding $parent[UserControl].((vm:MonitoringViewModel)DataContext).OpenProcessFolderCommand}"
+                                  CommandParameter="{Binding}" />
+                          <Button Classes="argus-secondary"
+                                  Padding="8,3"
+                                  FontSize="11"
+                                  Content="Завершити"
+                                  Command="{Binding $parent[UserControl].((vm:MonitoringViewModel)DataContext).RequestTerminateProcessCommand}"
+                                  CommandParameter="{Binding}" />
+                        </StackPanel>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Sub-tab 2: Windows Services -->
+            <ScrollViewer MaxHeight="380" VerticalScrollBarVisibility="Auto" IsVisible="{Binding IsServicesTab}">
+              <ItemsControl ItemsSource="{Binding FilteredServices}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:WindowsServiceRowItem">
+                    <Border Classes="tile" Margin="0,0,4,5" Padding="10,6">
+                      <Grid ColumnDefinitions="*,135,96,Auto">
+                        <StackPanel Grid.Column="0" Spacing="1" Margin="0,0,10,0" VerticalAlignment="Center">
+                          <TextBlock FontSize="12"
+                                     FontWeight="SemiBold"
+                                     Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                     Text="{Binding DisplayName}"
+                                     TextTrimming="CharacterEllipsis" />
+                          <TextBlock Classes="metric-mono"
+                                     FontSize="10.5"
+                                     Foreground="{StaticResource ArgusTextMutedBrush}"
+                                     Text="{Binding ServiceName}"
+                                     TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="1"
+                                   FontSize="11"
+                                   Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                   Text="{Binding StartType}"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center" />
+                        <Border Grid.Column="2"
+                                Classes="pill"
+                                Classes.pill-ready="{Binding IsRunning}"
+                                Padding="7,1"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center">
+                          <TextBlock FontSize="10.5"
+                                     Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                     Text="{Binding Status}" />
+                        </Border>
+                        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                          <Button Classes="argus-secondary"
+                                  Padding="8,3"
+                                  FontSize="11"
+                                  IsEnabled="{Binding IsStopped}"
+                                  Content="Запустити"
+                                  Command="{Binding $parent[UserControl].((vm:MonitoringViewModel)DataContext).StartServiceCommand}"
+                                  CommandParameter="{Binding}" />
+                          <Button Classes="argus-secondary"
+                                  Padding="8,3"
+                                  FontSize="11"
+                                  IsEnabled="{Binding CanStop}"
+                                  Content="Зупинити"
+                                  Command="{Binding $parent[UserControl].((vm:MonitoringViewModel)DataContext).StopServiceCommand}"
+                                  CommandParameter="{Binding}" />
+                          <Button Classes="argus-secondary"
+                                  Padding="8,3"
+                                  FontSize="11"
+                                  IsEnabled="{Binding CanStop}"
+                                  Content="Перезапустити"
+                                  Command="{Binding $parent[UserControl].((vm:MonitoringViewModel)DataContext).RestartServiceCommand}"
+                                  CommandParameter="{Binding}" />
+                        </StackPanel>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Sub-tab 3: Local TCP/UDP Ports -->
+            <ScrollViewer MaxHeight="380" VerticalScrollBarVisibility="Auto" IsVisible="{Binding IsLocalPortsTab}">
+              <ItemsControl ItemsSource="{Binding FilteredLocalPorts}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:LocalPortRowItem">
+                    <Border Classes="tile" Margin="0,0,4,5" Padding="10,6">
+                      <Grid ColumnDefinitions="56,220,110,68,*">
+                        <Border Grid.Column="0" Classes="pill" Padding="6,1" HorizontalAlignment="Left" VerticalAlignment="Center">
+                          <TextBlock Classes="metric-mono" FontSize="10.5" Text="{Binding Protocol}" />
+                        </Border>
+                        <TextBlock Grid.Column="1"
+                                   Classes="metric-mono"
+                                   FontSize="11.5"
+                                   Text="{Binding EndpointText}"
+                                   TextTrimming="CharacterEllipsis"
+                                   Margin="6,0,8,0"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="2"
+                                   FontSize="11"
+                                   Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                   Text="{Binding State}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="3"
+                                   Classes="metric-mono"
+                                   FontSize="11"
+                                   Foreground="{StaticResource ArgusVioletSoftBrush}"
+                                   Text="{Binding PidText}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="4"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                   Text="{Binding ProcessName}"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </StackPanel>
+        </Border>
+
+        <Grid ColumnDefinitions="*,14,*">
 
         <!-- Left: Live Per-Thread CPU Load Matrix -->
         <Border Grid.Column="0" Classes="panel" VerticalAlignment="Top" Padding="15,12">
@@ -367,6 +674,7 @@
           </Border>
         </StackPanel>
       </Grid>
+      </StackPanel>
     </ScrollViewer>
   </Grid>
 </UserControl>

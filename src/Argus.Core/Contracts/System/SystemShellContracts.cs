@@ -4,6 +4,7 @@ public interface IPrivilegeService
 {
     bool IsAdministrator { get; }
     bool TryRelaunchElevated(string[]? arguments = null);
+    bool CanWriteToDirectory(string directoryPath) => true;
 }
 
 public interface IStartupRegistrationService

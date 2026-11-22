@@ -94,7 +94,18 @@ public enum TelemetryAlertKind
 {
     CpuTemperatureHigh,
     GpuTemperatureHigh,
-    RamUsageHigh
+    RamUsageHigh,
+    DiskSpaceLow,
+    DiskSmartDegraded
+}
+
+public static class TelemetryAlertPolicy
+{
+    public static bool IsHardwareOrDiskTrayAlert(TelemetryAlertKind kind) =>
+        kind is TelemetryAlertKind.CpuTemperatureHigh
+            or TelemetryAlertKind.GpuTemperatureHigh
+            or TelemetryAlertKind.DiskSpaceLow
+            or TelemetryAlertKind.DiskSmartDegraded;
 }
 
 public sealed record TelemetryAlertEvent(

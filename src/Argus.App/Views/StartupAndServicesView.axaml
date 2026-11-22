@@ -1,0 +1,332 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Argus.App.ViewModels"
+             x:Class="Argus.App.Views.StartupAndServicesView"
+             x:DataType="vm:StartupAndServicesViewModel">
+
+  <Grid RowDefinitions="Auto,12,*">
+
+    <!-- Top Control Panel: Contextual UAC + Sub-Tabs + Expert Toggle + Search -->
+    <Border Grid.Row="0" Classes="panel-hero">
+      <StackPanel Spacing="10">
+
+        <!-- Contextual On-Demand UAC Banner -->
+        <Border Classes="uac-callout" IsVisible="{Binding NeedsElevation}">
+          <Grid ColumnDefinitions="Auto,10,*,Auto">
+            <Path Grid.Column="0"
+                  Width="16"
+                  Height="16"
+                  Stretch="Uniform"
+                  Data="{StaticResource IconShield}"
+                  Stroke="{StaticResource ArgusAmberBrush}"
+                  StrokeThickness="1.5"
+                  VerticalAlignment="Center" />
+            <TextBlock Grid.Column="2"
+                       FontSize="12"
+                       Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                       TextWrapping="Wrap"
+                       VerticalAlignment="Center"
+                       Text="Перегляд автозапуску й служб та перемикання елементів поточного користувача працюють без адміна. Для HKLM, Task Scheduler і керування службами потрібні права адміністратора (UAC)." />
+            <Button Grid.Column="3"
+                    Margin="12,0,0,0"
+                    Classes="privilege-pill"
+                    Content="Підвищити права (UAC)"
+                    Command="{Binding RequestElevationCommand}"
+                    VerticalAlignment="Center" />
+          </Grid>
+        </Border>
+
+        <!-- Row 1: Sub-tabs + Refresh + Inline Expert Mode Toggle -->
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsStartupTab}"
+                    Content="{Binding StartupTabLabel}"
+                    Command="{Binding SelectSubTabCommand}"
+                    CommandParameter="0" />
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsServicesTab}"
+                    Content="{Binding ServicesTabLabel}"
+                    Command="{Binding SelectSubTabCommand}"
+                    CommandParameter="1" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Button Classes="argus-secondary"
+                    Padding="12,6"
+                    FontSize="12"
+                    Content="Оновити"
+                    IsEnabled="{Binding !IsLoading}"
+                    Command="{Binding RefreshCommand}" />
+            <Border Classes="expert-toggle-bar"
+                    ToolTip.Tip="В експертному режимі відображаються системні завдання Microsoft у планувальнику, повні шляхи команд, імена служб і шляхи виконуваних файлів.">
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="Експертний режим"
+                           FontSize="11.5"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource ArgusVioletSoftBrush}"
+                           VerticalAlignment="Center" />
+                <ToggleSwitch IsChecked="{Binding IsExpertMode}"
+                              OnContent=""
+                              OffContent=""
+                              MinWidth="0"
+                              Padding="0"
+                              VerticalAlignment="Center" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Grid>
+
+        <!-- Row 2: Search Box + Category Filters -->
+        <Grid ColumnDefinitions="*,14,Auto">
+          <TextBox Grid.Column="0"
+                   Classes="argus-input"
+                   MinWidth="240"
+                   Text="{Binding SearchQuery}"
+                   PlaceholderText="Пошук за назвою програми, командою, службою або шляхом..." />
+
+          <!-- Startup Source Filter Pills -->
+          <StackPanel Grid.Column="2"
+                      Orientation="Horizontal"
+                      Spacing="6"
+                      IsVisible="{Binding IsStartupTab}"
+                      VerticalAlignment="Center">
+            <Button Classes="filter-pill" Content="Усі" Command="{Binding SetStartupFilterCommand}" CommandParameter="Усі" />
+            <Button Classes="filter-pill" Content="Реєстр" Command="{Binding SetStartupFilterCommand}" CommandParameter="Реєстр" />
+            <Button Classes="filter-pill" Content="Startup" Command="{Binding SetStartupFilterCommand}" CommandParameter="Startup" />
+            <Button Classes="filter-pill" Content="Планувальник" Command="{Binding SetStartupFilterCommand}" CommandParameter="Планувальник" />
+            <Button Classes="filter-pill" Content="Вимкнені" Command="{Binding SetStartupFilterCommand}" CommandParameter="Вимкнені" />
+          </StackPanel>
+
+          <!-- Services State Filter Pills -->
+          <StackPanel Grid.Column="2"
+                      Orientation="Horizontal"
+                      Spacing="6"
+                      IsVisible="{Binding IsServicesTab}"
+                      VerticalAlignment="Center">
+            <Button Classes="filter-pill" Content="Усі" Command="{Binding SetServiceFilterCommand}" CommandParameter="Усі" />
+            <Button Classes="filter-pill" Content="Працюють" Command="{Binding SetServiceFilterCommand}" CommandParameter="Працюють" />
+            <Button Classes="filter-pill" Content="Зупинені" Command="{Binding SetServiceFilterCommand}" CommandParameter="Зупинені" />
+            <Button Classes="filter-pill" Content="Захищені" Command="{Binding SetServiceFilterCommand}" CommandParameter="Захищені" />
+          </StackPanel>
+        </Grid>
+
+        <!-- Summary & Action Feedback -->
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0"
+                     FontSize="12"
+                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                     Text="{Binding SummaryText}"
+                     VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1"
+                     FontSize="12"
+                     Foreground="{StaticResource ArgusCyanBrush}"
+                     IsVisible="{Binding HasActionFeedback}"
+                     Text="{Binding ActionFeedback}"
+                     TextTrimming="CharacterEllipsis"
+                     MaxWidth="520"
+                     VerticalAlignment="Center" />
+        </Grid>
+      </StackPanel>
+    </Border>
+
+    <!-- Main Content List -->
+    <Border Grid.Row="2" Classes="panel" Padding="14">
+      <Grid>
+
+        <!-- Sub-Tab 0: Startup Entries -->
+        <ScrollViewer IsVisible="{Binding IsStartupTab}" VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding StartupEntries}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:StartupEntryRowViewModel">
+                <Border Classes="tile" Padding="12,10" Margin="0,0,4,8">
+                  <Grid ColumnDefinitions="*,14,Auto">
+                    <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                      <WrapPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Name}"
+                                   FontSize="13.5"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                   Margin="0,0,8,0"
+                                   VerticalAlignment="Center" />
+                        <Border Classes="pill" Padding="6,1" Margin="0,0,6,0" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding SourceBadge}"
+                                     FontSize="10.5"
+                                     Foreground="{StaticResource ArgusCyanBrush}" />
+                        </Border>
+                        <Border Classes="pill pill-ready"
+                                Padding="6,1"
+                                Margin="0,0,6,0"
+                                IsVisible="{Binding IsEnabled}"
+                                VerticalAlignment="Center">
+                          <TextBlock Text="{Binding StateText}"
+                                     FontSize="10.5"
+                                     Foreground="{StaticResource ArgusEmeraldBrush}" />
+                        </Border>
+                        <Border Classes="pill"
+                                Padding="6,1"
+                                Margin="0,0,6,0"
+                                IsVisible="{Binding !IsEnabled}"
+                                VerticalAlignment="Center">
+                          <TextBlock Text="{Binding StateText}"
+                                     FontSize="10.5"
+                                     Foreground="{StaticResource ArgusTextMutedBrush}" />
+                        </Border>
+                        <Border Classes="pill"
+                                Padding="6,1"
+                                IsVisible="{Binding RequiresElevation}"
+                                VerticalAlignment="Center">
+                          <TextBlock Text="UAC"
+                                     FontSize="10"
+                                     FontWeight="SemiBold"
+                                     Foreground="{StaticResource ArgusAmberBrush}" />
+                        </Border>
+                      </WrapPanel>
+
+                      <TextBlock FontSize="11.5"
+                                 Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                 Text="{Binding PublisherOrAuthor}" />
+
+                      <!-- Expert Mode Technical Metadata -->
+                      <StackPanel Spacing="2"
+                                  IsVisible="{Binding $parent[UserControl].((vm:StartupAndServicesViewModel)DataContext).IsExpertMode}">
+                        <TextBlock Classes="metric-mono"
+                                   FontSize="11"
+                                   Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                   Text="{Binding CommandText}"
+                                   TextTrimming="CharacterEllipsis"
+                                   ToolTip.Tip="{Binding CommandText}" />
+                        <TextBlock Classes="metric-mono"
+                                   FontSize="10.5"
+                                   Foreground="{StaticResource ArgusTextMutedBrush}"
+                                   Text="{Binding LocationPath}"
+                                   TextTrimming="CharacterEllipsis" />
+                      </StackPanel>
+                    </StackPanel>
+
+                    <Button Grid.Column="2"
+                            Classes="argus-secondary"
+                            Padding="12,6"
+                            FontSize="12"
+                            MinWidth="102"
+                            Content="{Binding ToggleButtonLabel}"
+                            Command="{Binding ToggleCommand}"
+                            VerticalAlignment="Center" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Sub-Tab 1: Windows Services -->
+        <ScrollViewer IsVisible="{Binding IsServicesTab}" VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding Services}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ManagedServiceRowViewModel">
+                <Border Classes="tile" Padding="12,10" Margin="0,0,4,8">
+                  <Grid ColumnDefinitions="*,14,Auto">
+                    <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                      <WrapPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding DisplayName}"
+                                   FontSize="13.5"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                   Margin="0,0,8,0"
+                                   VerticalAlignment="Center" />
+                        <Border Classes="pill pill-ready"
+                                Padding="6,1"
+                                Margin="0,0,6,0"
+                                IsVisible="{Binding IsRunning}"
+                                VerticalAlignment="Center">
+                          <TextBlock Text="{Binding Status}"
+                                     FontSize="10.5"
+                                     Foreground="{StaticResource ArgusEmeraldBrush}" />
+                        </Border>
+                        <Border Classes="pill"
+                                Padding="6,1"
+                                Margin="0,0,6,0"
+                                IsVisible="{Binding !IsRunning}"
+                                VerticalAlignment="Center">
+                          <TextBlock Text="{Binding Status}"
+                                     FontSize="10.5"
+                                     Foreground="{StaticResource ArgusTextMutedBrush}" />
+                        </Border>
+                        <Border Classes="pill"
+                                Padding="6,1"
+                                Margin="0,0,6,0"
+                                IsVisible="{Binding IsCriticalProtected}"
+                                Background="#261B0A"
+                                BorderBrush="{StaticResource ArgusAmberBrush}"
+                                ToolTip.Tip="Критична служба Windows: зупинка, перезапуск і вимкнення заблоковані для захисту стабільності ОС."
+                                VerticalAlignment="Center">
+                          <TextBlock Text="Захищено ОС"
+                                     FontSize="10"
+                                     FontWeight="SemiBold"
+                                     Foreground="{StaticResource ArgusAmberBrush}" />
+                        </Border>
+                      </WrapPanel>
+
+                      <TextBlock FontSize="11.5"
+                                 Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                 Text="{Binding Description}"
+                                 IsVisible="{Binding HasDescription}"
+                                 MaxLines="2"
+                                 TextTrimming="CharacterEllipsis" />
+
+                      <!-- Expert Mode Service Details -->
+                      <StackPanel Spacing="2"
+                                  IsVisible="{Binding $parent[UserControl].((vm:StartupAndServicesViewModel)DataContext).IsExpertMode}">
+                        <TextBlock Classes="metric-mono"
+                                   FontSize="11"
+                                   Foreground="{StaticResource ArgusCyanBrush}"
+                                   Text="{Binding ServiceName, StringFormat='Служба: {0}'}" />
+                        <TextBlock Classes="metric-mono"
+                                   FontSize="10.5"
+                                   Foreground="{StaticResource ArgusTextMutedBrush}"
+                                   Text="{Binding BinaryPath}"
+                                   TextTrimming="CharacterEllipsis"
+                                   ToolTip.Tip="{Binding BinaryPath}" />
+                      </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2"
+                                Orientation="Horizontal"
+                                Spacing="6"
+                                VerticalAlignment="Center">
+                      <ComboBox Width="122"
+                                FontSize="11.5"
+                                ItemsSource="{Binding StartModeOptions}"
+                                SelectedIndex="{Binding SelectedStartModeIndex}"
+                                IsEnabled="{Binding CanChangeStartMode}"
+                                ToolTip.Tip="Тип запуску служби Windows" />
+                      <Button Classes="argus-secondary"
+                              Padding="9,5"
+                              FontSize="11.5"
+                              Content="Старт"
+                              IsEnabled="{Binding CanStart}"
+                              Command="{Binding StartCommand}" />
+                      <Button Classes="argus-secondary"
+                              Padding="9,5"
+                              FontSize="11.5"
+                              Content="Стоп"
+                              IsEnabled="{Binding CanStop}"
+                              Command="{Binding StopCommand}" />
+                      <Button Classes="argus-secondary"
+                              Padding="9,5"
+                              FontSize="11.5"
+                              Content="Перезапуск"
+                              IsEnabled="{Binding CanRestart}"
+                              Command="{Binding RestartCommand}" />
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

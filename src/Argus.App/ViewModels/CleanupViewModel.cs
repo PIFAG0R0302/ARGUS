@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Argus.App.Services;
 using Argus.Core.Configuration;
 using Argus.Core.Contracts.Maintenance;
 using Argus.Core.Events;
@@ -183,11 +184,14 @@ public sealed partial class CleanupViewModel : SectionViewModelBase, IDisposable
         IArgusEventBus? eventBus = null,
         string? rulesDirectory = null,
         Action<Action>? uiDispatch = null,
-        bool autoLoadOnInit = true)
+        bool autoLoadOnInit = true,
+        AppUiModeService? uiMode = null)
         : base(
             ArgusSectionId.Cleanup,
             "Очищення системи",
-            "Безпечне двокрокове очищення на зовнішніх JSON-правилах із білим списком винятків і System Restore")
+            "Безпечне двокрокове очищення на зовнішніх JSON-правилах із білим списком винятків і System Restore",
+            uiMode,
+            uiDispatch)
     {
         _settingsStore = settingsStore ?? throw new ArgumentNullException(nameof(settingsStore));
         _ruleLoader = ruleLoader ?? new JsonCleanerRuleLoader();
@@ -246,6 +250,10 @@ public sealed partial class CleanupViewModel : SectionViewModelBase, IDisposable
                             _approvedScanReport is not null &&
                             Rules.Any(static r => r.IsSelected && r.ScannedFileCount > 0);
 
+    public override bool NeedsElevation =>
+        !IsAdministrator &&
+        (CreateRestorePointBeforeCleanup || Rules.Any(static r => r.IsSelected && r.RequiresElevation));
+
     partial void OnIsBusyChanged(bool value)
     {
         OnPropertyChanged(nameof(CanClean));
@@ -261,6 +269,7 @@ public sealed partial class CleanupViewModel : SectionViewModelBase, IDisposable
         RestorePointGuardText = value
             ? "Контрольна точка System Restore перед очищенням: увімкнено"
             : "Контрольна точка System Restore перед очищенням: вимкнено";
+        OnPropertyChanged(nameof(NeedsElevation));
     }
 
     [RelayCommand]
@@ -624,10 +633,12 @@ public sealed partial class CleanupViewModel : SectionViewModelBase, IDisposable
             : $"Правил: {selectedRules} із {Rules.Count}";
 
         OnPropertyChanged(nameof(CanClean));
+        OnPropertyChanged(nameof(NeedsElevation));
     }
 
     public void Dispose()
     {
+        DetachUiMode();
         _settingsSubscription?.Dispose();
     }
 }

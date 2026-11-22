@@ -1,0 +1,468 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Argus.App.ViewModels"
+             x:Class="Argus.App.Views.NetworkView"
+             x:DataType="vm:NetworkViewModel">
+
+  <Grid RowDefinitions="Auto,12,*">
+
+    <!-- Top Control Panel: Contextual UAC + Sub-Tabs + Expert Mode + Search -->
+    <Border Grid.Row="0" Classes="panel-hero">
+      <StackPanel Spacing="10">
+
+        <!-- Contextual On-Demand UAC Banner -->
+        <Border Classes="uac-callout" IsVisible="{Binding NeedsElevation}">
+          <Grid ColumnDefinitions="Auto,10,*,Auto">
+            <Path Grid.Column="0"
+                  Width="16"
+                  Height="16"
+                  Stretch="Uniform"
+                  Data="{StaticResource IconShield}"
+                  Stroke="{StaticResource ArgusAmberBrush}"
+                  StrokeThickness="1.5"
+                  VerticalAlignment="Center" />
+            <TextBlock Grid.Column="2"
+                       FontSize="12"
+                       Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                       TextWrapping="Wrap"
+                       VerticalAlignment="Center"
+                       Text="З'єднання та правила Firewall працюють без адміна. Для точного ETW-лічильника трафіку (КБ/с) і створення/блокування правил ARGUS_ потрібне підвищення прав (UAC)." />
+            <Button Grid.Column="3"
+                    Margin="12,0,0,0"
+                    Classes="privilege-pill"
+                    Content="Підвищити права (UAC)"
+                    Command="{Binding RequestElevationCommand}"
+                    VerticalAlignment="Center" />
+          </Grid>
+        </Border>
+
+        <!-- Row 1: Sub-tabs + Actions + Inline Expert Mode Toggle -->
+        <Grid ColumnDefinitions="*,Auto">
+          <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsConnectionsTab}"
+                    Margin="0,0,6,0"
+                    Content="{Binding ConnectionsTabLabel}"
+                    Command="{Binding SelectSubTabCommand}"
+                    CommandParameter="0" />
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsTrafficTab}"
+                    Margin="0,0,6,0"
+                    Content="{Binding TrafficTabLabel}"
+                    Command="{Binding SelectSubTabCommand}"
+                    CommandParameter="1" />
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsFirewallTab}"
+                    Content="{Binding FirewallTabLabel}"
+                    Command="{Binding SelectSubTabCommand}"
+                    CommandParameter="2" />
+          </WrapPanel>
+
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Button Classes="argus-secondary"
+                    Padding="10,6"
+                    FontSize="12"
+                    Content="Скинути"
+                    IsVisible="{Binding IsTrafficTab}"
+                    Command="{Binding ResetTrafficTotalsCommand}"
+                    ToolTip.Tip="Скинути накопичені лічильники трафіку" />
+            <Button Classes="argus-primary"
+                    Padding="12,6"
+                    FontSize="12"
+                    Content="+ Правило ARGUS_"
+                    IsVisible="{Binding IsFirewallTab}"
+                    Command="{Binding ToggleNewRulePanelCommand}" />
+            <Button Classes="argus-secondary"
+                    Padding="12,6"
+                    FontSize="12"
+                    Content="Оновити"
+                    IsEnabled="{Binding !IsLoading}"
+                    Command="{Binding RefreshCommand}" />
+            <Border Classes="expert-toggle-bar"
+                    ToolTip.Tip="В експертному режимі відображаються локальні loopback-сокети (127.0.0.1 / ::1), повні шляхи виконуваних файлів та профілі Firewall.">
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="Експертний режим"
+                           FontSize="11.5"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource ArgusVioletSoftBrush}"
+                           VerticalAlignment="Center" />
+                <ToggleSwitch IsChecked="{Binding IsExpertMode}"
+                              OnContent=""
+                              OffContent=""
+                              MinWidth="0"
+                              Padding="0"
+                              VerticalAlignment="Center" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Grid>
+
+        <!-- Collapsible Create ARGUS_ Firewall Rule Panel -->
+        <Border Classes="tile"
+                Padding="12"
+                IsVisible="{Binding IsNewRulePanelOpen}">
+          <StackPanel Spacing="10">
+            <TextBlock FontSize="13"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource ArgusCyanBrush}"
+                       Text="Створення нового правила Windows Firewall (префікс ARGUS_ додається автоматично)" />
+
+            <Grid ColumnDefinitions="*,10,165,10,155,10,100">
+              <TextBox Grid.Column="0"
+                       Classes="argus-input"
+                       Text="{Binding NewRuleName}"
+                       PlaceholderText="Назва правила (напр. Block_Telemetry)" />
+              <ComboBox Grid.Column="2"
+                        ItemsSource="{Binding DirectionOptions}"
+                        SelectedIndex="{Binding NewRuleDirectionIndex}" />
+              <ComboBox Grid.Column="4"
+                        ItemsSource="{Binding ActionOptions}"
+                        SelectedIndex="{Binding NewRuleActionIndex}" />
+              <ComboBox Grid.Column="6"
+                        ItemsSource="{Binding ProtocolOptions}"
+                        SelectedIndex="{Binding NewRuleProtocolIndex}" />
+            </Grid>
+
+            <Grid ColumnDefinitions="*,10,200,10,Auto">
+              <TextBox Grid.Column="0"
+                       Classes="argus-input"
+                       Text="{Binding NewRuleAppPath}"
+                       PlaceholderText="Шлях до .exe (необов'язково, напр. C:\Program Files\App\app.exe)" />
+              <TextBox Grid.Column="2"
+                       Classes="argus-input"
+                       Text="{Binding NewRulePorts}"
+                       PlaceholderText="Порт (напр. 443 або 80,8080)" />
+              <Button Grid.Column="4"
+                      Classes="argus-primary"
+                      Padding="14,6"
+                      FontSize="12"
+                      Content="Створити правило"
+                      Command="{Binding CreateNewRuleCommand}" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Row 2: Search Box + Filter Pills / Traffic Mode Indicator -->
+        <Grid ColumnDefinitions="*,14,Auto">
+          <TextBox Grid.Column="0"
+                   Classes="argus-input"
+                   MinWidth="240"
+                   Text="{Binding SearchQuery}"
+                   PlaceholderText="Пошук за процесом, PID, IP-адресою, портом або назвою правила..." />
+
+          <StackPanel Grid.Column="2"
+                      Orientation="Horizontal"
+                      Spacing="6"
+                      IsVisible="{Binding IsConnectionsTab}"
+                      VerticalAlignment="Center">
+            <Button Classes="filter-pill" Content="Усі" Command="{Binding SetConnectionFilterCommand}" CommandParameter="Усі" />
+            <Button Classes="filter-pill" Content="ESTABLISHED" Command="{Binding SetConnectionFilterCommand}" CommandParameter="ESTABLISHED" />
+            <Button Classes="filter-pill" Content="LISTENING" Command="{Binding SetConnectionFilterCommand}" CommandParameter="LISTENING" />
+            <Button Classes="filter-pill" Content="TCP" Command="{Binding SetConnectionFilterCommand}" CommandParameter="TCP" />
+            <Button Classes="filter-pill" Content="UDP" Command="{Binding SetConnectionFilterCommand}" CommandParameter="UDP" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="2"
+                      Orientation="Horizontal"
+                      Spacing="8"
+                      IsVisible="{Binding IsTrafficTab}"
+                      VerticalAlignment="Center">
+            <Border Classes="pill pill-ready" Padding="8,3" IsVisible="{Binding IsEtwTrafficActive}">
+              <TextBlock FontSize="11" Foreground="{StaticResource ArgusEmeraldBrush}" Text="ETW Kernel активний" />
+            </Border>
+            <Border Classes="pill" Padding="8,3" IsVisible="{Binding !IsEtwTrafficActive}">
+              <TextBlock FontSize="11" Foreground="{StaticResource ArgusAmberBrush}" Text="Оцінка сокетів / I/O (ETW з UAC)" />
+            </Border>
+            <Border Classes="pill" Padding="8,3">
+              <TextBlock Classes="metric-mono" FontSize="11" Foreground="{StaticResource ArgusCyanBrush}" Text="{Binding TotalTrafficRateText}" />
+            </Border>
+          </StackPanel>
+
+          <StackPanel Grid.Column="2"
+                      Orientation="Horizontal"
+                      Spacing="6"
+                      IsVisible="{Binding IsFirewallTab}"
+                      VerticalAlignment="Center">
+            <Button Classes="filter-pill" Content="Лише ARGUS_" Command="{Binding SetFirewallFilterCommand}" CommandParameter="Лише ARGUS_" />
+            <Button Classes="filter-pill" Content="Усі" Command="{Binding SetFirewallFilterCommand}" CommandParameter="Усі" />
+            <Button Classes="filter-pill" Content="Блокування" Command="{Binding SetFirewallFilterCommand}" CommandParameter="Блокування" />
+            <Button Classes="filter-pill" Content="Вхідні" Command="{Binding SetFirewallFilterCommand}" CommandParameter="Вхідні" />
+            <Button Classes="filter-pill" Content="Вихідні" Command="{Binding SetFirewallFilterCommand}" CommandParameter="Вихідні" />
+          </StackPanel>
+        </Grid>
+
+        <!-- Summary & Action Feedback -->
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0"
+                     FontSize="12"
+                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                     Text="{Binding SummaryText}"
+                     VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1"
+                     FontSize="12"
+                     Foreground="{StaticResource ArgusCyanBrush}"
+                     IsVisible="{Binding HasActionFeedback}"
+                     Text="{Binding ActionFeedback}"
+                     TextTrimming="CharacterEllipsis"
+                     MaxWidth="500"
+                     VerticalAlignment="Center" />
+        </Grid>
+      </StackPanel>
+    </Border>
+
+    <!-- Main Content List -->
+    <Border Grid.Row="2" Classes="panel" Padding="14">
+      <Grid>
+
+        <!-- Sub-Tab 0: Active Connections -->
+        <ScrollViewer IsVisible="{Binding IsConnectionsTab}" VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding Connections}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ActiveConnectionRowViewModel">
+                <Border Classes="tile" Padding="12,9" Margin="0,0,4,7">
+                  <Grid ColumnDefinitions="62,10,*,10,195,10,190,10,Auto">
+                    <Border Grid.Column="0" Classes="pill" Padding="6,2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                      <TextBlock Classes="metric-mono" FontSize="10.5" Foreground="{StaticResource ArgusCyanBrush}" Text="{Binding Protocol}" />
+                    </Border>
+
+                    <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
+                      <WrapPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding ProcessName}"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                   Margin="0,0,8,0"
+                                   VerticalAlignment="Center" />
+                        <Border Classes="pill" Padding="5,1" Margin="0,0,6,0" VerticalAlignment="Center">
+                          <TextBlock Classes="metric-mono" FontSize="10" Text="{Binding PidText, StringFormat='PID {0}'}" />
+                        </Border>
+                        <Border Classes="pill pill-ready"
+                                Padding="5,1"
+                                IsVisible="{Binding IsEstablished}"
+                                VerticalAlignment="Center">
+                          <TextBlock FontSize="10" Foreground="{StaticResource ArgusEmeraldBrush}" Text="{Binding State}" />
+                        </Border>
+                        <Border Classes="pill"
+                                Padding="5,1"
+                                IsVisible="{Binding !IsEstablished}"
+                                VerticalAlignment="Center">
+                          <TextBlock FontSize="10" Foreground="{StaticResource ArgusTextSecondaryBrush}" Text="{Binding State}" />
+                        </Border>
+                      </WrapPanel>
+
+                      <TextBlock Classes="metric-mono"
+                                 FontSize="10.5"
+                                 Foreground="{StaticResource ArgusTextMutedBrush}"
+                                 Text="{Binding ExecutablePath}"
+                                 TextTrimming="CharacterEllipsis"
+                                 IsVisible="{Binding $parent[UserControl].((vm:NetworkViewModel)DataContext).IsExpertMode}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="4" Spacing="1" VerticalAlignment="Center">
+                      <TextBlock FontSize="10" Foreground="{StaticResource ArgusTextMutedBrush}" Text="Локальна адреса" />
+                      <TextBlock Classes="metric-mono" FontSize="11.5" Text="{Binding LocalEndpoint}" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="6" Spacing="1" VerticalAlignment="Center">
+                      <TextBlock FontSize="10" Foreground="{StaticResource ArgusTextMutedBrush}" Text="Віддалений вузол" />
+                      <TextBlock Classes="metric-mono" FontSize="11.5" Foreground="{StaticResource ArgusTextPrimaryBrush}" Text="{Binding RemoteEndpoint}" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+
+                    <Button Grid.Column="8"
+                            Classes="argus-secondary"
+                            Padding="10,5"
+                            FontSize="11.5"
+                            Content="Блокувати"
+                            IsEnabled="{Binding HasExecutablePath}"
+                            Command="{Binding BlockAppCommand}"
+                            ToolTip.Tip="Створити вихідне блокувальне правило Firewall із префіксом ARGUS_ для цієї програми"
+                            VerticalAlignment="Center" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Sub-Tab 1: Per-Process Network Traffic (ETW / Fallback) -->
+        <Grid RowDefinitions="Auto,*" IsVisible="{Binding IsTrafficTab}">
+          <Grid Grid.Row="0" ColumnDefinitions="72,10,*,10,115,10,115,10,175,10,95" Margin="12,0,18,8">
+            <TextBlock Grid.Column="0" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextMutedBrush}" Text="PID" />
+            <TextBlock Grid.Column="2" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextMutedBrush}" Text="ПРОЦЕС ТА З'ЄДНАННЯ" />
+            <TextBlock Grid.Column="4" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextMutedBrush}" Text="ВХІД (↓)" HorizontalAlignment="Right" />
+            <TextBlock Grid.Column="6" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextMutedBrush}" Text="ВИХІД (↑)" HorizontalAlignment="Right" />
+            <TextBlock Grid.Column="8" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextMutedBrush}" Text="УСЬОГО ЗА СЕСІЮ" HorizontalAlignment="Right" />
+            <TextBlock Grid.Column="10" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextMutedBrush}" Text="FIREWALL" HorizontalAlignment="Right" />
+          </Grid>
+
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding ProcessTraffic}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ProcessTrafficRowViewModel">
+                  <Border Classes="tile" Padding="12,9" Margin="0,0,4,7">
+                    <Grid ColumnDefinitions="72,10,*,10,115,10,115,10,175,10,95">
+                      <Border Grid.Column="0" Classes="pill" Padding="6,2" HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <TextBlock Classes="metric-mono" FontSize="11" Foreground="{StaticResource ArgusCyanBrush}" Text="{Binding PidText}" />
+                      </Border>
+
+                      <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
+                        <WrapPanel Orientation="Horizontal">
+                          <TextBlock Text="{Binding ProcessName}"
+                                     FontSize="13"
+                                     FontWeight="SemiBold"
+                                     Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                     Margin="0,0,8,0"
+                                     VerticalAlignment="Center" />
+                          <Border Classes="pill" Padding="5,1" VerticalAlignment="Center">
+                            <TextBlock FontSize="10" Foreground="{StaticResource ArgusTextSecondaryBrush}" Text="{Binding SocketsText}" />
+                          </Border>
+                        </WrapPanel>
+
+                        <TextBlock Classes="metric-mono"
+                                   FontSize="10.5"
+                                   Foreground="{StaticResource ArgusTextMutedBrush}"
+                                   Text="{Binding ExecutablePath}"
+                                   TextTrimming="CharacterEllipsis"
+                                   IsVisible="{Binding $parent[UserControl].((vm:NetworkViewModel)DataContext).IsExpertMode}" />
+                      </StackPanel>
+
+                      <TextBlock Grid.Column="4"
+                                 Classes="metric-mono"
+                                 FontSize="12"
+                                 Foreground="{StaticResource ArgusEmeraldBrush}"
+                                 HorizontalAlignment="Right"
+                                 VerticalAlignment="Center"
+                                 Text="{Binding DownloadSpeedText}" />
+
+                      <TextBlock Grid.Column="6"
+                                 Classes="metric-mono"
+                                 FontSize="12"
+                                 Foreground="{StaticResource ArgusCyanBrush}"
+                                 HorizontalAlignment="Right"
+                                 VerticalAlignment="Center"
+                                 Text="{Binding UploadSpeedText}" />
+
+                      <TextBlock Grid.Column="8"
+                                 Classes="metric-mono"
+                                 FontSize="11"
+                                 Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                 HorizontalAlignment="Right"
+                                 VerticalAlignment="Center"
+                                 Text="{Binding TotalVolumeText}" />
+
+                      <Button Grid.Column="10"
+                              Classes="argus-secondary"
+                              Padding="9,5"
+                              FontSize="11.5"
+                              HorizontalAlignment="Right"
+                              VerticalAlignment="Center"
+                              Content="Блокувати"
+                              IsEnabled="{Binding HasExecutablePath}"
+                              Command="{Binding BlockAppCommand}" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Grid>
+
+        <!-- Sub-Tab 2: Firewall Rules -->
+        <ScrollViewer IsVisible="{Binding IsFirewallTab}" VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding FirewallRules}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:FirewallRuleRowViewModel">
+                <Border Classes="tile" Padding="12,10" Margin="0,0,4,8">
+                  <Grid ColumnDefinitions="*,14,Auto">
+                    <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                      <WrapPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Name}"
+                                   FontSize="13.5"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                   Margin="0,0,8,0"
+                                   VerticalAlignment="Center" />
+                        <Border Classes="pill"
+                                Padding="6,1"
+                                Margin="0,0,6,0"
+                                IsVisible="{Binding IsArgusManaged}"
+                                Background="#1C1440"
+                                BorderBrush="{StaticResource ArgusVioletBrush}"
+                                VerticalAlignment="Center">
+                          <TextBlock Text="ARGUS"
+                                     FontSize="10"
+                                     FontWeight="Bold"
+                                     Foreground="{StaticResource ArgusCyanBrush}" />
+                        </Border>
+                        <Border Classes="pill" Padding="6,1" Margin="0,0,6,0" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding DirectionText}" FontSize="10.5" Foreground="{StaticResource ArgusTextSecondaryBrush}" />
+                        </Border>
+                        <Border Classes="pill"
+                                Padding="6,1"
+                                Margin="0,0,6,0"
+                                IsVisible="{Binding IsBlock}"
+                                VerticalAlignment="Center">
+                          <TextBlock Text="{Binding ActionText}" FontSize="10.5" Foreground="{StaticResource ArgusCoralBrush}" />
+                        </Border>
+                        <Border Classes="pill pill-ready"
+                                Padding="6,1"
+                                Margin="0,0,6,0"
+                                IsVisible="{Binding !IsBlock}"
+                                VerticalAlignment="Center">
+                          <TextBlock Text="{Binding ActionText}" FontSize="10.5" Foreground="{StaticResource ArgusEmeraldBrush}" />
+                        </Border>
+                        <Border Classes="pill" Padding="6,1" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding StateText}" FontSize="10.5" Foreground="{StaticResource ArgusTextSecondaryBrush}" />
+                        </Border>
+                      </WrapPanel>
+
+                      <TextBlock Classes="metric-mono"
+                                 FontSize="11"
+                                 Foreground="{StaticResource ArgusCyanBrush}"
+                                 Text="{Binding ProtocolAndPorts}" />
+
+                      <TextBlock FontSize="11.5"
+                                 Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                 Text="{Binding Description}"
+                                 IsVisible="{Binding HasDescription}"
+                                 MaxLines="2"
+                                 TextTrimming="CharacterEllipsis" />
+
+                      <StackPanel Spacing="2"
+                                  IsVisible="{Binding $parent[UserControl].((vm:NetworkViewModel)DataContext).IsExpertMode}">
+                        <TextBlock Classes="metric-mono"
+                                   FontSize="10.5"
+                                   Foreground="{StaticResource ArgusTextMutedBrush}"
+                                   Text="{Binding ApplicationPath, StringFormat='Програма: {0}'}"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock FontSize="10.5"
+                                   Foreground="{StaticResource ArgusTextMutedBrush}"
+                                   Text="{Binding Profiles, StringFormat='Профілі: {0}'}" />
+                      </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                      <Button Classes="argus-secondary"
+                              Padding="10,5"
+                              FontSize="11.5"
+                              Content="{Binding ToggleButtonLabel}"
+                              Command="{Binding ToggleCommand}" />
+                      <Button Classes="argus-secondary"
+                              Padding="10,5"
+                              FontSize="11.5"
+                              Foreground="{StaticResource ArgusCoralBrush}"
+                              Content="Видалити"
+                              IsVisible="{Binding IsArgusManaged}"
+                              Command="{Binding DeleteCommand}" />
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

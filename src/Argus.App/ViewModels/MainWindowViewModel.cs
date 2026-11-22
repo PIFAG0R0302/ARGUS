@@ -12,10 +12,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly Dictionary<ArgusSectionId, SectionViewModelBase> _sections;
     private readonly OverviewViewModel _overview;
     private readonly MonitoringViewModel _monitoring;
+    private readonly NetworkViewModel? _network;
     private readonly DevicesViewModel _devices;
     private readonly CleanupViewModel _cleanup;
     private readonly DisksViewModel _disks;
     private readonly MigrationViewModel _migration;
+    private readonly ProcessesViewModel? _processes;
+    private readonly StartupAndServicesViewModel? _startupAndServices;
     private readonly IPrivilegeService _privilegeService;
     private readonly Action? _requestAppExit;
     private readonly IDisposable? _updateSubscription;
@@ -53,7 +56,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         Action? requestAppExit = null,
         bool startVisible = true,
         Argus.Core.Events.IArgusEventBus? eventBus = null,
-        Action<Action>? uiDispatch = null)
+        Action<Action>? uiDispatch = null,
+        NetworkViewModel? network = null,
+        StartupAndServicesViewModel? startupAndServices = null,
+        ProcessesViewModel? processes = null)
     {
         ArgumentNullException.ThrowIfNull(overview);
         ArgumentNullException.ThrowIfNull(monitoring);
@@ -69,10 +75,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _isWindowVisible = startVisible;
         _overview = overview;
         _monitoring = monitoring;
+        _network = network;
         _devices = devices;
         _cleanup = cleanup;
         _disks = disks;
         _migration = migration;
+        _processes = processes;
+        _startupAndServices = startupAndServices;
         _privilegeService = privilegeService;
         _requestAppExit = requestAppExit;
 
@@ -88,18 +97,64 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             [ArgusSectionId.Settings] = settings
         };
 
-        overview.AttachNavigator(SelectSection);
+        if (network is not null)
+        {
+            _sections[ArgusSectionId.Network] = network;
+        }
 
-        PrimaryNavigation =
-        [
+        if (processes is not null)
+        {
+            _sections[ArgusSectionId.Processes] = processes;
+        }
+
+        if (startupAndServices is not null)
+        {
+            _sections[ArgusSectionId.StartupAndServices] = startupAndServices;
+        }
+
+        overview.AttachNavigator(SelectSection);
+        monitoring.AttachNavigator(SelectSection);
+
+        var monitoringItems = new List<NavigationItemViewModel>
+        {
             new(ArgusSectionId.Overview, "Огляд", "IconOverview"),
-            new(ArgusSectionId.Monitoring, "Моніторинг", "IconMonitoring"),
-            new(ArgusSectionId.Devices, "Пристрої", "IconDevices"),
-            new(ArgusSectionId.Cleanup, "Очищення", "IconCleanup"),
-            new(ArgusSectionId.Disks, "Диски", "IconDisks"),
-            new(ArgusSectionId.Migration, "Міграція ОС", "IconMigration", "CopyOS"),
-            new(ArgusSectionId.Journal, "Журнал записів", "IconJournal")
+            new(ArgusSectionId.Monitoring, "Моніторинг", "IconMonitoring")
+        };
+        if (network is not null)
+        {
+            monitoringItems.Add(new(ArgusSectionId.Network, "Мережа", "IconNetwork"));
+        }
+
+        monitoringItems.Add(new(ArgusSectionId.Devices, "Пристрої", "IconDevices"));
+
+        var systemItems = new List<NavigationItemViewModel>();
+        if (processes is not null)
+        {
+            systemItems.Add(new(ArgusSectionId.Processes, "Процеси", "IconProcesses"));
+        }
+
+        if (startupAndServices is not null)
+        {
+            systemItems.Add(new(ArgusSectionId.StartupAndServices, "Автозапуск і служби", "IconStartupServices"));
+        }
+
+        systemItems.Add(new(ArgusSectionId.Journal, "Журнал записів", "IconJournal"));
+
+        NavigationGroups =
+        [
+            new NavigationGroupViewModel("monitoring", "МОНІТОРИНГ", monitoringItems),
+            new NavigationGroupViewModel(
+                "maintenance",
+                "ОБСЛУГОВУВАННЯ",
+                [
+                    new(ArgusSectionId.Cleanup, "Очищення", "IconCleanup"),
+                    new(ArgusSectionId.Disks, "Диски", "IconDisks"),
+                    new(ArgusSectionId.Migration, "Міграція ОС", "IconMigration", "CopyOS")
+                ]),
+            new NavigationGroupViewModel("system", "СИСТЕМА", systemItems)
         ];
+
+        PrimaryNavigation = NavigationGroups.SelectMany(static g => g.Items).ToArray();
 
         FooterNavigation =
         [
@@ -118,10 +173,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             : "Defender-safe (без драйверів)";
 
         IsAdministrator = _privilegeService.IsAdministrator;
-        PrivilegeBadgeText = IsAdministrator ? "Адміністратор" : "Підвищити права (UAC)";
+        PrivilegeBadgeText = IsAdministrator ? "Адміністратор" : "Стандартний · UAC";
         PrivilegeTooltip = IsAdministrator
-            ? "Програма працює з правами адміністратора — доступні System Restore, оптимізація дисків і CopyOS."
-            : "Натисніть, щоб перезапустити Argus від імені адміністратора для System Restore, TRIM/дефрагментації та CopyOS.";
+            ? "Програма працює з правами адміністратора — доступні System Restore, оптимізація дисків, керування службами та CopyOS."
+            : "Безпечний стандартний режим: моніторинг, діагностика та аналіз працюють без прав адміністратора. Натисніть, щоб підвищити права (UAC) за потреби.";
 
         if (eventBus is not null)
         {
@@ -143,6 +198,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public string PrivilegeBadgeText { get; }
     public string PrivilegeTooltip { get; }
 
+    public IReadOnlyList<NavigationGroupViewModel> NavigationGroups { get; }
     public IReadOnlyList<NavigationItemViewModel> PrimaryNavigation { get; }
     public IReadOnlyList<NavigationItemViewModel> FooterNavigation { get; }
 
@@ -187,6 +243,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         var activeId = ActiveSection.SectionId;
         _overview.SetUiActive(_isWindowVisible && activeId == ArgusSectionId.Overview);
         _monitoring.SetUiActive(_isWindowVisible && activeId == ArgusSectionId.Monitoring);
+        _network?.SetUiActive(_isWindowVisible && activeId == ArgusSectionId.Network);
+        _processes?.SetUiActive(_isWindowVisible && activeId == ArgusSectionId.Processes);
 
         if (!_isWindowVisible)
         {
@@ -200,6 +258,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 _cleanup.EnsureInitialized();
                 _disks.EnsureInitialized();
                 break;
+            case ArgusSectionId.Network:
+                _network?.EnsureInitialized();
+                break;
             case ArgusSectionId.Devices:
                 _devices.EnsureInitialized();
                 break;
@@ -211,6 +272,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 break;
             case ArgusSectionId.Migration:
                 _migration.EnsureInitialized();
+                break;
+            case ArgusSectionId.Processes:
+                _processes?.EnsureInitialized();
+                break;
+            case ArgusSectionId.StartupAndServices:
+                _startupAndServices?.EnsureInitialized();
                 break;
         }
     }

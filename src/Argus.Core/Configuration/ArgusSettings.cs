@@ -6,7 +6,8 @@ namespace Argus.Core.Configuration;
 public sealed record ArgusSettings
 {
     public const string DefaultTrustedSignerThumbprint = "9D1B22482AC32CEA02F398527F9409FCA09EA78D";
-    public const string DefaultGitHubRepository = "PIFAG0R0302/ARGUS";
+    public const string LegacySourceGitHubRepository = "PIFAG0R0302/ARGUS";
+    public const string DefaultGitHubRepository = "PIFAG0R0302/ARGUS-Updates";
 
     public int TelemetryIntervalMs { get; init; } = 1000;
     public int HistoryWindowSeconds { get; init; } = 180;
@@ -14,6 +15,10 @@ public sealed record ArgusSettings
     public double CpuTemperatureAlertCelsius { get; init; } = 85.0;
     public double GpuTemperatureAlertCelsius { get; init; } = 85.0;
     public double RamUsageAlertPercent { get; init; } = 90.0;
+    public double DiskFreeSpaceAlertPercent { get; init; } = 10.0;
+    public bool EnableSmartDegradationAlert { get; init; } = true;
+    public bool ExpertModeEnabled { get; init; }
+    public bool EnableSystemTray { get; init; }
     public bool CreateRestorePointBeforeCleanup { get; init; } = true;
     public bool MinimizeToTrayOnClose { get; init; }
     public bool StartWithWindows { get; init; }
@@ -30,7 +35,10 @@ public sealed record ArgusSettings
         CpuTemperatureAlertCelsius = Math.Clamp(CpuTemperatureAlertCelsius, 50.0, 115.0),
         GpuTemperatureAlertCelsius = Math.Clamp(GpuTemperatureAlertCelsius, 50.0, 115.0),
         RamUsageAlertPercent = Math.Clamp(RamUsageAlertPercent, 50.0, 99.0),
-        GitHubUpdateRepository = string.IsNullOrWhiteSpace(GitHubUpdateRepository) || !GitHubUpdateRepository.Contains('/', StringComparison.Ordinal)
+        DiskFreeSpaceAlertPercent = Math.Clamp(DiskFreeSpaceAlertPercent, 2.0, 50.0),
+        GitHubUpdateRepository = string.IsNullOrWhiteSpace(GitHubUpdateRepository) ||
+                                 !GitHubUpdateRepository.Contains('/', StringComparison.Ordinal) ||
+                                 string.Equals(GitHubUpdateRepository.Trim(), LegacySourceGitHubRepository, StringComparison.OrdinalIgnoreCase)
             ? DefaultGitHubRepository
             : GitHubUpdateRepository.Trim(),
         TrustedSignerThumbprint = string.IsNullOrWhiteSpace(TrustedSignerThumbprint)

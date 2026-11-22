@@ -4,10 +4,13 @@ public enum ArgusSectionId
 {
     Overview,
     Monitoring,
+    Network,
     Devices,
     Cleanup,
     Disks,
     Migration,
+    Processes,
+    StartupAndServices,
     Journal,
     Settings
 }

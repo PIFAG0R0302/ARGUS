@@ -28,6 +28,7 @@ public sealed partial class GitHubAppUpdateService : IAppUpdateService, IDisposa
     private readonly IArgusSettingsStore _settingsStore;
     private readonly IOperationJournal _journal;
     private readonly IArgusEventBus _eventBus;
+    private readonly IPrivilegeService? _privilegeService;
     private readonly HttpClient _httpClient;
     private readonly bool _ownsHttpClient;
     private readonly string _updatesDirectory;
@@ -41,11 +42,13 @@ public sealed partial class GitHubAppUpdateService : IAppUpdateService, IDisposa
         HttpMessageHandler? httpHandler = null,
         string? currentVersionOverride = null,
         string? updatesDirectoryOverride = null,
-        Func<string, (bool IsSigned, string? Thumbprint, string? Subject)>? signatureInspector = null)
+        Func<string, (bool IsSigned, string? Thumbprint, string? Subject)>? signatureInspector = null,
+        IPrivilegeService? privilegeService = null)
     {
         _settingsStore = settingsStore ?? throw new ArgumentNullException(nameof(settingsStore));
         _journal = journal ?? throw new ArgumentNullException(nameof(journal));
         _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
+        _privilegeService = privilegeService;
 
         CurrentVersion = !string.IsNullOrWhiteSpace(currentVersionOverride)
             ? currentVersionOverride.Trim()
@@ -412,37 +415,7 @@ public sealed partial class GitHubAppUpdateService : IAppUpdateService, IDisposa
 
         try
         {
-            if (installerPath.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase))
-            {
-                string installDir = ResolveInstallDirectory();
-                bool needsElevation = !CanWriteToDirectory(installDir);
-
-                var cmdPsi = needsElevation
-                    ? new ProcessStartInfo
-                    {
-                        FileName = "cmd.exe",
-                        Arguments = $"/c \"\"{installerPath}\"\"",
-                        UseShellExecute = true,
-                        Verb = "runas",
-                        WindowStyle = ProcessWindowStyle.Hidden
-                    }
-                    : new ProcessStartInfo
-                    {
-                        FileName = "cmd.exe",
-                        Arguments = $"/c \"\"{installerPath}\"\"",
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-
-                Process.Start(cmdPsi);
-                return true;
-            }
-
-            var psi = new ProcessStartInfo
-            {
-                FileName = installerPath,
-                UseShellExecute = true
-            };
+            var psi = BuildInstallerStartInfo(installerPath);
             Process.Start(psi);
             return true;
         }
@@ -450,6 +423,43 @@ public sealed partial class GitHubAppUpdateService : IAppUpdateService, IDisposa
         {
             return false;
         }
+    }
+
+    internal ProcessStartInfo BuildInstallerStartInfo(string installerPath, string? targetDirectoryOverride = null)
+    {
+        if (installerPath.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase))
+        {
+            string targetDir = string.IsNullOrWhiteSpace(targetDirectoryOverride)
+                ? AppContext.BaseDirectory
+                : targetDirectoryOverride;
+
+            bool canWrite = _privilegeService is not null
+                ? _privilegeService.CanWriteToDirectory(targetDir)
+                : CanWriteToDirectory(targetDir);
+
+            return !canWrite
+                ? new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/c \"\"{installerPath}\"\"",
+                    UseShellExecute = true,
+                    Verb = "runas",
+                    WindowStyle = ProcessWindowStyle.Hidden
+                }
+                : new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/c \"\"{installerPath}\"\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+        }
+
+        return new ProcessStartInfo
+        {
+            FileName = installerPath,
+            UseShellExecute = true
+        };
     }
 
     internal string WriteInPlaceUpdateScript(string stageDir, string zipArchivePath, string newVersion)

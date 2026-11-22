@@ -104,6 +104,16 @@ public sealed class SettingsAndJournalTests : IDisposable
         Assert.Contains("\"severity\":\"Info\"", lines[0], StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ArgusSettings_Normalize_MigratesLegacySourceRepoToPublicUpdatesRepo()
+    {
+        var legacy = new ArgusSettings { GitHubUpdateRepository = "pifag0r0302/argus" }.Normalize();
+        Assert.Equal(ArgusSettings.DefaultGitHubRepository, legacy.GitHubUpdateRepository);
+
+        var custom = new ArgusSettings { GitHubUpdateRepository = "custom-org/argus-mirror" }.Normalize();
+        Assert.Equal("custom-org/argus-mirror", custom.GitHubUpdateRepository);
+    }
+
     public void Dispose()
     {
         try

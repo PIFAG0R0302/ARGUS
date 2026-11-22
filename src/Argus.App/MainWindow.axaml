@@ -171,44 +171,53 @@
             <Border Height="1" Background="{StaticResource ArgusAccentLineBrush}" />
           </StackPanel>
 
-          <!-- Primary Section List -->
+          <!-- Grouped Primary Section Navigation -->
           <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding PrimaryNavigation}">
+            <ItemsControl ItemsSource="{Binding NavigationGroups}">
               <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="vm:NavigationItemViewModel">
-                  <Button Classes="nav-item"
-                          Classes.active="{Binding IsSelected}"
-                          Margin="0,0,0,4"
-                          Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectSectionCommand}"
-                          CommandParameter="{Binding SectionId}">
-                    <Grid ColumnDefinitions="20,10,*,Auto">
-                      <Path Grid.Column="0"
-                            Width="16"
-                            Height="16"
-                            Stretch="Uniform"
-                            Data="{Binding IconResourceKey, Converter={x:Static conv:IconResourceConverter.Instance}}"
-                            Stroke="{Binding $parent[Button].Foreground}"
-                            StrokeThickness="1.45"
-                            StrokeLineCap="Round"
-                            StrokeJoin="Round"
-                            VerticalAlignment="Center" />
-                      <TextBlock Grid.Column="2"
-                                 Text="{Binding Title}"
-                                 FontSize="13.5"
-                                 FontWeight="Medium"
-                                 VerticalAlignment="Center" />
-                      <Border Grid.Column="3"
-                              Margin="8,0,0,0"
-                              IsVisible="{Binding HasBadge}"
-                              Classes="pill"
-                              Padding="6,1"
-                              VerticalAlignment="Center">
-                        <TextBlock Text="{Binding BadgeText}"
-                                   FontSize="10"
-                                   Foreground="{StaticResource ArgusVioletSoftBrush}" />
-                      </Border>
-                    </Grid>
-                  </Button>
+                <DataTemplate x:DataType="vm:NavigationGroupViewModel">
+                  <StackPanel Margin="0,0,0,10">
+                    <TextBlock Classes="nav-group-header" Text="{Binding Title}" />
+                    <ItemsControl ItemsSource="{Binding Items}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:NavigationItemViewModel">
+                          <Button Classes="nav-item"
+                                  Classes.active="{Binding IsSelected}"
+                                  Margin="0,0,0,3"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectSectionCommand}"
+                                  CommandParameter="{Binding SectionId}">
+                            <Grid ColumnDefinitions="20,10,*,Auto">
+                              <Path Grid.Column="0"
+                                    Width="16"
+                                    Height="16"
+                                    Stretch="Uniform"
+                                    Data="{Binding IconResourceKey, Converter={x:Static conv:IconResourceConverter.Instance}}"
+                                    Stroke="{Binding $parent[Button].Foreground}"
+                                    StrokeThickness="1.45"
+                                    StrokeLineCap="Round"
+                                    StrokeJoin="Round"
+                                    VerticalAlignment="Center" />
+                              <TextBlock Grid.Column="2"
+                                         Text="{Binding Title}"
+                                         FontSize="13"
+                                         FontWeight="Medium"
+                                         VerticalAlignment="Center" />
+                              <Border Grid.Column="3"
+                                      Margin="8,0,0,0"
+                                      IsVisible="{Binding HasBadge}"
+                                      Classes="pill"
+                                      Padding="6,1"
+                                      VerticalAlignment="Center">
+                                <TextBlock Text="{Binding BadgeText}"
+                                           FontSize="10"
+                                           Foreground="{StaticResource ArgusVioletSoftBrush}" />
+                              </Border>
+                            </Grid>
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows.Input;
+using Argus.App.Services;
 using Argus.Core.Contracts.Migration;
 using Argus.Core.Contracts.System;
 using Argus.Core.Extensions;
@@ -69,7 +70,7 @@ public sealed partial class MigrationPhaseStepItem : ObservableObject
     private bool _isDone;
 }
 
-public sealed partial class MigrationViewModel : SectionViewModelBase
+public sealed partial class MigrationViewModel : SectionViewModelBase, IDisposable
 {
     private readonly IMigrationEngine? _engine;
     private readonly IPrivilegeService? _privilegeService;
@@ -189,11 +190,14 @@ public sealed partial class MigrationViewModel : SectionViewModelBase
         IMigrationEngine? engine = null,
         IPrivilegeService? privilegeService = null,
         Action<Action>? uiDispatch = null,
-        bool autoLoadOnInit = true)
+        bool autoLoadOnInit = true,
+        AppUiModeService? uiMode = null)
         : base(
             ArgusSectionId.Migration,
             "Міграція та клонування ОС",
-            "Єдиний скомпільований C#-рушій CopyOS: NtfsVssCloner (1-в-1 через VSS Bitmap) та адаптивний VSS + DISM")
+            "Єдиний скомпільований C#-рушій CopyOS: NtfsVssCloner (1-в-1 через VSS Bitmap) та адаптивний VSS + DISM",
+            uiMode,
+            uiDispatch)
     {
         _engine = engine;
         _privilegeService = privilegeService;
@@ -231,7 +235,7 @@ public sealed partial class MigrationViewModel : SectionViewModelBase
     public ObservableCollection<string> PreflightMessages { get; }
     public ObservableCollection<MigrationPhaseStepItem> PhaseSteps { get; }
 
-    public bool IsAdministrator => _privilegeService?.IsAdministrator ?? false;
+    protected override bool FallbackIsAdministrator => _privilegeService?.IsAdministrator ?? false;
     public bool IsInternalSelected => SelectedProfile == MigrationProfile.InternalMotherboardDisk;
     public bool IsExternalSelected => SelectedProfile == MigrationProfile.ExternalUsbDrive;
     public bool IsGptSelected => SelectedPartitionStyle == PartitionStyleChoice.GptUefi;
@@ -565,7 +569,7 @@ public sealed partial class MigrationViewModel : SectionViewModelBase
             var result = await _engine.ExecuteAsync(request, token, progress, ct).ConfigureAwait(false);
             _uiDispatch(() =>
             {
-                LiveStatusText = result.Summary;
+                LiveStatusText = NormalizeElevationHint(result.Summary);
                 LiveStatusIsWarning = !result.Succeeded;
                 if (result.Succeeded)
                 {
@@ -641,14 +645,20 @@ public sealed partial class MigrationViewModel : SectionViewModelBase
 
         foreach (string err in preflight.BlockingErrors)
         {
-            PreflightMessages.Add($"[БЛОК] {err}");
+            PreflightMessages.Add($"[БЛОК] {NormalizeElevationHint(err)}");
         }
 
         foreach (string warn in preflight.Warnings)
         {
-            PreflightMessages.Add($"[УВАГА] {warn}");
+            PreflightMessages.Add($"[УВАГА] {NormalizeElevationHint(warn)}");
         }
     }
+
+    private static string NormalizeElevationHint(string message) =>
+        message.Replace(
+            "запустіть кореневий Argus.exe або натисніть щит UAC",
+            "натисніть кнопку «Підвищити права (UAC)» вище або щит UAC у верхній панелі",
+            StringComparison.OrdinalIgnoreCase);
 
     private void ApplyProgress(MigrationProgress p)
     {
@@ -725,6 +735,12 @@ public sealed partial class MigrationViewModel : SectionViewModelBase
             step.IsDone = step.StepOrder < activeOrder;
             step.IsActive = step.StepOrder == activeOrder;
         }
+    }
+
+    public void Dispose()
+    {
+        DetachUiMode();
+        _runCts?.Dispose();
     }
 
     private sealed class DirectProgress<T>(Action<T> handler) : IProgress<T>

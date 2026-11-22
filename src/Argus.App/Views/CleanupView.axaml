@@ -9,9 +9,34 @@
     <!-- Top Two-Step Control, Metrics & 0..100% Progress Hero Panel -->
     <Border Grid.Row="0" Classes="panel-hero" Padding="15,11">
       <StackPanel Spacing="9">
+        <!-- Contextual UAC Callout (only when non-elevated and UAC rules or System Restore are active) -->
+        <Border Classes="uac-callout" IsVisible="{Binding NeedsElevation}">
+          <Grid ColumnDefinitions="Auto,10,*,12,Auto">
+            <Path Grid.Column="0"
+                  Width="16"
+                  Height="16"
+                  Stretch="Uniform"
+                  Data="{StaticResource IconShield}"
+                  Stroke="{StaticResource ArgusAmberBrush}"
+                  StrokeThickness="1.6"
+                  VerticalAlignment="Center" />
+            <TextBlock Grid.Column="2"
+                       FontSize="12"
+                       Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                       Text="Вибрані системні правила очищення або створення точки System Restore потребують прав адміністратора. Звичайне очищення профілю працює без UAC."
+                       TextWrapping="Wrap"
+                       VerticalAlignment="Center" />
+            <Button Grid.Column="4"
+                    Classes="privilege-pill"
+                    Content="Підвищити права (UAC)"
+                    Command="{Binding RequestElevationCommand}"
+                    VerticalAlignment="Center" />
+          </Grid>
+        </Border>
+
         <Grid ColumnDefinitions="*,Auto">
           <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,14,0">
-            <TextBlock Classes="section-heading" Text="Двокрокове безпечне очищення за JSON-правилами" />
+            <TextBlock Classes="section-heading" Text="Двокрокове очищення (JSON)" TextWrapping="Wrap" />
             <TextBlock FontSize="12"
                        Classes.warn-text="{Binding !StatusIsSuccess}"
                        Text="{Binding StatusBannerText}"
@@ -28,6 +53,20 @@
           </StackPanel>
 
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Border Classes="expert-toggle-bar"
+                    ToolTip.Tip="Показує ID правил, точні шляхи, маски файлів, позначки UAC і приклади знайдених файлів.">
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="Експертний режим"
+                           FontSize="11.5"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource ArgusVioletSoftBrush}"
+                           VerticalAlignment="Center" />
+                <ToggleSwitch IsChecked="{Binding IsExpertMode}"
+                              OnContent=""
+                              OffContent=""
+                              VerticalAlignment="Center" />
+              </StackPanel>
+            </Border>
             <Button Classes="argus-secondary"
                     Padding="14,7"
                     IsEnabled="{Binding !IsBusy}"
@@ -149,29 +188,44 @@
                                        FontSize="10.5"
                                        Foreground="{StaticResource ArgusVioletSoftBrush}" />
                           </Border>
-                          <Border Classes="pill pill-warn"
-                                  Padding="6,1"
-                                  IsVisible="{Binding RequiresElevation}"
-                                  VerticalAlignment="Center">
-                            <TextBlock Text="UAC"
-                                       FontSize="10"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource ArgusAmberBrush}" />
-                          </Border>
                         </StackPanel>
 
                         <TextBlock Classes="body-muted"
                                    FontSize="11.5"
                                    Text="{Binding Description}" />
-                        <TextBlock FontSize="11"
-                                   Foreground="{StaticResource ArgusTextMutedBrush}"
-                                   Text="{Binding ScopePreview}"
-                                   TextTrimming="CharacterEllipsis" />
-                        <TextBlock FontSize="11"
-                                   Foreground="{StaticResource ArgusCyanBrush}"
-                                   IsVisible="{Binding HasSamplePaths}"
-                                   Text="{Binding SamplePathsText}"
-                                   TextTrimming="CharacterEllipsis" />
+
+                        <!-- Expert-only Rule Metadata: Rule ID, UAC flag, Exact Scope Paths & Samples -->
+                        <StackPanel Spacing="3"
+                                    Margin="0,2,0,0"
+                                    IsVisible="{Binding $parent[UserControl].((vm:CleanupViewModel)DataContext).IsExpertMode}">
+                          <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Border Classes="pill" Padding="6,1" VerticalAlignment="Center">
+                              <TextBlock Classes="metric-mono"
+                                         FontSize="10"
+                                         Foreground="{StaticResource ArgusCyanBrush}"
+                                         Text="{Binding Id, StringFormat='ID: {0}'}" />
+                            </Border>
+                            <Border Classes="pill pill-warn"
+                                    Padding="6,1"
+                                    IsVisible="{Binding RequiresElevation}"
+                                    VerticalAlignment="Center">
+                              <TextBlock Text="Потребує UAC"
+                                         FontSize="10"
+                                         FontWeight="SemiBold"
+                                         Foreground="{StaticResource ArgusAmberBrush}" />
+                            </Border>
+                          </StackPanel>
+                          <TextBlock Classes="metric-mono"
+                                     FontSize="10.5"
+                                     Foreground="{StaticResource ArgusTextMutedBrush}"
+                                     Text="{Binding ScopePreview}"
+                                     TextTrimming="CharacterEllipsis" />
+                          <TextBlock FontSize="11"
+                                     Foreground="{StaticResource ArgusCyanBrush}"
+                                     IsVisible="{Binding HasSamplePaths}"
+                                     Text="{Binding SamplePathsText}"
+                                     TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
                       </StackPanel>
 
                       <StackPanel Grid.Column="3"

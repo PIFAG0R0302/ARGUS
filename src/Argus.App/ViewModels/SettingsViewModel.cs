@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Argus.App.Services;
 using Argus.Core.Configuration;
 using Argus.Core.Contracts.Maintenance;
 using Argus.Core.Contracts.System;
@@ -18,10 +19,12 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
     private readonly IStartupRegistrationService _startupService;
     private readonly IRestorePointService _restorePointService;
     private readonly IAppUpdateService? _updateService;
+    private readonly AppUiModeService? _uiMode;
     private readonly Action? _requestAppExit;
     private readonly Action<Action> _uiDispatch;
     private AppUpdateCheckResult? _latestUpdateResult;
     private int _updateBusyGate;
+    private bool _suppressExpertSync;
 
     [ObservableProperty]
     private decimal? _telemetryIntervalMs;
@@ -37,6 +40,18 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
 
     [ObservableProperty]
     private decimal? _ramUsageAlertPercent;
+
+    [ObservableProperty]
+    private decimal? _diskFreeSpaceAlertPercent;
+
+    [ObservableProperty]
+    private bool _enableSmartDegradationAlert = true;
+
+    [ObservableProperty]
+    private bool _expertModeEnabled;
+
+    [ObservableProperty]
+    private bool _enableSystemTray;
 
     [ObservableProperty]
     private bool _createRestorePointBeforeCleanup;
@@ -127,11 +142,14 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
         IRestorePointService restorePointService,
         Action<Action>? uiDispatch = null,
         IAppUpdateService? updateService = null,
-        Action? requestAppExit = null)
+        Action? requestAppExit = null,
+        AppUiModeService? uiMode = null)
         : base(
             ArgusSectionId.Settings,
             "Налаштування",
-            "Конфігурація Argus, оновлення з GitHub, автозапуск, інтервали телеметрії та System Restore")
+            "Конфігурація Argus, оновлення з GitHub, системний трей, автозапуск, пороги сповіщень і System Restore",
+            uiMode,
+            uiDispatch)
     {
         ArgumentNullException.ThrowIfNull(settingsStore);
         ArgumentNullException.ThrowIfNull(journal);
@@ -145,6 +163,7 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
         _startupService = startupService;
         _restorePointService = restorePointService;
         _updateService = updateService;
+        _uiMode = uiMode;
         _requestAppExit = requestAppExit;
         _uiDispatch = uiDispatch ?? (static action => action());
 
@@ -171,6 +190,32 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
 
     public bool CanCheckForUpdates => !IsCheckingUpdates && !IsDownloadingUpdate;
     public bool CanDownloadUpdate => IsUpdateAvailable && !IsCheckingUpdates && !IsDownloadingUpdate;
+
+    partial void OnExpertModeEnabledChanged(bool value)
+    {
+        if (!_suppressExpertSync && _uiMode is not null && _uiMode.IsExpertMode != value)
+        {
+            _uiMode.SetExpertMode(value, persist: false);
+        }
+    }
+
+    protected override void OnExpertModeChanged(bool isExpertMode)
+    {
+        if (ExpertModeEnabled == isExpertMode)
+        {
+            return;
+        }
+
+        _suppressExpertSync = true;
+        try
+        {
+            ExpertModeEnabled = isExpertMode;
+        }
+        finally
+        {
+            _suppressExpertSync = false;
+        }
+    }
 
     [RelayCommand]
     public async Task CheckForUpdatesAsync()
@@ -331,6 +376,10 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
             CpuTemperatureAlertCelsius = (double)(CpuTemperatureAlertCelsius ?? 85m),
             GpuTemperatureAlertCelsius = (double)(GpuTemperatureAlertCelsius ?? 85m),
             RamUsageAlertPercent = (double)(RamUsageAlertPercent ?? 90m),
+            DiskFreeSpaceAlertPercent = (double)(DiskFreeSpaceAlertPercent ?? 10m),
+            EnableSmartDegradationAlert = EnableSmartDegradationAlert,
+            ExpertModeEnabled = ExpertModeEnabled,
+            EnableSystemTray = EnableSystemTray,
             CreateRestorePointBeforeCleanup = CreateRestorePointBeforeCleanup,
             EnablePawnIoExtendedSensors = EnablePawnIoExtendedSensors,
             MinimizeToTrayOnClose = MinimizeToTrayOnClose,
@@ -354,7 +403,7 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
             moduleId: "argus.settings",
             severity: OperationSeverity.Success,
             action: "SettingsSaved",
-            details: $"Інтервал={normalized.TelemetryIntervalMs} мс, трей={normalized.MinimizeToTrayOnClose}, автозапуск={normalized.StartWithWindows}, автооновлення={normalized.CheckUpdatesOnStartup}, репо={normalized.GitHubUpdateRepository}{startupNote}")
+            details: $"Інтервал={normalized.TelemetryIntervalMs} мс, системний трей={normalized.EnableSystemTray}, згортання={normalized.MinimizeToTrayOnClose}, експертний режим={normalized.ExpertModeEnabled}, поріг диска={normalized.DiskFreeSpaceAlertPercent:0.#}%, S.M.A.R.T.={normalized.EnableSmartDegradationAlert}, автозапуск={normalized.StartWithWindows}, автооновлення={normalized.CheckUpdatesOnStartup}{startupNote}")
             .ConfigureAwait(false);
 
         _uiDispatch(() =>
@@ -472,6 +521,19 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
         CpuTemperatureAlertCelsius = (decimal)settings.CpuTemperatureAlertCelsius;
         GpuTemperatureAlertCelsius = (decimal)settings.GpuTemperatureAlertCelsius;
         RamUsageAlertPercent = (decimal)settings.RamUsageAlertPercent;
+        DiskFreeSpaceAlertPercent = (decimal)settings.DiskFreeSpaceAlertPercent;
+        EnableSmartDegradationAlert = settings.EnableSmartDegradationAlert;
+        _suppressExpertSync = true;
+        try
+        {
+            ExpertModeEnabled = settings.ExpertModeEnabled;
+        }
+        finally
+        {
+            _suppressExpertSync = false;
+        }
+
+        EnableSystemTray = settings.EnableSystemTray;
         CreateRestorePointBeforeCleanup = settings.CreateRestorePointBeforeCleanup;
         EnablePawnIoExtendedSensors = settings.EnablePawnIoExtendedSensors;
         MinimizeToTrayOnClose = settings.MinimizeToTrayOnClose;
@@ -482,6 +544,7 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
 
     public void Dispose()
     {
+        DetachUiMode();
     }
 
     private sealed class DirectUpdateProgress(Action<(int Percent, string Stage)> callback) : IProgress<(int Percent, string Stage)>

@@ -17,6 +17,9 @@
     <DataTemplate DataType="vm:MonitoringViewModel">
       <views:MonitoringView />
     </DataTemplate>
+    <DataTemplate DataType="vm:NetworkViewModel">
+      <views:NetworkView />
+    </DataTemplate>
     <DataTemplate DataType="vm:DevicesViewModel">
       <views:DevicesView />
     </DataTemplate>
@@ -28,6 +31,12 @@
     </DataTemplate>
     <DataTemplate DataType="vm:MigrationViewModel">
       <views:MigrationView />
+    </DataTemplate>
+    <DataTemplate DataType="vm:ProcessesViewModel">
+      <views:ProcessesView />
+    </DataTemplate>
+    <DataTemplate DataType="vm:StartupAndServicesViewModel">
+      <views:StartupAndServicesView />
     </DataTemplate>
     <DataTemplate DataType="vm:JournalViewModel">
       <views:JournalView />

@@ -31,6 +31,7 @@ public static class TelemetryServiceCollectionExtensions
         services.AddSingleton<ISensorProvider>(sp => sp.GetRequiredService<PawnIoSensorProvider>());
         services.AddSingleton<ISensorTierStatusProvider>(sp => sp.GetRequiredService<PawnIoSensorProvider>());
         services.AddSingleton<TelemetryAlertEvaluator>();
+        services.AddSingleton<DiskHealthAlertEvaluator>();
         services.AddSingleton<ArgusTelemetryService>();
         services.AddSingleton<ITelemetryService>(sp => sp.GetRequiredService<ArgusTelemetryService>());
         services.AddSingleton<ITelemetryReportExporter, TelemetryReportExporter>();

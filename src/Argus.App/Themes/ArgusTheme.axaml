@@ -65,10 +65,13 @@
     <!-- Navigation Vector Geometries (16x16 coordinate box) -->
     <StreamGeometry x:Key="IconOverview">M2,2 H7 V7 H2 Z M9,2 H14 V7 H9 Z M2,9 H7 V14 H2 Z M9,9 H14 V14 H9 Z</StreamGeometry>
     <StreamGeometry x:Key="IconMonitoring">M1,9 H4 L6,3 L9,13 L11,7 L12.5,9 H15</StreamGeometry>
+    <StreamGeometry x:Key="IconNetwork">M8,1.5 A6.5,6.5 0 1 1 7.99,1.5 Z M1.8,8 H14.2 M8,1.5 C10.4,3.8 10.4,12.2 8,14.5 M8,1.5 C5.6,3.8 5.6,12.2 8,14.5</StreamGeometry>
     <StreamGeometry x:Key="IconDevices">M4,4 H12 V12 H4 Z M6,1 V4 M10,1 V4 M6,12 V15 M10,12 V15 M1,6 H4 M1,10 H4 M12,6 H15 M12,10 H15</StreamGeometry>
     <StreamGeometry x:Key="IconCleanup">M3,4 H13 M5,4 V13 H11 V4 M6.5,2 H9.5 M7,7 V11 M9,7 V11</StreamGeometry>
     <StreamGeometry x:Key="IconDisks">M2,4 C2,2.8 4.7,2 8,2 C11.3,2 14,2.8 14,4 V12 C14,13.2 11.3,14 8,14 C4.7,14 2,13.2 2,12 Z M2,8 C2,9.2 4.7,10 8,10 C11.3,10 14,9.2 14,8</StreamGeometry>
     <StreamGeometry x:Key="IconMigration">M2,5 H11 M8,2 L11,5 L8,8 M14,11 H5 M8,8 L5,11 L8,14</StreamGeometry>
+    <StreamGeometry x:Key="IconProcesses">M2,3.5 H14 M2,8 H14 M2,12.5 H10 M11.5,11 L13.5,12.5 L11.5,14</StreamGeometry>
+    <StreamGeometry x:Key="IconStartupServices">M8,1.5 V8 M4.5,3.5 C2.8,4.9 2,7.1 2.4,9.4 C3,12.4 5.5,14.5 8,14.5 C10.5,14.5 13,12.4 13.6,9.4 C14,7.1 13.2,4.9 11.5,3.5</StreamGeometry>
     <StreamGeometry x:Key="IconJournal">M3,2 H13 V14 H3 Z M5.5,5.5 H10.5 M5.5,8.5 H10.5 M5.5,11.5 H8.5</StreamGeometry>
     <StreamGeometry x:Key="IconSettings">M2,4 H14 M2,8 H14 M2,12 H14 M5,2.5 V5.5 M11,6.5 V9.5 M7,10.5 V13.5</StreamGeometry>
 
@@ -166,7 +169,15 @@
     <Setter Property="BorderBrush" Value="#F45B69" />
   </Style>
 
-  <!-- Navigation Rail Button -->
+  <!-- Navigation Rail Group Header & Button -->
+  <Style Selector="TextBlock.nav-group-header">
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="LetterSpacing" Value="1.5" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextMutedBrush}" />
+    <Setter Property="Margin" Value="10,2,0,4" />
+  </Style>
+
   <Style Selector="Button.nav-item">
     <Setter Property="HorizontalAlignment" Value="Stretch" />
     <Setter Property="HorizontalContentAlignment" Value="Left" />
@@ -174,7 +185,7 @@
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="CornerRadius" Value="8" />
-    <Setter Property="Padding" Value="12,10" />
+    <Setter Property="Padding" Value="11,8" />
     <Setter Property="Foreground" Value="{StaticResource ArgusTextSecondaryBrush}" />
     <Setter Property="Cursor" Value="Hand" />
   </Style>
@@ -225,6 +236,31 @@
   </Style>
 
   <Style Selector="Button.argus-secondary.selected /template/ ContentPresenter">
+    <Setter Property="Background" Value="#21265C" />
+    <Setter Property="BorderBrush" Value="{StaticResource ArgusCyanBrush}" />
+    <Setter Property="Foreground" Value="#FFFFFF" />
+  </Style>
+
+  <!-- Filter & Sub-Tab Pill Buttons -->
+  <Style Selector="Button.filter-pill">
+    <Setter Property="Background" Value="#141B3E" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextSecondaryBrush}" />
+    <Setter Property="BorderBrush" Value="{StaticResource ArgusBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="14" />
+    <Setter Property="Padding" Value="12,5" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Button.filter-pill:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#1F2859" />
+    <Setter Property="BorderBrush" Value="{StaticResource ArgusVioletBrush}" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+  </Style>
+
+  <Style Selector="Button.filter-pill.selected /template/ ContentPresenter">
     <Setter Property="Background" Value="#21265C" />
     <Setter Property="BorderBrush" Value="{StaticResource ArgusCyanBrush}" />
     <Setter Property="Foreground" Value="#FFFFFF" />
@@ -308,5 +344,24 @@
     <Setter Property="BorderBrush" Value="#2DD4A8" />
     <Setter Property="Foreground" Value="{StaticResource ArgusEmeraldBrush}" />
     <Setter Property="Cursor" Value="Arrow" />
+  </Style>
+
+  <!-- Hybrid Basic / Expert Mode Inline Toggle Bar -->
+  <Style Selector="Border.expert-toggle-bar">
+    <Setter Property="Background" Value="#141B3E" />
+    <Setter Property="BorderBrush" Value="#313E7C" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="10,3" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!-- Contextual On-Demand UAC Elevation Banner -->
+  <Style Selector="Border.uac-callout">
+    <Setter Property="Background" Value="#241B0E" />
+    <Setter Property="BorderBrush" Value="#D99220" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="9" />
+    <Setter Property="Padding" Value="12,8" />
   </Style>
 </Styles>

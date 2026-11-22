@@ -33,8 +33,8 @@ public sealed class ViewModelTests : IDisposable
         var vm = env.Main;
 
         Assert.Equal(ArgusSectionId.Overview, vm.ActiveSection.SectionId);
-        Assert.Equal("v1.0.3", vm.VersionBadge);
-        Assert.Equal(7, vm.PrimaryNavigation.Count);
+        Assert.Equal("v1.1.0", vm.VersionBadge);
+        Assert.Equal(10, vm.PrimaryNavigation.Count);
         Assert.Single(vm.FooterNavigation);
 
         foreach (ArgusSectionId id in Enum.GetValues<ArgusSectionId>())
@@ -169,6 +169,9 @@ public sealed class ViewModelTests : IDisposable
         var migration = new MigrationViewModel();
         var journalVm = new JournalViewModel(journal, bus);
         var settings = new SettingsViewModel(settingsStore, journal, bus, startup, restore);
+        var networkVm = new NetworkViewModel(new FakeNetworkService(), autoLoadOnInit: false);
+        var processesVm = new ProcessesViewModel(new FakeProcessMonitor(), autoLoadOnInit: false);
+        var startupServicesVm = new StartupAndServicesViewModel(new FakeStartupAndServices(), autoLoadOnInit: false);
 
         var main = new MainWindowViewModel(
             overview,
@@ -181,7 +184,10 @@ public sealed class ViewModelTests : IDisposable
             settings,
             settingsStore,
             privilege,
-            requestAppExit: () => exitFlag.Requested = true);
+            requestAppExit: () => exitFlag.Requested = true,
+            network: networkVm,
+            startupAndServices: startupServicesVm,
+            processes: processesVm);
 
         return new TestEnv(settingsStore, journal, settings, main, privilege, startup, restore, exitFlag);
     }
@@ -241,6 +247,45 @@ public sealed class ViewModelTests : IDisposable
         public IReadOnlyList<TelemetrySnapshot> GetHistory(int maxSamples = 180) => [];
         public Task StartAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task StopAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class FakeNetworkService : INetworkManagerService
+    {
+        public Task<IReadOnlyList<ActiveConnectionItem>> GetActiveConnectionsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ActiveConnectionItem>>([]);
+        public Task<IReadOnlyList<FirewallRuleItem>> GetFirewallRulesAsync(bool argusOnly = false, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<FirewallRuleItem>>([]);
+        public Task<SystemActionResult> BlockApplicationAsync(string appName, string executablePath, FirewallRuleDirection direction = FirewallRuleDirection.Outbound, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new SystemActionResult(true, false, "OK"));
+        public Task<SystemActionResult> CreateFirewallRuleAsync(FirewallRuleCreateRequest request, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new SystemActionResult(true, false, "OK"));
+        public Task<SystemActionResult> SetFirewallRuleEnabledAsync(string ruleName, bool enabled, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new SystemActionResult(true, false, "OK"));
+        public Task<SystemActionResult> DeleteArgusFirewallRuleAsync(string ruleName, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new SystemActionResult(true, false, "OK"));
+    }
+
+    private sealed class FakeProcessMonitor : IProcessMonitorService
+    {
+        public Task<IReadOnlyList<ProcessMetricsItem>> GetProcessMetricsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ProcessMetricsItem>>([]);
+        public Task<SystemActionResult> TerminateProcessAsync(int pid, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new SystemActionResult(true, false, "OK"));
+        public bool OpenProcessFolder(string? executablePath) => true;
+    }
+
+    private sealed class FakeStartupAndServices : IStartupAndServicesManager
+    {
+        public Task<IReadOnlyList<StartupEntryItem>> GetStartupEntriesAsync(bool includeSystemTasks = false, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<StartupEntryItem>>([]);
+        public Task<SystemActionResult> SetStartupEntryEnabledAsync(StartupEntryItem entry, bool enabled, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new SystemActionResult(true, false, "OK"));
+        public Task<IReadOnlyList<ManagedServiceItem>> GetManagedServicesAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ManagedServiceItem>>([]);
+        public Task<SystemActionResult> ControlServiceAsync(string serviceName, ServiceControlAction action, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new SystemActionResult(true, false, "OK"));
+        public Task<SystemActionResult> SetServiceStartModeAsync(string serviceName, ServiceStartModeOption startMode, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new SystemActionResult(true, false, "OK"));
     }
 
     private sealed class TestEnv(

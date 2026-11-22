@@ -21,6 +21,7 @@ logs/
 publish/
 vm-tests/
 /Argus.exe
+/ArgusSetup.zip
 ArgusSetup/*.exe
 ArgusSetup/*.zip
 *.pfx

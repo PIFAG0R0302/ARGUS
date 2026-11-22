@@ -10,6 +10,31 @@
       <!-- Top Safe Policy, Status & 0..100% Optimization Progress Header -->
       <Border Classes="panel-hero" Padding="14,10">
         <StackPanel Spacing="8">
+          <!-- Contextual UAC Callout for Disk TRIM / Defragmentation -->
+          <Border Classes="uac-callout" IsVisible="{Binding NeedsElevation}">
+            <Grid ColumnDefinitions="Auto,10,*,12,Auto">
+              <Path Grid.Column="0"
+                    Width="16"
+                    Height="16"
+                    Stretch="Uniform"
+                    Data="{StaticResource IconShield}"
+                    Stroke="{StaticResource ArgusAmberBrush}"
+                    StrokeThickness="1.6"
+                    VerticalAlignment="Center" />
+              <TextBlock Grid.Column="2"
+                         FontSize="12"
+                         Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                         Text="Діагностика S.M.A.R.T. і карта місця працюють без прав адміністратора. Для запуску оптимізації SSD (TRIM) або дефрагментації HDD потрібне підвищення прав (UAC)."
+                         TextWrapping="Wrap"
+                         VerticalAlignment="Center" />
+              <Button Grid.Column="4"
+                      Classes="privilege-pill"
+                      Content="Підвищити права (UAC)"
+                      Command="{Binding RequestElevationCommand}"
+                      VerticalAlignment="Center" />
+            </Grid>
+          </Border>
+
           <Grid ColumnDefinitions="*,Auto">
             <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,12,0" VerticalAlignment="Center">
               <WrapPanel Orientation="Horizontal">
@@ -40,14 +65,29 @@
               </TextBlock>
             </StackPanel>
 
-            <Button Grid.Column="1"
-                    Classes="argus-secondary"
-                    Padding="12,7"
-                    FontSize="12"
-                    IsEnabled="{Binding !IsBusy}"
-                    Content="Оновити диски"
-                    Command="{Binding RefreshDisksCommand}"
-                    VerticalAlignment="Center" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Border Classes="expert-toggle-bar"
+                      ToolTip.Tip="Показує серійні номери, інтерфейс шини, стиль розділів і розширені показники S.M.A.R.T.">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                  <TextBlock Text="Експертний режим"
+                             FontSize="11.5"
+                             FontWeight="SemiBold"
+                             Foreground="{StaticResource ArgusVioletSoftBrush}"
+                             VerticalAlignment="Center" />
+                  <ToggleSwitch IsChecked="{Binding IsExpertMode}"
+                                OnContent=""
+                                OffContent=""
+                                VerticalAlignment="Center" />
+                </StackPanel>
+              </Border>
+              <Button Classes="argus-secondary"
+                      Padding="12,7"
+                      FontSize="12"
+                      IsEnabled="{Binding !IsBusy}"
+                      Content="Оновити диски"
+                      Command="{Binding RefreshDisksCommand}"
+                      VerticalAlignment="Center" />
+            </StackPanel>
           </Grid>
 
           <!-- 0..100% Defragmentation / TRIM / Scan Progress Bar -->
@@ -107,16 +147,33 @@
 
                       <TextBlock Classes="metric-mono"
                                  FontSize="11.5"
-                                 Text="{Binding BusAndCapacityText}"
+                                 Text="{Binding BasicCapacityText}"
                                  TextTrimming="CharacterEllipsis" />
-                      <TextBlock FontSize="11"
-                                 Foreground="{StaticResource ArgusTextMutedBrush}"
-                                 Text="{Binding SerialText}"
-                                 TextTrimming="CharacterEllipsis" />
-                      <TextBlock FontSize="11"
-                                 Foreground="{StaticResource ArgusTextSecondaryBrush}"
-                                 Text="{Binding SmartDetailsText}"
-                                 TextTrimming="CharacterEllipsis" />
+
+                      <!-- Expert-only Hardware Metadata & Detailed S.M.A.R.T. Strip -->
+                      <Border Background="#0E142D"
+                              BorderBrush="{StaticResource ArgusBorderBrush}"
+                              BorderThickness="1"
+                              CornerRadius="6"
+                              Padding="9,5"
+                              Margin="0,4,0,0"
+                              IsVisible="{Binding $parent[UserControl].((vm:DisksViewModel)DataContext).IsExpertMode}">
+                        <StackPanel Spacing="2">
+                          <TextBlock Classes="metric-mono"
+                                     FontSize="11"
+                                     Text="{Binding BusAndCapacityText}"
+                                     TextTrimming="CharacterEllipsis" />
+                          <TextBlock Classes="metric-mono"
+                                     FontSize="10.5"
+                                     Foreground="{StaticResource ArgusTextMutedBrush}"
+                                     Text="{Binding SerialText}"
+                                     TextTrimming="CharacterEllipsis" />
+                          <TextBlock FontSize="11"
+                                     Foreground="{StaticResource ArgusEmeraldBrush}"
+                                     Text="{Binding SmartDetailsText}"
+                                     TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                      </Border>
                     </StackPanel>
 
                     <!-- Middle: S.M.A.R.T. Health & Temp Badges -->

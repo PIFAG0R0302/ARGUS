@@ -25,12 +25,14 @@ public sealed class ArgusTelemetryService : ITelemetryService, IDisposable
     private readonly IArgusEventBus _eventBus;
     private readonly ILogger<ArgusTelemetryService> _logger;
     private readonly TelemetryAlertEvaluator? _alertEvaluator;
+    private readonly DiskHealthAlertEvaluator? _diskHealthEvaluator;
 
     private readonly RingBuffer<TelemetrySnapshot> _history = new(MaxBufferCapacity);
     private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
 
     private CancellationTokenSource? _loopCts;
     private Task? _loopTask;
+    private Task? _diskHealthLoopTask;
     private volatile TelemetrySnapshot? _latest;
     private volatile bool _isRunning;
     private bool _disposed;
@@ -44,7 +46,8 @@ public sealed class ArgusTelemetryService : ITelemetryService, IDisposable
         IArgusSettingsStore settingsStore,
         IArgusEventBus eventBus,
         ILogger<ArgusTelemetryService> logger,
-        TelemetryAlertEvaluator? alertEvaluator = null)
+        TelemetryAlertEvaluator? alertEvaluator = null,
+        DiskHealthAlertEvaluator? diskHealthEvaluator = null)
     {
         _cpuProvider = cpuProvider ?? throw new ArgumentNullException(nameof(cpuProvider));
         _memoryProvider = memoryProvider ?? throw new ArgumentNullException(nameof(memoryProvider));
@@ -55,6 +58,7 @@ public sealed class ArgusTelemetryService : ITelemetryService, IDisposable
         _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _alertEvaluator = alertEvaluator;
+        _diskHealthEvaluator = diskHealthEvaluator;
     }
 
     public bool IsRunning => _isRunning;
@@ -81,6 +85,11 @@ public sealed class ArgusTelemetryService : ITelemetryService, IDisposable
             _loopCts = new CancellationTokenSource();
             _isRunning = true;
             _loopTask = Task.Run(() => RunSamplingLoopAsync(_loopCts.Token), CancellationToken.None);
+            if (_diskHealthEvaluator is not null)
+            {
+                _diskHealthLoopTask = Task.Run(() => RunDiskHealthLoopAsync(_loopCts.Token), CancellationToken.None);
+            }
+
             _logger.LogInformation("Telemetry polling started (interval={IntervalMs}ms).", _settingsStore.Current.TelemetryIntervalMs);
         }
         finally
@@ -121,9 +130,26 @@ public sealed class ArgusTelemetryService : ITelemetryService, IDisposable
                 }
             }
 
+            if (_diskHealthLoopTask is not null)
+            {
+                try
+                {
+                    await _diskHealthLoopTask.WaitAsync(TimeSpan.FromSeconds(3), cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // expected on shutdown
+                }
+                catch (TimeoutException)
+                {
+                    _logger.LogWarning("Disk health monitoring loop did not stop within timeout.");
+                }
+            }
+
             _loopCts?.Dispose();
             _loopCts = null;
             _loopTask = null;
+            _diskHealthLoopTask = null;
             _logger.LogInformation("Telemetry polling stopped.");
         }
         finally
@@ -285,6 +311,38 @@ public sealed class ArgusTelemetryService : ITelemetryService, IDisposable
         finally
         {
             _isRunning = false;
+        }
+    }
+
+    private async Task RunDiskHealthLoopAsync(CancellationToken ct)
+    {
+        if (_diskHealthEvaluator is null)
+        {
+            return;
+        }
+
+        try
+        {
+            // Initial 5s delay so application startup remains instant and low-overhead.
+            await Task.Delay(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
+
+            while (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    await _diskHealthEvaluator.EvaluateAsync(cancellationToken: ct).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogDebug(ex, "Periodic disk health alert evaluation failed.");
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Clean stop requested
         }
     }
 

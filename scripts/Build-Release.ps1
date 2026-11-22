@@ -5,7 +5,7 @@
 .DESCRIPTION
     1. Reads product version from Directory.Build.props.
     2. Runs strict Release build + full xUnit test suite.
-    3. Publishes clean self-contained single-file win-x64 Argus.exe (requireAdministrator, zero UPX/obfuscation).
+    3. Publishes clean self-contained single-file win-x64 Argus.exe (asInvoker by default with on-demand UAC, zero UPX/obfuscation).
     4. Optionally signs Argus.exe with Authenticode / Trusted Signing.
     5. Compiles Inno Setup 6 installer into ArgusSetup\Argus-Setup-<Version>-win-x64.exe.
     6. Packages ArgusSetup\Argus-Portable-<Version>-win-x64.zip with Argus.exe, rules\, and USER-GUIDE.md.
@@ -19,6 +19,7 @@
 param(
     [string]$OutputDir = '',
     [switch]$SkipTests,
+    [switch]$RequireAdmin,
     [string]$SignCertThumbprint = '9D1B22482AC32CEA02F398527F9409FCA09EA78D',
     [string]$TimestampUrl = 'http://timestamp.digicert.com'
 )
@@ -124,9 +125,10 @@ New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
 $win64Obj = Join-Path $root 'src\Argus.App\obj\Release\net10.0-windows\win-x64'
 if (Test-Path $win64Obj) { Remove-Item $win64Obj -Recurse -Force }
 
+$requireAdminFlag = if ($RequireAdmin.IsPresent) { 'true' } else { 'false' }
 $appProj = Join-Path $root 'src\Argus.App\Argus.App.csproj'
 & $dotnet publish $appProj -c Release -r win-x64 --self-contained true `
-    -p:ArgusRequireAdmin=true `
+    -p:ArgusRequireAdmin=$requireAdminFlag `
     -p:PublishSingleFile=true `
     -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:EnableCompressionInSingleFile=true `

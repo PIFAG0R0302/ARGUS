@@ -136,132 +136,204 @@
 
     <!-- Live SetupAPI Device Manager Deck (Stretches dynamically to the bottom edge at any resolution) -->
     <Border Grid.Row="2" Classes="panel-hero" Padding="14,12">
-      <Grid RowDefinitions="Auto,10,Auto,10,*">
+      <Grid RowDefinitions="Auto,8,Auto,8,Auto,10,*">
 
-        <!-- Search & Live PnP Status Row -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,10,Auto,8,Auto">
-          <TextBox Grid.Column="0"
-                   Classes="argus-input"
-                   Text="{Binding SearchQuery}"
-                   PlaceholderText="Пошук за назвою пристрою, виробником, версією драйвера або кодом PCI\VEN_ / USB\VID_…" />
-          <Border Grid.Column="2" Classes="pill pill-ready" VerticalAlignment="Center" Padding="10,6">
+        <!-- Row 0: Live PnP Monitor Pill + Expert Actions & Mode Toggle -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+          <Border Grid.Column="0"
+                  Classes="pill pill-ready"
+                  HorizontalAlignment="Left"
+                  VerticalAlignment="Center"
+                  Padding="10,5">
             <TextBlock Text="{Binding PnpMonitorStatusText}"
                        FontSize="11.5"
-                       Foreground="{StaticResource ArgusEmeraldBrush}" />
+                       Foreground="{StaticResource ArgusEmeraldBrush}"
+                       TextTrimming="CharacterEllipsis" />
           </Border>
-          <Button Grid.Column="4"
-                  Classes="argus-secondary"
-                  Padding="12,6"
-                  FontSize="12"
-                  IsEnabled="{Binding !IsLoading}"
-                  Content="Оновити"
-                  Command="{Binding RefreshDevicesCommand}" />
-        </Grid>
 
-        <!-- Bus & Status Filter Bar -->
-        <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
-          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
             <Button Classes="argus-secondary"
-                    Classes.selected="{Binding IsFilterAll}"
-                    Padding="10,5"
+                    Padding="11,6"
                     FontSize="11.5"
-                    Content="{Binding FilterAllLabel}"
-                    Command="{Binding FilterAllCommand}" />
+                    IsVisible="{Binding IsExpertMode}"
+                    Content="Диспетчер пристроїв"
+                    ToolTip.Tip="Відкрити системний Диспетчер пристроїв Windows (devmgmt.msc)"
+                    Command="{Binding OpenDeviceManagerCommand}" />
             <Button Classes="argus-secondary"
-                    Classes.selected="{Binding IsFilterPcie}"
-                    Padding="10,5"
-                    FontSize="11.5"
-                    Content="{Binding FilterPcieLabel}"
-                    Command="{Binding FilterPcieCommand}" />
-            <Button Classes="argus-secondary"
-                    Classes.selected="{Binding IsFilterUsb}"
-                    Padding="10,5"
-                    FontSize="11.5"
-                    Content="{Binding FilterUsbLabel}"
-                    Command="{Binding FilterUsbCommand}" />
-            <Button Classes="argus-secondary"
-                    Classes.selected="{Binding IsFilterStorage}"
-                    Padding="10,5"
-                    FontSize="11.5"
-                    Content="{Binding FilterStorageLabel}"
-                    Command="{Binding FilterStorageCommand}" />
-            <Button Classes="argus-secondary"
-                    Classes.selected="{Binding IsFilterNetAudio}"
-                    Padding="10,5"
-                    FontSize="11.5"
-                    Content="{Binding FilterNetAudioLabel}"
-                    Command="{Binding FilterNetAudioCommand}" />
-            <Button Classes="argus-secondary"
-                    Classes.selected="{Binding IsFilterProblems}"
-                    Padding="10,5"
-                    FontSize="11.5"
-                    Content="{Binding FilterProblemsLabel}"
-                    Command="{Binding FilterProblemsCommand}" />
+                    Padding="12,6"
+                    FontSize="12"
+                    IsEnabled="{Binding !IsLoading}"
+                    Content="Оновити"
+                    Command="{Binding RefreshDevicesCommand}" />
+            <Border Classes="expert-toggle-bar"
+                    ToolTip.Tip="Показує Instance ID, клас обладнання, дату драйвера, код проблеми та швидкі дії.">
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="Експертний режим"
+                           FontSize="11.5"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource ArgusVioletSoftBrush}"
+                           VerticalAlignment="Center" />
+                <ToggleSwitch IsChecked="{Binding IsExpertMode}"
+                              OnContent=""
+                              OffContent=""
+                              VerticalAlignment="Center" />
+              </StackPanel>
+            </Border>
           </StackPanel>
-
-          <TextBlock Grid.Column="1"
-                     Classes="metric-mono"
-                     FontSize="11.5"
-                     VerticalAlignment="Center"
-                     Text="{Binding ShowingCountText}" />
         </Grid>
 
-        <!-- Adaptive Live Device Nodes List (NO fixed MaxHeight) -->
-        <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto">
+        <!-- Row 2: Full-Width Search Box (always generous width, zero placeholder clipping) -->
+        <TextBox Grid.Row="2"
+                 Classes="argus-input"
+                 MinWidth="240"
+                 Text="{Binding SearchQuery}"
+                 PlaceholderText="Пошук за назвою пристрою, виробником, версією драйвера або кодом PCI\VEN_ / USB\VID_…" />
+
+        <!-- Row 4: Bus & Status Filter Bar -->
+        <StackPanel Grid.Row="4" Spacing="6">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding IsFilterAll}"
+                      Padding="10,5"
+                      FontSize="11.5"
+                      Content="{Binding FilterAllLabel}"
+                      Command="{Binding FilterAllCommand}" />
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding IsFilterPcie}"
+                      Padding="10,5"
+                      FontSize="11.5"
+                      Content="{Binding FilterPcieLabel}"
+                      Command="{Binding FilterPcieCommand}" />
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding IsFilterUsb}"
+                      Padding="10,5"
+                      FontSize="11.5"
+                      Content="{Binding FilterUsbLabel}"
+                      Command="{Binding FilterUsbCommand}" />
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding IsFilterStorage}"
+                      Padding="10,5"
+                      FontSize="11.5"
+                      Content="{Binding FilterStorageLabel}"
+                      Command="{Binding FilterStorageCommand}" />
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding IsFilterNetAudio}"
+                      Padding="10,5"
+                      FontSize="11.5"
+                      Content="{Binding FilterNetAudioLabel}"
+                      Command="{Binding FilterNetAudioCommand}" />
+              <Button Classes="argus-secondary"
+                      Classes.selected="{Binding IsFilterProblems}"
+                      Padding="10,5"
+                      FontSize="11.5"
+                      Content="{Binding FilterProblemsLabel}"
+                      Command="{Binding FilterProblemsCommand}" />
+            </StackPanel>
+
+            <TextBlock Grid.Column="1"
+                       Classes="metric-mono"
+                       FontSize="11.5"
+                       VerticalAlignment="Center"
+                       Text="{Binding ShowingCountText}" />
+          </Grid>
+
+          <TextBlock FontSize="11.5"
+                     Foreground="{StaticResource ArgusCyanBrush}"
+                     IsVisible="{Binding HasExpertActionFeedback}"
+                     Text="{Binding ExpertActionFeedback}"
+                     TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+
+        <!-- Row 6: Adaptive Live Device Nodes List (NO fixed MaxHeight) -->
+        <ScrollViewer Grid.Row="6" VerticalScrollBarVisibility="Auto">
           <ItemsControl ItemsSource="{Binding FilteredDevices}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:DeviceNodeRowItem">
                 <Border Classes="tile" Margin="0,0,4,6" Padding="12,8">
-                  <Grid ColumnDefinitions="56,74,*,280">
-                    <Border Grid.Column="0"
-                            Classes="pill"
-                            Classes.pill-ready="{Binding IsOk}"
-                            Classes.pill-warn="{Binding IsProblem}"
-                            HorizontalAlignment="Left"
-                            VerticalAlignment="Center"
-                            Padding="8,2">
-                      <TextBlock Text="{Binding StatusLabel}"
-                                 FontSize="10.5"
-                                 FontWeight="SemiBold"
-                                 Foreground="{StaticResource ArgusTextPrimaryBrush}" />
-                    </Border>
+                  <StackPanel Spacing="6">
+                    <Grid ColumnDefinitions="56,74,*,240">
+                      <Border Grid.Column="0"
+                              Classes="pill"
+                              Classes.pill-ready="{Binding IsOk}"
+                              Classes.pill-warn="{Binding IsProblem}"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Center"
+                              Padding="8,2">
+                        <TextBlock Text="{Binding StatusLabel}"
+                                   FontSize="10.5"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                      </Border>
 
-                    <Border Grid.Column="1"
-                            Classes="pill"
-                            HorizontalAlignment="Left"
-                            VerticalAlignment="Center"
-                            Margin="6,0,0,0"
-                            Padding="8,2">
-                      <TextBlock Text="{Binding BusType}"
-                                 FontSize="10.5"
-                                 Foreground="{StaticResource ArgusCyanBrush}" />
-                    </Border>
+                      <Border Grid.Column="1"
+                              Classes="pill"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Center"
+                              Margin="6,0,0,0"
+                              Padding="8,2">
+                        <TextBlock Text="{Binding BusType}"
+                                   FontSize="10.5"
+                                   Foreground="{StaticResource ArgusCyanBrush}" />
+                      </Border>
 
-                    <StackPanel Grid.Column="2" Spacing="2" Margin="10,0,12,0" VerticalAlignment="Center">
-                      <TextBlock FontSize="12.5"
-                                 FontWeight="SemiBold"
-                                 Foreground="{StaticResource ArgusTextPrimaryBrush}"
-                                 Text="{Binding FriendlyName}"
-                                 TextTrimming="CharacterEllipsis" />
-                      <TextBlock FontSize="11.5"
-                                 Foreground="{StaticResource ArgusTextSecondaryBrush}"
-                                 Text="{Binding CategoryAndManufacturer}"
-                                 TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
+                      <StackPanel Grid.Column="2" Spacing="2" Margin="10,0,12,0" VerticalAlignment="Center">
+                        <TextBlock FontSize="12.5"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                   Text="{Binding FriendlyName}"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock FontSize="11.5"
+                                   Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                   Text="{Binding CategoryAndManufacturer}"
+                                   TextTrimming="CharacterEllipsis" />
+                      </StackPanel>
 
-                    <StackPanel Grid.Column="3" Spacing="2" VerticalAlignment="Center" HorizontalAlignment="Right">
-                      <TextBlock Classes="metric-mono"
+                      <TextBlock Grid.Column="3"
+                                 Classes="metric-mono"
                                  FontSize="11.5"
                                  HorizontalAlignment="Right"
-                                 Text="{Binding DriverSummary}"
+                                 VerticalAlignment="Center"
+                                 Text="{Binding BasicDriverText}"
                                  TextTrimming="CharacterEllipsis" />
-                      <TextBlock FontSize="10.5"
-                                 Foreground="{StaticResource ArgusTextMutedBrush}"
-                                 HorizontalAlignment="Right"
-                                 Text="{Binding InstanceId}"
-                                 TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
-                  </Grid>
+                    </Grid>
+
+                    <!-- Expert-only Technical Device Metadata & Actions -->
+                    <Border Background="#0E142D"
+                            BorderBrush="{StaticResource ArgusBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="10,6"
+                            IsVisible="{Binding $parent[UserControl].((vm:DevicesViewModel)DataContext).IsExpertMode}">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,10,0">
+                          <TextBlock FontSize="11"
+                                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                     Text="{Binding ExpertClassHardwareSummary}"
+                                     TextTrimming="CharacterEllipsis" />
+                          <TextBlock Classes="metric-mono"
+                                     FontSize="11"
+                                     Foreground="{StaticResource ArgusCyanBrush}"
+                                     Text="{Binding ExpertDriverAndProblemDetail}"
+                                     TextTrimming="CharacterEllipsis" />
+                          <TextBlock Classes="metric-mono"
+                                     FontSize="10.5"
+                                     Foreground="{StaticResource ArgusTextMutedBrush}"
+                                     Text="{Binding InstanceId, StringFormat='Instance ID: {0}'}"
+                                     TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+
+                        <Button Grid.Column="1"
+                                Classes="argus-secondary"
+                                Padding="9,4"
+                                FontSize="11"
+                                VerticalAlignment="Center"
+                                Content="Копіювати Instance ID"
+                                Command="{Binding $parent[UserControl].((vm:DevicesViewModel)DataContext).CopyInstanceIdCommand}"
+                                CommandParameter="{Binding InstanceId}" />
+                      </Grid>
+                    </Border>
+                  </StackPanel>
                 </Border>
               </DataTemplate>
             </ItemsControl.ItemTemplate>

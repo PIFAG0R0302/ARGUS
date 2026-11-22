@@ -5,6 +5,7 @@
     [switch]$Test,
     [switch]$PublishPortable,
     [switch]$PublishRootExe,
+    [switch]$RequireAdmin,
     [switch]$Strict
 )
 
@@ -61,11 +62,12 @@ if ($PublishPortable) {
 if ($PublishRootExe) {
     $win64Obj = Join-Path $PSScriptRoot 'src\Argus.App\obj\Release\net10.0-windows\win-x64'
     if (Test-Path $win64Obj) { Remove-Item -Recurse -Force $win64Obj }
-    $stageDir = Join-Path $PSScriptRoot 'publish\single-file-admin'
+    $stageDir = Join-Path $PSScriptRoot 'publish\single-file'
     if (Test-Path $stageDir) { Remove-Item -Recurse -Force $stageDir }
+    $requireAdminFlag = if ($RequireAdmin.IsPresent) { 'true' } else { 'false' }
     $appProj = Join-Path $PSScriptRoot 'src\Argus.App\Argus.App.csproj'
     & $dotnet publish $appProj -c Release -r win-x64 --self-contained true `
-        -p:ArgusRequireAdmin=true `
+        -p:ArgusRequireAdmin=$requireAdminFlag `
         -p:PublishSingleFile=true `
         -p:IncludeNativeLibrariesForSelfExtract=true `
         -p:EnableCompressionInSingleFile=true `
@@ -77,7 +79,7 @@ if ($PublishRootExe) {
     $dstExe = Join-Path $PSScriptRoot 'Argus.exe'
     Copy-Item -Path $srcExe -Destination $dstExe -Force
     Remove-Item -Recurse -Force $stageDir
-    Write-Host "Root elevated executable ready: $dstExe" -ForegroundColor Cyan
+    Write-Host "Root executable ready: $dstExe (ArgusRequireAdmin=$requireAdminFlag)" -ForegroundColor Cyan
 }
 
 if ($Run) {

@@ -72,4 +72,32 @@ public sealed class WindowsPrivilegeService : IPrivilegeService
             return false;
         }
     }
+
+    public bool CanWriteToDirectory(string directoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (!Directory.Exists(directoryPath))
+            {
+                return false;
+            }
+
+            string probeFile = Path.Combine(directoryPath, $".argus_write_probe_{Guid.NewGuid():N}.tmp");
+            using (File.Create(probeFile))
+            {
+            }
+
+            File.Delete(probeFile);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }

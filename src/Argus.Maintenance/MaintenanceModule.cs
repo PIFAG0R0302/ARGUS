@@ -24,9 +24,18 @@ public static class MaintenanceServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         services.AddSingleton<IArgusModule, MaintenanceModule>();
         services.AddSingleton<IPrivilegeService, WindowsPrivilegeService>();
+        services.AddSingleton<ISystemInspectorService, WindowsSystemInspectorService>();
+        services.AddSingleton<IProcessMonitorService, WindowsProcessMonitorService>();
+        services.AddSingleton<IStartupAndServicesManager, WindowsStartupAndServicesManager>();
+        services.AddSingleton<INetworkManagerService, WindowsNetworkManagerService>();
+        services.AddSingleton<IProcessNetworkTrafficService, WindowsProcessNetworkTrafficService>();
         services.AddSingleton<IStartupRegistrationService>(_ => new WindowsStartupRegistrationService());
         services.AddSingleton<IRestorePointService, WindowsRestorePointService>();
-        services.AddSingleton<IAppUpdateService, GitHubAppUpdateService>();
+        services.AddSingleton<IAppUpdateService>(sp => new GitHubAppUpdateService(
+            sp.GetRequiredService<Argus.Core.Configuration.IArgusSettingsStore>(),
+            sp.GetRequiredService<Argus.Core.Journal.IOperationJournal>(),
+            sp.GetRequiredService<Argus.Core.Events.IArgusEventBus>(),
+            privilegeService: sp.GetRequiredService<IPrivilegeService>()));
         services.AddSingleton<ICleanerService, WindowsCleanerService>();
         services.AddSingleton<IDiskOptimizer, WindowsDiskOptimizer>();
         services.AddSingleton<IDiskSpaceAnalyzer, WindowsDiskSpaceAnalyzer>();
