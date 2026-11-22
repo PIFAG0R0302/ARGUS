@@ -43,6 +43,7 @@
 .\scripts\Build-Release.ps1
 ```
 
-## Ліцензія
+## Ліцензія та цифровий підпис
 
 Код поширюється на умовах ліцензії [MIT](LICENSE).
+Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org). Див. [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md) та [SECURITY.md](SECURITY.md).
