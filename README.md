@@ -32,6 +32,10 @@
 
 Готовий інсталятор `Argus-Setup-*-win-x64.exe` та портативний архів `Argus-Portable-*-win-x64.zip` доступні в розділі [Releases](https://github.com/PIFAG0R0302/ARGUS-Updates/releases).
 
+> **Примітка щодо Windows SmartScreen / Smart App Control (SAC):**
+> - Перед запуском портативної версії повністю розпакуйте `.zip` (не запускайте з `Temp`) і за потреби зніміть блокування у **Властивості -> Розблокувати** або запустіть `Install-Certificate.cmd` (імпортує `Argus-CodeSigning.cer` та виконує `Unblock-File`). Інсталятор `Argus-Setup-*.exe` робить це автоматично.
+> - Якщо Windows 11 **Smart App Control** у режимі «Увімкнено» блокує невідомого видавця, самопідписаний сертифікат його не обійде — потрібен або публічний CA-підпис (шаблон CI у `docs/release-signing.yml.example`), або вимкнення SAC у параметрах *Безпеки Windows*.
+
 Для локальної збірки з вихідного коду:
 
 ```powershell

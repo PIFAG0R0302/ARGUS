@@ -1,0 +1,77 @@
+# Template for Public CA Code Signing in GitHub Actions (passes Windows 11 Smart App Control & SmartScreen)
+# Rename to release-signing.yml in the private source repository when ready to enable cloud signing.
+#
+# Option A: Microsoft Artifact Signing (formerly Azure Trusted Signing)
+#   - Action: azure/artifact-signing-action@v1
+#   - Requires Azure subscription + Artifact Signing Account + Certificate Profile + OIDC secrets.
+#
+# Option B: SignPath Foundation (free for qualifying Open Source projects)
+#   - Action: signpath/github-action-submit-signing-request@v1
+#   - Requires SignPath Organization ID, Project Slug, Signing Policy, and API Token secret.
+
+name: ARGUS Signed Release (Template)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.1.3)"
+        required: true
+
+jobs:
+  build-and-sign:
+    runs-on: windows-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout private source
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build, Test & Publish unsigned payload
+        shell: pwsh
+        run: |
+          .\build.ps1 -Configuration Release -Strict -Test
+          dotnet publish src\Argus.App\Argus.App.csproj -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
+            -o publish\release-stage
+
+      # --- Option A: Microsoft Artifact Signing (Trusted Signing) ---
+      - name: Sign binaries with Microsoft Artifact Signing
+        uses: azure/artifact-signing-action@v1
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          endpoint: https://eus.codesigning.azure.net
+          code-signing-account-name: ${{ secrets.ARTIFACT_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.ARTIFACT_SIGNING_PROFILE }}
+          files-folder: publish\release-stage
+          files-folder-filter: Argus.exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Compile Inno Setup 6 Installer
+        shell: pwsh
+        run: |
+          iscc "/DMyAppVersion=${{ inputs.version }}" "/DPayloadDir=publish\release-stage" "/DOutputDirPath=ArgusSetup" installer\Argus.iss
+
+      - name: Sign Installer with Microsoft Artifact Signing
+        uses: azure/artifact-signing-action@v1
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          endpoint: https://eus.codesigning.azure.net
+          code-signing-account-name: ${{ secrets.ARTIFACT_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.ARTIFACT_SIGNING_PROFILE }}
+          files-folder: ArgusSetup
+          files-folder-filter: Argus-Setup-*.exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256

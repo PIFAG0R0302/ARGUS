@@ -58,15 +58,20 @@ ukrainian.LaunchAfterInstall=Запустити ARGUS після заверше�
 english.LaunchAfterInstall=Launch ARGUS after setup completes
 ukrainian.UserGuideIcon=Інструкція користувача ARGUS
 english.UserGuideIcon=ARGUS User Guide
+ukrainian.TrustCertTask=Додати сертифікат підпису ARGUS у довірені сертифікати Windows та зняти блокування файлів
+english.TrustCertTask=Trust ARGUS code-signing certificate in Windows and unblock files
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:DesktopIconTask}"; GroupDescription: "{cm:AdditionalIcons}"
 Name: "startup"; Description: "{cm:StartupTask}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "trustcert"; Description: "{cm:TrustCertTask}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
 Source: "{#PayloadDir}\Argus.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PayloadDir}\USER-GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PayloadDir}\rules\*"; DestDir: "{app}\rules"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#PayloadDir}\Argus-CodeSigning.cer"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "{#PayloadDir}\Install-Certificate.cmd"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -78,4 +83,7 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Argus"; ValueData: """{app}\{#MyAppExeName}"" --minimized"; Flags: uninsdeletevalue; Tasks: startup
 
 [Run]
+Filename: "{sys}\certutil.exe"; Parameters: "-addstore -f Root ""{app}\Argus-CodeSigning.cer"""; Tasks: trustcert; Flags: runhidden waituntilterminated skipifdoesntexist
+Filename: "{sys}\certutil.exe"; Parameters: "-addstore -f TrustedPublisher ""{app}\Argus-CodeSigning.cer"""; Tasks: trustcert; Flags: runhidden waituntilterminated skipifdoesntexist
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Get-ChildItem -LiteralPath '{app}' -Recurse -File -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue"""; Tasks: trustcert; Flags: runhidden waituntilterminated
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchAfterInstall}"; Flags: shellexec nowait postinstall skipifsilent runasoriginaluser

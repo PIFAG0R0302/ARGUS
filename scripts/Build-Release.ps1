@@ -150,9 +150,17 @@ try {
     Write-Host "Примітка: кореневий Argus.exe зараз запущено, тому оновлені файли записано в ArgusSetup\." -ForegroundColor Yellow
 }
 
-# Stage external JSON rules and user guide
+# Stage external JSON rules, user guide, public code-signing cert, and one-click unblock helper
 Copy-Item -Path (Join-Path $root 'rules') -Destination (Join-Path $stageDir 'rules') -Recurse -Force
 Copy-Item -Path (Join-Path $root 'docs\USER-GUIDE.md') -Destination (Join-Path $stageDir 'USER-GUIDE.md') -Force
+$pubCer = Join-Path $root 'certs\Argus-CodeSigning.cer'
+if (Test-Path $pubCer) {
+    Copy-Item -Path $pubCer -Destination (Join-Path $stageDir 'Argus-CodeSigning.cer') -Force
+}
+$certInstaller = Join-Path $scriptDir 'Install-Certificate.cmd'
+if (Test-Path $certInstaller) {
+    Copy-Item -Path $certInstaller -Destination (Join-Path $stageDir 'Install-Certificate.cmd') -Force
+}
 
 $resolvedOut = [System.IO.Path]::GetFullPath($OutputDir)
 if (Test-Path $resolvedOut) { Remove-Item $resolvedOut -Recurse -Force }
@@ -171,9 +179,11 @@ Write-Host '=== 4. PACKAGE PORTABLE ZIP & DOCS ==='
 $portableZip = Join-Path $resolvedOut "Argus-Portable-$version-win-x64.zip"
 Compress-Archive -Path (Join-Path $stageDir '*') -DestinationPath $portableZip -CompressionLevel Optimal -Force
 Copy-Item -Path (Join-Path $root 'docs\USER-GUIDE.md') -Destination (Join-Path $resolvedOut 'USER-GUIDE.md') -Force
-$pubCer = Join-Path $root 'certs\Argus-CodeSigning.cer'
 if (Test-Path $pubCer) {
     Copy-Item -Path $pubCer -Destination (Join-Path $resolvedOut 'Argus-CodeSigning.cer') -Force
+}
+if (Test-Path $certInstaller) {
+    Copy-Item -Path $certInstaller -Destination (Join-Path $resolvedOut 'Install-Certificate.cmd') -Force
 }
 
 Write-Host '=== 5. GENERATE SHA-256 CHECKSUMS ==='

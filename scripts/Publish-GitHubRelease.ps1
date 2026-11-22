@@ -81,9 +81,16 @@ $portableZip = Join-Path $SetupDir "Argus-Portable-$version-win-x64.zip"
 $shaSums     = Join-Path $SetupDir 'SHA256SUMS.txt'
 $cerFile     = Join-Path $SetupDir 'Argus-CodeSigning.cer'
 $guideFile   = Join-Path $SetupDir 'USER-GUIDE.md'
+$certCmdFile = Join-Path $SetupDir 'Install-Certificate.cmd'
 
 foreach ($f in @($setupExe, $portableZip, $shaSums, $cerFile, $guideFile)) {
     if (-not (Test-Path $f)) { throw "Відсутній артефакт релізу: $f" }
+}
+
+$releaseAssets = [System.Collections.Generic.List[string]]::new()
+$releaseAssets.AddRange([string[]]@($setupExe, $portableZip, $shaSums, $cerFile, $guideFile))
+if (Test-Path $certCmdFile) {
+    $releaseAssets.Add($certCmdFile)
 }
 
 $notes = @"
@@ -110,10 +117,10 @@ gh release view $tag --repo $Repository 2>$null | Out-Null
 if ($LASTEXITCODE -eq 0) { $relExists = $true }
 
 if ($relExists) {
-    gh release upload $tag $setupExe $portableZip $shaSums $cerFile $guideFile --clobber --repo $Repository
+    gh release upload $tag @releaseAssets --clobber --repo $Repository
     gh release edit $tag --title "ARGUS $tag" --notes-file $notesFile --repo $Repository
 } else {
-    gh release create $tag $setupExe $portableZip $shaSums $cerFile $guideFile --title "ARGUS $tag" --notes-file $notesFile --repo $Repository
+    gh release create $tag @releaseAssets --title "ARGUS $tag" --notes-file $notesFile --repo $Repository
 }
 $relExit = $LASTEXITCODE
 $ErrorActionPreference = $prevEap
