@@ -9,7 +9,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Argus.App.ViewModels;
 
-public sealed class ProcessRowViewModel
+public sealed partial class ProcessRowViewModel : ObservableObject
 {
     public ProcessRowViewModel(
         ProcessMetricsItem model,
@@ -18,42 +18,81 @@ public sealed class ProcessRowViewModel
     {
         Model = model ?? throw new ArgumentNullException(nameof(model));
 
+        Pid = model.Pid;
         PidText = model.Pid.ToString(CultureInfo.InvariantCulture);
+        IsCriticalSystem = model.IsCriticalSystem;
+        CanTerminate = !model.IsCriticalSystem;
+
+        _name = model.Name;
+        _cpuText = string.Format(CultureInfo.CurrentCulture, "{0:0.0}%", model.CpuPercent);
+        _memoryText = FormatMemory(model.WorkingSetBytes);
+        _diskIoText = FormatDiskIo(model.DiskReadBytesPerSec, model.DiskWriteBytesPerSec);
+        _threadsText = $"{model.ThreadCount} пот.";
+        _executablePath = FormatExecutablePath(model);
+        _hasExecutablePath = !string.IsNullOrWhiteSpace(model.ExecutablePath);
+        _isHighCpu = model.CpuPercent >= 15.0;
+        _hasDiskActivity = model.TotalDiskBytesPerSec >= 1024.0;
+
+        RequestTerminateCommand = new RelayCommand(() => onRequestTerminate(Model), () => CanTerminate);
+        OpenFolderCommand = new RelayCommand(() => onOpenFolder(Model.ExecutablePath), () => HasExecutablePath);
+    }
+
+    public ProcessMetricsItem Model { get; private set; }
+    public int Pid { get; }
+    public string PidText { get; }
+    public bool IsCriticalSystem { get; }
+    public bool CanTerminate { get; }
+
+    [ObservableProperty]
+    private string _name;
+
+    [ObservableProperty]
+    private string _cpuText;
+
+    [ObservableProperty]
+    private string _memoryText;
+
+    [ObservableProperty]
+    private string _diskIoText;
+
+    [ObservableProperty]
+    private string _threadsText;
+
+    [ObservableProperty]
+    private string _executablePath;
+
+    [ObservableProperty]
+    private bool _hasExecutablePath;
+
+    [ObservableProperty]
+    private bool _isHighCpu;
+
+    [ObservableProperty]
+    private bool _hasDiskActivity;
+
+    public ICommand RequestTerminateCommand { get; }
+    public ICommand OpenFolderCommand { get; }
+
+    public void UpdateFrom(ProcessMetricsItem model)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        Model = model;
+
         Name = model.Name;
         CpuText = string.Format(CultureInfo.CurrentCulture, "{0:0.0}%", model.CpuPercent);
         MemoryText = FormatMemory(model.WorkingSetBytes);
         DiskIoText = FormatDiskIo(model.DiskReadBytesPerSec, model.DiskWriteBytesPerSec);
         ThreadsText = $"{model.ThreadCount} пот.";
-        ExecutablePath = string.IsNullOrWhiteSpace(model.ExecutablePath)
-            ? (model.IsProtectedAccess ? "Системний / захищений доступ" : "Шлях недоступний")
-            : model.ExecutablePath;
-
+        ExecutablePath = FormatExecutablePath(model);
         HasExecutablePath = !string.IsNullOrWhiteSpace(model.ExecutablePath);
-        IsCriticalSystem = model.IsCriticalSystem;
-        CanTerminate = !model.IsCriticalSystem;
         IsHighCpu = model.CpuPercent >= 15.0;
         HasDiskActivity = model.TotalDiskBytesPerSec >= 1024.0;
-
-        RequestTerminateCommand = new RelayCommand(() => onRequestTerminate(model), () => CanTerminate);
-        OpenFolderCommand = new RelayCommand(() => onOpenFolder(model.ExecutablePath), () => HasExecutablePath);
     }
 
-    public ProcessMetricsItem Model { get; }
-    public string PidText { get; }
-    public string Name { get; }
-    public string CpuText { get; }
-    public string MemoryText { get; }
-    public string DiskIoText { get; }
-    public string ThreadsText { get; }
-    public string ExecutablePath { get; }
-    public bool HasExecutablePath { get; }
-    public bool IsCriticalSystem { get; }
-    public bool CanTerminate { get; }
-    public bool IsHighCpu { get; }
-    public bool HasDiskActivity { get; }
-
-    public ICommand RequestTerminateCommand { get; }
-    public ICommand OpenFolderCommand { get; }
+    private static string FormatExecutablePath(ProcessMetricsItem model) =>
+        string.IsNullOrWhiteSpace(model.ExecutablePath)
+            ? (model.IsProtectedAccess ? "Системний / захищений доступ" : "Шлях недоступний")
+            : model.ExecutablePath;
 
     internal static string FormatMemory(long bytes)
     {
@@ -127,12 +166,36 @@ public sealed partial class ProcessesViewModel : SectionViewModelBase, IDisposab
     [NotifyPropertyChangedFor(nameof(IsSortByCpu))]
     [NotifyPropertyChangedFor(nameof(IsSortByDisk))]
     [NotifyPropertyChangedFor(nameof(IsSortByName))]
+    [NotifyPropertyChangedFor(nameof(IsSortByPid))]
+    [NotifyPropertyChangedFor(nameof(SortPidHeader))]
+    [NotifyPropertyChangedFor(nameof(SortNameHeader))]
+    [NotifyPropertyChangedFor(nameof(SortCpuHeader))]
+    [NotifyPropertyChangedFor(nameof(SortRamHeader))]
+    [NotifyPropertyChangedFor(nameof(SortDiskHeader))]
     private string _sortBy = "RAM";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SortPidHeader))]
+    [NotifyPropertyChangedFor(nameof(SortNameHeader))]
+    [NotifyPropertyChangedFor(nameof(SortCpuHeader))]
+    [NotifyPropertyChangedFor(nameof(SortRamHeader))]
+    [NotifyPropertyChangedFor(nameof(SortDiskHeader))]
+    private bool _sortDescending = true;
+
+    [ObservableProperty]
+    private ProcessRowViewModel? _selectedProcess;
 
     public bool IsSortByRam => SortBy == "RAM";
     public bool IsSortByCpu => SortBy == "CPU";
     public bool IsSortByDisk => SortBy == "DISK";
     public bool IsSortByName => SortBy == "NAME";
+    public bool IsSortByPid => SortBy == "PID";
+
+    public string SortPidHeader => CollectionSyncHelper.FormatSortHeader("PID", "PID", SortBy, SortDescending);
+    public string SortNameHeader => CollectionSyncHelper.FormatSortHeader("ПРОЦЕС ТА ШЛЯХ .EXE", "NAME", SortBy, SortDescending);
+    public string SortCpuHeader => CollectionSyncHelper.FormatSortHeader("CPU %", "CPU", SortBy, SortDescending);
+    public string SortRamHeader => CollectionSyncHelper.FormatSortHeader("RAM", "RAM", SortBy, SortDescending);
+    public string SortDiskHeader => CollectionSyncHelper.FormatSortHeader("DISK I/O (R / W)", "DISK", SortBy, SortDescending);
 
     [ObservableProperty]
     private bool _isLoading;
@@ -160,6 +223,7 @@ public sealed partial class ProcessesViewModel : SectionViewModelBase, IDisposab
 
     partial void OnSearchQueryChanged(string value) => ApplyFiltersAndSort();
     partial void OnSortByChanged(string value) => ApplyFiltersAndSort();
+    partial void OnSortDescendingChanged(bool value) => ApplyFiltersAndSort();
 
     public void EnsureInitialized()
     {
@@ -199,9 +263,20 @@ public sealed partial class ProcessesViewModel : SectionViewModelBase, IDisposab
     [RelayCommand]
     private void SetSort(string sortKey)
     {
-        if (!string.IsNullOrWhiteSpace(sortKey))
+        if (string.IsNullOrWhiteSpace(sortKey))
         {
-            SortBy = sortKey.Trim().ToUpperInvariant();
+            return;
+        }
+
+        string normalized = sortKey.Trim().ToUpperInvariant();
+        if (string.Equals(SortBy, normalized, StringComparison.Ordinal))
+        {
+            SortDescending = !SortDescending;
+        }
+        else
+        {
+            SortDescending = normalized is not ("NAME" or "PID");
+            SortBy = normalized;
         }
     }
 
@@ -325,20 +400,52 @@ public sealed partial class ProcessesViewModel : SectionViewModelBase, IDisposab
                 (p.ExecutablePath?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false));
         }
 
-        query = SortBy switch
+        query = (SortBy, SortDescending) switch
         {
-            "CPU" => query.OrderByDescending(static p => p.CpuPercent).ThenByDescending(static p => p.WorkingSetBytes),
-            "DISK" => query.OrderByDescending(static p => p.TotalDiskBytesPerSec).ThenByDescending(static p => p.WorkingSetBytes),
-            "NAME" => query.OrderBy(static p => p.Name, StringComparer.OrdinalIgnoreCase).ThenBy(static p => p.Pid),
-            _ => query.OrderByDescending(static p => p.WorkingSetBytes).ThenByDescending(static p => p.CpuPercent)
+            ("CPU", true) => query
+                .OrderByDescending(static p => p.CpuPercent)
+                .ThenByDescending(static p => p.WorkingSetBytes)
+                .ThenBy(static p => p.Pid),
+            ("CPU", false) => query
+                .OrderBy(static p => p.CpuPercent)
+                .ThenBy(static p => p.WorkingSetBytes)
+                .ThenBy(static p => p.Pid),
+            ("DISK", true) => query
+                .OrderByDescending(static p => p.TotalDiskBytesPerSec)
+                .ThenByDescending(static p => p.WorkingSetBytes)
+                .ThenBy(static p => p.Pid),
+            ("DISK", false) => query
+                .OrderBy(static p => p.TotalDiskBytesPerSec)
+                .ThenBy(static p => p.WorkingSetBytes)
+                .ThenBy(static p => p.Pid),
+            ("NAME", true) => query
+                .OrderByDescending(static p => p.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static p => p.Pid),
+            ("NAME", false) => query
+                .OrderBy(static p => p.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static p => p.Pid),
+            ("PID", true) => query.OrderByDescending(static p => p.Pid),
+            ("PID", false) => query.OrderBy(static p => p.Pid),
+            (_, false) => query
+                .OrderBy(static p => p.WorkingSetBytes)
+                .ThenBy(static p => p.CpuPercent)
+                .ThenBy(static p => p.Pid),
+            _ => query
+                .OrderByDescending(static p => p.WorkingSetBytes)
+                .ThenByDescending(static p => p.CpuPercent)
+                .ThenBy(static p => p.Pid)
         };
 
         var visible = query.Take(160).ToList();
-        Processes.Clear();
-        foreach (var item in visible)
-        {
-            Processes.Add(new ProcessRowViewModel(item, RequestTerminate, OpenFolder));
-        }
+        CollectionSyncHelper.SyncByKey(
+            Processes,
+            visible,
+            static m => m.Pid,
+            static r => r.Pid,
+            m => new ProcessRowViewModel(m, RequestTerminate, OpenFolder),
+            static (r, m) => r.UpdateFrom(m),
+            SelectedProcess,
+            row => SelectedProcess = row);
 
         string hiddenSuffix = showCritical
             ? $" · Експертний режим (системні: {HiddenCriticalCount})"

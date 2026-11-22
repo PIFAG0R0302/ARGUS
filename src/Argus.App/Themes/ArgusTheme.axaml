@@ -146,6 +146,54 @@
     <Setter Property="Padding" Value="14,12" />
   </Style>
 
+  <!-- Selectable Tile ListBox (preserves SelectedItem and scroll position during live updates) -->
+  <Style Selector="ListBox.argus-list">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+  <Style Selector="ListBox.argus-list > ListBoxItem">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Margin" Value="0" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+  </Style>
+  <Style Selector="ListBox.argus-list > ListBoxItem /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="ListBox.argus-list > ListBoxItem:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="ListBox.argus-list > ListBoxItem:selected /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="ListBox.argus-list > ListBoxItem:pointerover Border.tile">
+    <Setter Property="BorderBrush" Value="#4A5AA6" />
+  </Style>
+  <Style Selector="ListBox.argus-list > ListBoxItem:selected Border.tile">
+    <Setter Property="BorderBrush" Value="{StaticResource ArgusCyanBrush}" />
+    <Setter Property="Background" Value="#161D42" />
+  </Style>
+
+  <!-- Clickable Column Sort Header Button -->
+  <Style Selector="Button.column-sort-header">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="4,2" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextMutedBrush}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.column-sort-header:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#1A2352" />
+    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+  </Style>
+  <Style Selector="Button.column-sort-header.active">
+    <Setter Property="Foreground" Value="{StaticResource ArgusCyanBrush}" />
+  </Style>
+
   <Style Selector="Border.pill">
     <Setter Property="CornerRadius" Value="6" />
     <Setter Property="Padding" Value="9,3" />

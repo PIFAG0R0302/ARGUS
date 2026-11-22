@@ -1,5 +1,25 @@
 namespace Argus.Core.Contracts.System;
 
+public enum ConnectionSuspicionLevel
+{
+    None = 0,
+    Warning = 1,
+    Suspicious = 2
+}
+
+[Flags]
+public enum ConnectionSuspicionFlags
+{
+    None = 0,
+    TempOrPublicPath = 1 << 0,
+    RootDrivePath = 1 << 1,
+    AppDataOrProgramDataPath = 1 << 2,
+    DangerousPort = 1 << 3,
+    SystemProcessMasquerading = 1 << 4,
+    HiddenOrUnknownProcess = 1 << 5,
+    ExternalIpWithoutPtr = 1 << 6
+}
+
 public sealed record ActiveConnectionItem(
     string Protocol,
     string LocalAddress,
@@ -9,13 +29,19 @@ public sealed record ActiveConnectionItem(
     string State,
     int Pid,
     string ProcessName,
-    string? ExecutablePath)
+    string? ExecutablePath,
+    ConnectionSuspicionLevel SuspicionLevel = ConnectionSuspicionLevel.None,
+    ConnectionSuspicionFlags SuspicionFlags = ConnectionSuspicionFlags.None,
+    string? SuspicionSummary = null,
+    string? ReverseDnsHost = null)
 {
     public bool IsLoopback =>
         string.Equals(LocalAddress, "127.0.0.1", StringComparison.Ordinal) ||
         string.Equals(LocalAddress, "::1", StringComparison.Ordinal) ||
         string.Equals(RemoteAddress, "127.0.0.1", StringComparison.Ordinal) ||
         string.Equals(RemoteAddress, "::1", StringComparison.Ordinal);
+
+    public bool IsFlagged => SuspicionLevel != ConnectionSuspicionLevel.None;
 }
 
 public enum FirewallRuleDirection
@@ -51,7 +77,8 @@ public sealed record FirewallRuleCreateRequest(
     string Protocol,
     string? LocalPorts,
     string? RemotePorts,
-    string? Description);
+    string? Description,
+    string? RemoteAddresses = null);
 
 /// <summary>
 /// Naming policy ensuring every Windows Firewall rule created by ARGUS carries the ARGUS_ prefix
@@ -83,6 +110,15 @@ public static class ArgusFirewallNaming
             : new string(appName.Trim().Select(static c => char.IsLetterOrDigit(c) || c is '-' or '_' or '.' ? c : '_').ToArray());
         string dirTag = direction == FirewallRuleDirection.Inbound ? "In" : "Out";
         return $"{RulePrefix}Block_{dirTag}_{safeApp}";
+    }
+
+    public static string BuildRemoteIpBlockRuleName(string remoteIp, FirewallRuleDirection direction)
+    {
+        string safeIp = string.IsNullOrWhiteSpace(remoteIp)
+            ? "UnknownIP"
+            : new string(remoteIp.Trim().Select(static c => char.IsLetterOrDigit(c) || c is '.' or '-' ? c : '_').ToArray());
+        string dirTag = direction == FirewallRuleDirection.Inbound ? "In" : "Out";
+        return $"{RulePrefix}Block_IP_{dirTag}_{safeIp}";
     }
 }
 
@@ -139,6 +175,13 @@ public interface INetworkManagerService
         string executablePath,
         FirewallRuleDirection direction = FirewallRuleDirection.Outbound,
         CancellationToken cancellationToken = default);
+
+    Task<SystemActionResult> BlockRemoteIpAsync(
+        string remoteIp,
+        string? reason = null,
+        FirewallRuleDirection direction = FirewallRuleDirection.Outbound,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new SystemActionResult(false, RequiresElevation: false, "Блокування IP не підтримується поточним провайдером."));
 
     Task<SystemActionResult> CreateFirewallRuleAsync(
         FirewallRuleCreateRequest request,

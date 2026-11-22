@@ -31,15 +31,17 @@ public sealed class Phase2ViewModelTests
     private sealed class FakeProcessMonitorService : IProcessMonitorService
     {
         public List<int> TerminatedPids { get; } = [];
+        public IReadOnlyList<ProcessMetricsItem>? CustomSnapshot { get; set; }
 
         public Task<IReadOnlyList<ProcessMetricsItem>> GetProcessMetricsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<ProcessMetricsItem>>(
-            [
-                new(4, "System", 0.5, 4_000_000, 0, 0, 120, null, IsCriticalSystem: true, IsProtectedAccess: true),
-                new(1200, "explorer", 1.2, 95_000_000, 0, 0, 60, "C:\\Windows\\explorer.exe", IsCriticalSystem: true, IsProtectedAccess: false),
-                new(5000, "chrome", 18.4, 650_000_000, 12_000, 8_000, 45, "C:\\Program Files\\Google\\Chrome\\chrome.exe", IsCriticalSystem: false, IsProtectedAccess: false),
-                new(6000, "notepad", 0.2, 24_000_000, 500_000, 250_000, 4, "C:\\Windows\\System32\\notepad.exe", IsCriticalSystem: false, IsProtectedAccess: false)
-            ]);
+                CustomSnapshot ??
+                [
+                    new(4, "System", 0.5, 4_000_000, 0, 0, 120, null, IsCriticalSystem: true, IsProtectedAccess: true),
+                    new(1200, "explorer", 1.2, 95_000_000, 0, 0, 60, "C:\\Windows\\explorer.exe", IsCriticalSystem: true, IsProtectedAccess: false),
+                    new(5000, "chrome", 18.4, 650_000_000, 12_000, 8_000, 45, "C:\\Program Files\\Google\\Chrome\\chrome.exe", IsCriticalSystem: false, IsProtectedAccess: false),
+                    new(6000, "notepad", 0.2, 24_000_000, 500_000, 250_000, 4, "C:\\Windows\\System32\\notepad.exe", IsCriticalSystem: false, IsProtectedAccess: false)
+                ]);
 
         public Task<SystemActionResult> TerminateProcessAsync(int pid, CancellationToken cancellationToken = default)
         {
@@ -171,5 +173,88 @@ public sealed class Phase2ViewModelTests
 
         vm.SetUiActive(false);
         Assert.Equal(1, traffic.StopCount);
+    }
+
+    [Fact]
+    public async Task ProcessesViewModel_UpdatesInPlacePreservesSelectionAndSortsDeterministically()
+    {
+        using var uiMode = new AppUiModeService(new FakeSettingsStore(), new StubPrivilege(false), new ArgusEventBus(NullLogger<ArgusEventBus>.Instance));
+        var fakeSvc = new FakeProcessMonitorService
+        {
+            CustomSnapshot =
+            [
+                new(300, "worker", 0.0, 100_000_000, 0, 0, 4, "C:\\app\\worker.exe", false, false),
+                new(100, "worker", 0.0, 100_000_000, 0, 0, 4, "C:\\app\\worker.exe", false, false),
+                new(200, "editor", 5.0, 200_000_000, 0, 0, 8, "C:\\app\\editor.exe", false, false)
+            ]
+        };
+        using var vm = new ProcessesViewModel(fakeSvc, uiMode: uiMode, autoLoadOnInit: false);
+
+        await vm.RefreshAsync();
+
+        // Deterministic tie-breaker: equal CPU/RAM must order PID 100 before PID 300
+        vm.SetSortCommand.Execute("CPU");
+        Assert.Equal([200, 100, 300], vm.Processes.Select(static p => p.Pid).ToArray());
+
+        // Select PID 300 and remember row object reference
+        var selectedRow = vm.Processes[2];
+        vm.SelectedProcess = selectedRow;
+
+        // Next poll updates PID 300's CPU so it moves to index 0, without recreating the row instance
+        fakeSvc.CustomSnapshot =
+        [
+            new(300, "worker", 42.5, 150_000_000, 0, 0, 6, "C:\\app\\worker.exe", false, false),
+            new(100, "worker", 0.0, 100_000_000, 0, 0, 4, "C:\\app\\worker.exe", false, false),
+            new(200, "editor", 5.0, 200_000_000, 0, 0, 8, "C:\\app\\editor.exe", false, false)
+        ];
+        await vm.RefreshAsync();
+
+        Assert.Equal([300, 200, 100], vm.Processes.Select(static p => p.Pid).ToArray());
+        Assert.Same(selectedRow, vm.Processes[0]);
+        Assert.Same(selectedRow, vm.SelectedProcess);
+        Assert.Contains("42", selectedRow.CpuText, StringComparison.Ordinal);
+
+        // Clicking the active column again toggles ascending/descending
+        vm.SetSortCommand.Execute("CPU");
+        Assert.False(vm.SortDescending);
+        Assert.Equal([100, 200, 300], vm.Processes.Select(static p => p.Pid).ToArray());
+    }
+
+    [Fact]
+    public void CollectionSyncHelper_SyncByKey_PreservesSelectionAndUpdatesExistingRows()
+    {
+        var items = new System.Collections.ObjectModel.ObservableCollection<ProcessRowViewModel>();
+        var first = new ProcessRowViewModel(
+            new(10, "alpha", 1.0, 10_000_000, 0, 0, 2, null, false, false),
+            static _ => { },
+            static _ => { });
+        var second = new ProcessRowViewModel(
+            new(20, "beta", 2.0, 20_000_000, 0, 0, 2, null, false, false),
+            static _ => { },
+            static _ => { });
+        items.Add(first);
+        items.Add(second);
+
+        ProcessRowViewModel? selected = second;
+        var nextModels = new List<ProcessMetricsItem>
+        {
+            new(20, "beta", 9.5, 30_000_000, 0, 0, 3, null, false, false),
+            new(30, "gamma", 1.5, 15_000_000, 0, 0, 1, null, false, false)
+        };
+
+        CollectionSyncHelper.SyncByKey(
+            items,
+            nextModels,
+            static m => m.Pid,
+            static r => r.Pid,
+            m => new ProcessRowViewModel(m, static _ => { }, static _ => { }),
+            static (r, m) => r.UpdateFrom(m),
+            selected,
+            row => selected = row);
+
+        Assert.Equal([20, 30], items.Select(static r => r.Pid).ToArray());
+        Assert.Same(second, items[0]);
+        Assert.Same(second, selected);
+        Assert.Contains("9", second.CpuText, StringComparison.Ordinal);
     }
 }

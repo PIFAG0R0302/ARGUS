@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.Net;
@@ -33,9 +34,14 @@ public sealed partial class WindowsNetworkManagerService : INetworkManagerServic
     private const int NetFwIpProtocolAny = 256;
     private const int NetFwProfile2All = 0x7FFFFFFF;
 
+    private sealed record PtrCacheEntry(string? HostName, bool HasPtr, DateTimeOffset ExpiresAtUtc);
+
     private readonly IPrivilegeService _privilegeService;
     private readonly IOperationJournal _journal;
     private readonly ILogger<WindowsNetworkManagerService> _logger;
+    private readonly ConcurrentDictionary<string, PtrCacheEntry> _ptrCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, byte> _ptrInFlight = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SemaphoreSlim _ptrConcurrency = new(4, 4);
 
     public WindowsNetworkManagerService(
         IPrivilegeService privilegeService,
@@ -85,6 +91,38 @@ public sealed partial class WindowsNetworkManagerService : INetworkManagerServic
             LocalPorts: null,
             RemotePorts: null,
             Description: $"Правило ARGUS: заблоковано {dirLabel} трафік для {appName}.");
+
+        return CreateFirewallRuleAsync(request, cancellationToken);
+    }
+
+    public Task<SystemActionResult> BlockRemoteIpAsync(
+        string remoteIp,
+        string? reason = null,
+        FirewallRuleDirection direction = FirewallRuleDirection.Outbound,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(remoteIp) || !IPAddress.TryParse(remoteIp.Trim(), out IPAddress? parsedIp))
+        {
+            return Task.FromResult(new SystemActionResult(
+                false,
+                RequiresElevation: false,
+                "Вказано некоректну віддалену IP-адресу для блокування."));
+        }
+
+        string cleanIp = parsedIp.ToString();
+        string ruleName = ArgusFirewallNaming.BuildRemoteIpBlockRuleName(cleanIp, direction);
+        string dirLabel = direction == FirewallRuleDirection.Inbound ? "вхідний" : "вихідний";
+        string suffix = string.IsNullOrWhiteSpace(reason) ? string.Empty : $" ({reason.Trim()})";
+        var request = new FirewallRuleCreateRequest(
+            Name: ruleName,
+            Direction: direction,
+            Action: FirewallRuleAction.Block,
+            ApplicationPath: null,
+            Protocol: "ANY",
+            LocalPorts: null,
+            RemotePorts: null,
+            Description: $"Правило ARGUS: заблоковано {dirLabel} трафік для IP {cleanIp}{suffix}.",
+            RemoteAddresses: cleanIp);
 
         return CreateFirewallRuleAsync(request, cancellationToken);
     }
@@ -214,18 +252,57 @@ public sealed partial class WindowsNetworkManagerService : INetworkManagerServic
         return result;
     }
 
-    private static IReadOnlyList<ActiveConnectionItem> CollectActiveConnections(CancellationToken ct)
+    private IReadOnlyList<ActiveConnectionItem> CollectActiveConnections(CancellationToken ct)
     {
         var procMap = BuildProcessLookup();
-        var items = new List<ActiveConnectionItem>(256);
+        var rawItems = new List<ActiveConnectionItem>(256);
 
-        CollectTcp4(items, procMap, ct);
-        CollectTcp6(items, procMap, ct);
-        CollectUdp4(items, procMap, ct);
-        CollectUdp6(items, procMap, ct);
+        CollectTcp4(rawItems, procMap, ct);
+        CollectTcp6(rawItems, procMap, ct);
+        CollectUdp4(rawItems, procMap, ct);
+        CollectUdp6(rawItems, procMap, ct);
 
-        items.Sort(static (a, b) =>
+        bool isAdmin = _privilegeService.IsAdministrator;
+        var enriched = new List<ActiveConnectionItem>(rawItems.Count);
+
+        foreach (var item in rawItems)
         {
+            ct.ThrowIfCancellationRequested();
+
+            bool? hasPtr = null;
+            string? ptrHost = null;
+
+            if (ConnectionHeuristicAnalyzer.ShouldCheckReverseDns(item))
+            {
+                if (TryGetCachedPtr(item.RemoteAddress, out var cached))
+                {
+                    hasPtr = cached.HasPtr;
+                    ptrHost = cached.HostName;
+                }
+                else
+                {
+                    ScheduleBackgroundPtrLookup(item.RemoteAddress);
+                }
+            }
+
+            var eval = ConnectionHeuristicAnalyzer.Evaluate(item, isAdmin, hasPtr);
+            enriched.Add(item with
+            {
+                SuspicionLevel = eval.Level,
+                SuspicionFlags = eval.Flags,
+                SuspicionSummary = eval.Summary,
+                ReverseDnsHost = ptrHost
+            });
+        }
+
+        enriched.Sort(static (a, b) =>
+        {
+            int bySuspicion = ((int)b.SuspicionLevel).CompareTo((int)a.SuspicionLevel);
+            if (bySuspicion != 0)
+            {
+                return bySuspicion;
+            }
+
             int aRank = StateSortRank(a.State);
             int bRank = StateSortRank(b.State);
             int byRank = aRank.CompareTo(bRank);
@@ -238,7 +315,67 @@ public sealed partial class WindowsNetworkManagerService : INetworkManagerServic
             return byProc != 0 ? byProc : a.LocalPort.CompareTo(b.LocalPort);
         });
 
-        return items;
+        return enriched;
+    }
+
+    private bool TryGetCachedPtr(string ip, out PtrCacheEntry entry)
+    {
+        if (_ptrCache.TryGetValue(ip, out var found) && found.ExpiresAtUtc > DateTimeOffset.UtcNow)
+        {
+            entry = found;
+            return true;
+        }
+
+        entry = default!;
+        return false;
+    }
+
+    private void ScheduleBackgroundPtrLookup(string ip)
+    {
+        if (!_ptrInFlight.TryAdd(ip, 0))
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            bool acquired = false;
+            try
+            {
+                acquired = await _ptrConcurrency.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+                if (!acquired)
+                {
+                    return;
+                }
+
+                using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(1500));
+                var hostEntry = await Dns.GetHostEntryAsync(ip, cts.Token).ConfigureAwait(false);
+                string? host = hostEntry.HostName;
+                bool hasPtr = !string.IsNullOrWhiteSpace(host) &&
+                              !string.Equals(host.Trim(), ip, StringComparison.OrdinalIgnoreCase);
+
+                _ptrCache[ip] = new PtrCacheEntry(
+                    hasPtr ? host : null,
+                    hasPtr,
+                    DateTimeOffset.UtcNow.AddMinutes(10));
+            }
+            catch
+            {
+                _ptrCache[ip] = new PtrCacheEntry(
+                    null,
+                    HasPtr: false,
+                    DateTimeOffset.UtcNow.AddMinutes(10));
+            }
+            finally
+            {
+                if (acquired)
+                {
+                    _ptrConcurrency.Release();
+                }
+
+                _ptrInFlight.TryRemove(ip, out _);
+            }
+        });
     }
 
     private static int StateSortRank(string state) => state switch
@@ -703,6 +840,11 @@ public sealed partial class WindowsNetworkManagerService : INetworkManagerServic
             if (!string.IsNullOrWhiteSpace(request.ApplicationPath))
             {
                 ComSet(newRule, "ApplicationName", request.ApplicationPath.Trim());
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.RemoteAddresses) && request.RemoteAddresses.Trim() != "*")
+            {
+                ComSet(newRule, "RemoteAddresses", request.RemoteAddresses.Trim());
             }
 
             if (protocolNumber is NetFwIpProtocolTcp or NetFwIpProtocolUdp)

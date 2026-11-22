@@ -443,7 +443,8 @@ public sealed class App : Application
             uiDispatch,
             uiMode: sp.GetRequiredService<AppUiModeService>(),
             autoLoadOnInit: false,
-            trafficService: sp.GetRequiredService<IProcessNetworkTrafficService>()));
+            trafficService: sp.GetRequiredService<IProcessNetworkTrafficService>(),
+            processMonitorService: sp.GetRequiredService<IProcessMonitorService>()));
         services.AddSingleton(sp => new ProcessesViewModel(
             sp.GetRequiredService<IProcessMonitorService>(),
             uiDispatch,

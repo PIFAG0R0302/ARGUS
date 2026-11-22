@@ -9,80 +9,199 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Argus.App.ViewModels;
 
-public sealed class ActiveConnectionRowViewModel
+public sealed partial class ActiveConnectionRowViewModel : ObservableObject
 {
     public ActiveConnectionRowViewModel(
         ActiveConnectionItem model,
-        Func<ActiveConnectionItem, Task> onBlockApp)
+        Func<ActiveConnectionItem, Task> onBlockAppOrIp,
+        Func<ActiveConnectionItem, Task> onBlockRemoteIp,
+        Action<ActiveConnectionItem> onRequestTerminate)
     {
         Model = model ?? throw new ArgumentNullException(nameof(model));
+        ConnectionKey = BuildKey(model);
         Protocol = model.Protocol;
         LocalEndpoint = $"{model.LocalAddress}:{model.LocalPort}";
         RemoteEndpoint = model.RemotePort > 0
             ? $"{model.RemoteAddress}:{model.RemotePort}"
             : model.RemoteAddress;
-        State = model.State;
         PidText = model.Pid.ToString(CultureInfo.InvariantCulture);
-        ProcessName = model.ProcessName;
-        ExecutablePath = string.IsNullOrWhiteSpace(model.ExecutablePath) ? "Системний / захищений процес" : model.ExecutablePath;
-        HasExecutablePath = !string.IsNullOrWhiteSpace(model.ExecutablePath);
-        IsEstablished = string.Equals(model.State, "ESTABLISHED", StringComparison.OrdinalIgnoreCase);
 
-        BlockAppCommand = new AsyncRelayCommand(() => onBlockApp(model), () => HasExecutablePath);
+        _state = model.State;
+        _processName = model.ProcessName;
+        _executablePath = FormatExecutablePath(model.ExecutablePath);
+        _hasExecutablePath = !string.IsNullOrWhiteSpace(model.ExecutablePath);
+        _hasBlockableRemoteIp = ConnectionHeuristicAnalyzer.IsExternalPublicIp(model.RemoteAddress);
+        _isEstablished = string.Equals(model.State, "ESTABLISHED", StringComparison.OrdinalIgnoreCase);
+        _suspicionLevel = model.SuspicionLevel;
+        _suspicionSummary = model.SuspicionSummary ?? string.Empty;
+        _canTerminateProcess = !CriticalProcessProtection.IsCriticalProcess(model.Pid, model.ProcessName, Environment.ProcessId);
+
+        BlockAppCommand = new AsyncRelayCommand(() => onBlockAppOrIp(Model), () => CanBlock);
+        BlockRemoteIpCommand = new AsyncRelayCommand(() => onBlockRemoteIp(Model), () => HasBlockableRemoteIp);
+        RequestTerminateCommand = new RelayCommand(() => onRequestTerminate(Model), () => CanTerminateProcess);
     }
 
-    public ActiveConnectionItem Model { get; }
+    public ActiveConnectionItem Model { get; private set; }
+    public string ConnectionKey { get; }
     public string Protocol { get; }
     public string LocalEndpoint { get; }
     public string RemoteEndpoint { get; }
-    public string State { get; }
     public string PidText { get; }
-    public string ProcessName { get; }
-    public string ExecutablePath { get; }
-    public bool HasExecutablePath { get; }
-    public bool IsEstablished { get; }
+
+    [ObservableProperty]
+    private string _state;
+
+    [ObservableProperty]
+    private string _processName;
+
+    [ObservableProperty]
+    private string _executablePath;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanBlock))]
+    [NotifyPropertyChangedFor(nameof(BlockButtonLabel))]
+    private bool _hasExecutablePath;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanBlock))]
+    private bool _hasBlockableRemoteIp;
+
+    [ObservableProperty]
+    private bool _isEstablished;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSuspicious))]
+    [NotifyPropertyChangedFor(nameof(IsWarning))]
+    [NotifyPropertyChangedFor(nameof(IsFlagged))]
+    [NotifyPropertyChangedFor(nameof(SuspicionBadgeText))]
+    private ConnectionSuspicionLevel _suspicionLevel;
+
+    [ObservableProperty]
+    private string _suspicionSummary;
+
+    [ObservableProperty]
+    private bool _canTerminateProcess;
+
+    public bool CanBlock => HasExecutablePath || HasBlockableRemoteIp;
+    public string BlockButtonLabel => HasExecutablePath ? "Блок .exe" : "Блок IP";
+    public bool IsSuspicious => SuspicionLevel == ConnectionSuspicionLevel.Suspicious;
+    public bool IsWarning => SuspicionLevel == ConnectionSuspicionLevel.Warning;
+    public bool IsFlagged => SuspicionLevel != ConnectionSuspicionLevel.None;
+    public string SuspicionBadgeText => SuspicionLevel switch
+    {
+        ConnectionSuspicionLevel.Suspicious => "Підозріле",
+        ConnectionSuspicionLevel.Warning => "Увага",
+        _ => string.Empty
+    };
+
     public ICommand BlockAppCommand { get; }
+    public ICommand BlockRemoteIpCommand { get; }
+    public ICommand RequestTerminateCommand { get; }
+
+    public static string BuildKey(ActiveConnectionItem m) =>
+        $"{m.Protocol}|{m.LocalAddress}:{m.LocalPort}|{m.RemoteAddress}:{m.RemotePort}|{m.Pid}";
+
+    public void UpdateFrom(ActiveConnectionItem model)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        Model = model;
+        State = model.State;
+        ProcessName = model.ProcessName;
+        ExecutablePath = FormatExecutablePath(model.ExecutablePath);
+        HasExecutablePath = !string.IsNullOrWhiteSpace(model.ExecutablePath);
+        HasBlockableRemoteIp = ConnectionHeuristicAnalyzer.IsExternalPublicIp(model.RemoteAddress);
+        IsEstablished = string.Equals(model.State, "ESTABLISHED", StringComparison.OrdinalIgnoreCase);
+        SuspicionLevel = model.SuspicionLevel;
+        SuspicionSummary = model.SuspicionSummary ?? string.Empty;
+        CanTerminateProcess = !CriticalProcessProtection.IsCriticalProcess(model.Pid, model.ProcessName, Environment.ProcessId);
+    }
+
+    private static string FormatExecutablePath(string? path) =>
+        string.IsNullOrWhiteSpace(path) ? "Системний / захищений процес" : path;
 }
 
-public sealed class ProcessTrafficRowViewModel
+public sealed partial class ProcessTrafficRowViewModel : ObservableObject
 {
     public ProcessTrafficRowViewModel(
         ProcessNetworkTrafficItem model,
         Func<string, string, Task> onBlockApp)
     {
         Model = model ?? throw new ArgumentNullException(nameof(model));
+        Pid = model.Pid;
         PidText = model.Pid.ToString(CultureInfo.InvariantCulture);
-        ProcessName = model.ProcessName;
-        ExecutablePath = string.IsNullOrWhiteSpace(model.ExecutablePath) ? "Системний / захищений процес" : model.ExecutablePath;
-        HasExecutablePath = !string.IsNullOrWhiteSpace(model.ExecutablePath);
-        SocketsText = $"{model.ActiveConnectionCount} з'єдн.";
-        IsExactEtw = model.SourceKind == NetworkTrafficSourceKind.NativeEtwKernel;
 
-        DownloadSpeedText = FormatSpeed(model.DownloadBytesPerSec);
-        UploadSpeedText = IsExactEtw ? FormatSpeed(model.UploadBytesPerSec) : "—";
-        TotalVolumeText = IsExactEtw
-            ? $"↓ {FormatVolume(model.TotalReceivedBytes)} · ↑ {FormatVolume(model.TotalSentBytes)}"
-            : $"≈ {FormatVolume(model.TotalReceivedBytes)} (I/O)";
-
-        HasActiveTraffic = model.TotalBytesPerSec >= 512.0;
+        _processName = model.ProcessName;
+        _executablePath = FormatExecutablePath(model.ExecutablePath);
+        _hasExecutablePath = !string.IsNullOrWhiteSpace(model.ExecutablePath);
+        _socketsText = $"{model.ActiveConnectionCount} з'єдн.";
+        _isExactEtw = model.SourceKind == NetworkTrafficSourceKind.NativeEtwKernel;
+        _downloadSpeedText = FormatSpeed(model.DownloadBytesPerSec);
+        _uploadSpeedText = _isExactEtw ? FormatSpeed(model.UploadBytesPerSec) : "—";
+        _totalVolumeText = FormatTotalVolume(model, _isExactEtw);
+        _hasActiveTraffic = model.TotalBytesPerSec >= 512.0;
 
         BlockAppCommand = new AsyncRelayCommand(
-            () => onBlockApp(model.ProcessName, model.ExecutablePath ?? string.Empty),
+            () => onBlockApp(Model.ProcessName, Model.ExecutablePath ?? string.Empty),
             () => HasExecutablePath);
     }
 
-    public ProcessNetworkTrafficItem Model { get; }
+    public ProcessNetworkTrafficItem Model { get; private set; }
+    public int Pid { get; }
     public string PidText { get; }
-    public string ProcessName { get; }
-    public string ExecutablePath { get; }
-    public bool HasExecutablePath { get; }
-    public string SocketsText { get; }
-    public bool IsExactEtw { get; }
-    public string DownloadSpeedText { get; }
-    public string UploadSpeedText { get; }
-    public string TotalVolumeText { get; }
-    public bool HasActiveTraffic { get; }
+
+    [ObservableProperty]
+    private string _processName;
+
+    [ObservableProperty]
+    private string _executablePath;
+
+    [ObservableProperty]
+    private bool _hasExecutablePath;
+
+    [ObservableProperty]
+    private string _socketsText;
+
+    [ObservableProperty]
+    private bool _isExactEtw;
+
+    [ObservableProperty]
+    private string _downloadSpeedText;
+
+    [ObservableProperty]
+    private string _uploadSpeedText;
+
+    [ObservableProperty]
+    private string _totalVolumeText;
+
+    [ObservableProperty]
+    private bool _hasActiveTraffic;
+
     public ICommand BlockAppCommand { get; }
+
+    public void UpdateFrom(ProcessNetworkTrafficItem model)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        Model = model;
+
+        bool exactEtw = model.SourceKind == NetworkTrafficSourceKind.NativeEtwKernel;
+        ProcessName = model.ProcessName;
+        ExecutablePath = FormatExecutablePath(model.ExecutablePath);
+        HasExecutablePath = !string.IsNullOrWhiteSpace(model.ExecutablePath);
+        SocketsText = $"{model.ActiveConnectionCount} з'єдн.";
+        IsExactEtw = exactEtw;
+        DownloadSpeedText = FormatSpeed(model.DownloadBytesPerSec);
+        UploadSpeedText = exactEtw ? FormatSpeed(model.UploadBytesPerSec) : "—";
+        TotalVolumeText = FormatTotalVolume(model, exactEtw);
+        HasActiveTraffic = model.TotalBytesPerSec >= 512.0;
+    }
+
+    private static string FormatExecutablePath(string? path) =>
+        string.IsNullOrWhiteSpace(path) ? "Системний / захищений процес" : path;
+
+    private static string FormatTotalVolume(ProcessNetworkTrafficItem model, bool exactEtw) =>
+        exactEtw
+            ? $"↓ {FormatVolume(model.TotalReceivedBytes)} · ↑ {FormatVolume(model.TotalSentBytes)}"
+            : $"≈ {FormatVolume(model.TotalReceivedBytes)} (I/O)";
 
     internal static string FormatSpeed(double bytesPerSec)
     {
@@ -143,8 +262,15 @@ public sealed partial class FirewallRuleRowViewModel : ObservableObject
         DeleteCommand = new AsyncRelayCommand(() => _onDelete(Model), () => IsArgusManaged);
     }
 
-    public FirewallRuleItem Model { get; }
+    public FirewallRuleItem Model { get; private set; }
     public string Name { get; }
+
+    public void UpdateFrom(FirewallRuleItem model)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        Model = model;
+        IsEnabled = model.Enabled;
+    }
     public string Description { get; }
     public bool HasDescription { get; }
     public string DirectionText { get; }
@@ -175,11 +301,13 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
 
     private readonly INetworkManagerService _networkService;
     private readonly IProcessNetworkTrafficService? _trafficService;
+    private readonly IProcessMonitorService? _processMonitorService;
     private readonly Action<Action> _uiDispatch;
     private readonly Timer _pollTimer;
     private IReadOnlyList<ActiveConnectionItem> _allConnections = [];
     private IReadOnlyList<ProcessNetworkTrafficItem> _allTrafficProcesses = [];
     private IReadOnlyList<FirewallRuleItem> _allFirewallRules = [];
+    private ActiveConnectionItem? _pendingTerminateConnection;
     private int _refreshGate;
     private volatile bool _isUiActive;
     private bool _initialized;
@@ -189,16 +317,18 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
         Action<Action>? uiDispatch = null,
         AppUiModeService? uiMode = null,
         bool autoLoadOnInit = false,
-        IProcessNetworkTrafficService? trafficService = null)
+        IProcessNetworkTrafficService? trafficService = null,
+        IProcessMonitorService? processMonitorService = null)
         : base(
             ArgusSectionId.Network,
             "Мережа та Windows Firewall",
-            "Активні TCP/UDP-з'єднання, живий облік трафіку по процесах (ETW) і правила брандмауера з префіксом ARGUS_",
+            "Активні TCP/UDP-з'єднання, евристика підозрілої активності, облік трафіку (ETW) і правила Firewall ARGUS_",
             uiMode,
             uiDispatch)
     {
         _networkService = networkService ?? throw new ArgumentNullException(nameof(networkService));
         _trafficService = trafficService;
+        _processMonitorService = processMonitorService;
         _uiDispatch = uiDispatch ?? (static action => action());
 
         Connections = [];
@@ -237,7 +367,91 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
     private string _connectionFilter = "Усі";
 
     [ObservableProperty]
+    private bool _onlySuspiciousConnections;
+
+    [ObservableProperty]
+    private int _suspiciousConnectionCount;
+
+    [ObservableProperty]
+    private bool _isTerminateConfirmationOpen;
+
+    [ObservableProperty]
+    private string _terminatePromptText = string.Empty;
+
+    [ObservableProperty]
     private string _firewallFilter = "Лише ARGUS_";
+
+    [ObservableProperty]
+    private ActiveConnectionRowViewModel? _selectedConnection;
+
+    [ObservableProperty]
+    private ProcessTrafficRowViewModel? _selectedTrafficProcess;
+
+    [ObservableProperty]
+    private FirewallRuleRowViewModel? _selectedFirewallRule;
+
+    // Connections sorting
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsConnSortByProtocol))]
+    [NotifyPropertyChangedFor(nameof(IsConnSortByProcess))]
+    [NotifyPropertyChangedFor(nameof(IsConnSortByLocal))]
+    [NotifyPropertyChangedFor(nameof(IsConnSortByRemote))]
+    [NotifyPropertyChangedFor(nameof(ConnSortProtocolHeader))]
+    [NotifyPropertyChangedFor(nameof(ConnSortProcessHeader))]
+    [NotifyPropertyChangedFor(nameof(ConnSortLocalHeader))]
+    [NotifyPropertyChangedFor(nameof(ConnSortRemoteHeader))]
+    private string _connectionSortBy = "PROCESS";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ConnSortProtocolHeader))]
+    [NotifyPropertyChangedFor(nameof(ConnSortProcessHeader))]
+    [NotifyPropertyChangedFor(nameof(ConnSortLocalHeader))]
+    [NotifyPropertyChangedFor(nameof(ConnSortRemoteHeader))]
+    private bool _connectionSortDescending;
+
+    public bool IsConnSortByProtocol => ConnectionSortBy == "PROTOCOL";
+    public bool IsConnSortByProcess => ConnectionSortBy == "PROCESS";
+    public bool IsConnSortByLocal => ConnectionSortBy == "LOCAL";
+    public bool IsConnSortByRemote => ConnectionSortBy == "REMOTE";
+
+    public string ConnSortProtocolHeader => CollectionSyncHelper.FormatSortHeader("ПРОТОКОЛ", "PROTOCOL", ConnectionSortBy, ConnectionSortDescending);
+    public string ConnSortProcessHeader => CollectionSyncHelper.FormatSortHeader("ПРОЦЕС · PID · СТАН", "PROCESS", ConnectionSortBy, ConnectionSortDescending);
+    public string ConnSortLocalHeader => CollectionSyncHelper.FormatSortHeader("ЛОКАЛЬНА АДРЕСА", "LOCAL", ConnectionSortBy, ConnectionSortDescending);
+    public string ConnSortRemoteHeader => CollectionSyncHelper.FormatSortHeader("ВІДДАЛЕНИЙ ВУЗОЛ", "REMOTE", ConnectionSortBy, ConnectionSortDescending);
+
+    // Per-process Traffic sorting
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsTrafficSortByPid))]
+    [NotifyPropertyChangedFor(nameof(IsTrafficSortByName))]
+    [NotifyPropertyChangedFor(nameof(IsTrafficSortByDown))]
+    [NotifyPropertyChangedFor(nameof(IsTrafficSortByUp))]
+    [NotifyPropertyChangedFor(nameof(IsTrafficSortByTotal))]
+    [NotifyPropertyChangedFor(nameof(TrafficSortPidHeader))]
+    [NotifyPropertyChangedFor(nameof(TrafficSortNameHeader))]
+    [NotifyPropertyChangedFor(nameof(TrafficSortDownHeader))]
+    [NotifyPropertyChangedFor(nameof(TrafficSortUpHeader))]
+    [NotifyPropertyChangedFor(nameof(TrafficSortTotalHeader))]
+    private string _trafficSortBy = "DOWN";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TrafficSortPidHeader))]
+    [NotifyPropertyChangedFor(nameof(TrafficSortNameHeader))]
+    [NotifyPropertyChangedFor(nameof(TrafficSortDownHeader))]
+    [NotifyPropertyChangedFor(nameof(TrafficSortUpHeader))]
+    [NotifyPropertyChangedFor(nameof(TrafficSortTotalHeader))]
+    private bool _trafficSortDescending = true;
+
+    public bool IsTrafficSortByPid => TrafficSortBy == "PID";
+    public bool IsTrafficSortByName => TrafficSortBy == "NAME";
+    public bool IsTrafficSortByDown => TrafficSortBy == "DOWN";
+    public bool IsTrafficSortByUp => TrafficSortBy == "UP";
+    public bool IsTrafficSortByTotal => TrafficSortBy == "TOTAL";
+
+    public string TrafficSortPidHeader => CollectionSyncHelper.FormatSortHeader("PID", "PID", TrafficSortBy, TrafficSortDescending);
+    public string TrafficSortNameHeader => CollectionSyncHelper.FormatSortHeader("ПРОЦЕС ТА З'ЄДНАННЯ", "NAME", TrafficSortBy, TrafficSortDescending);
+    public string TrafficSortDownHeader => CollectionSyncHelper.FormatSortHeader("ВХІД (↓)", "DOWN", TrafficSortBy, TrafficSortDescending);
+    public string TrafficSortUpHeader => CollectionSyncHelper.FormatSortHeader("ВИХІД (↑)", "UP", TrafficSortBy, TrafficSortDescending);
+    public string TrafficSortTotalHeader => CollectionSyncHelper.FormatSortHeader("УСЬОГО ЗА СЕСІЮ", "TOTAL", TrafficSortBy, TrafficSortDescending);
 
     [ObservableProperty]
     private bool _isLoading;
@@ -297,14 +511,61 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
     public string ConnectionsTabLabel => $"Активні з'єднання ({ConnectionCount})";
     public string TrafficTabLabel => $"Трафік по процесах ({TrafficProcessCount})";
     public string FirewallTabLabel => $"Правила Firewall ({ArgusRuleCount} ARGUS / {FirewallRuleCount})";
+    public string SuspiciousFilterLabel => $"Лише підозрілі ({SuspiciousConnectionCount})";
 
     partial void OnConnectionCountChanged(int value) => OnPropertyChanged(nameof(ConnectionsTabLabel));
     partial void OnTrafficProcessCountChanged(int value) => OnPropertyChanged(nameof(TrafficTabLabel));
     partial void OnFirewallRuleCountChanged(int value) => OnPropertyChanged(nameof(FirewallTabLabel));
     partial void OnArgusRuleCountChanged(int value) => OnPropertyChanged(nameof(FirewallTabLabel));
+    partial void OnSuspiciousConnectionCountChanged(int value) => OnPropertyChanged(nameof(SuspiciousFilterLabel));
+    partial void OnOnlySuspiciousConnectionsChanged(bool value) => ApplyFilters();
     partial void OnSearchQueryChanged(string value) => ApplyFilters();
     partial void OnConnectionFilterChanged(string value) => ApplyFilters();
     partial void OnFirewallFilterChanged(string value) => ApplyFilters();
+    partial void OnConnectionSortByChanged(string value) => ApplyFilters();
+    partial void OnConnectionSortDescendingChanged(bool value) => ApplyFilters();
+    partial void OnTrafficSortByChanged(string value) => ApplyFilters();
+    partial void OnTrafficSortDescendingChanged(bool value) => ApplyFilters();
+
+    [RelayCommand]
+    private void SetConnectionSort(string sortKey)
+    {
+        if (string.IsNullOrWhiteSpace(sortKey))
+        {
+            return;
+        }
+
+        string normalized = sortKey.Trim().ToUpperInvariant();
+        if (string.Equals(ConnectionSortBy, normalized, StringComparison.Ordinal))
+        {
+            ConnectionSortDescending = !ConnectionSortDescending;
+        }
+        else
+        {
+            ConnectionSortDescending = false;
+            ConnectionSortBy = normalized;
+        }
+    }
+
+    [RelayCommand]
+    private void SetTrafficSort(string sortKey)
+    {
+        if (string.IsNullOrWhiteSpace(sortKey))
+        {
+            return;
+        }
+
+        string normalized = sortKey.Trim().ToUpperInvariant();
+        if (string.Equals(TrafficSortBy, normalized, StringComparison.Ordinal))
+        {
+            TrafficSortDescending = !TrafficSortDescending;
+        }
+        else
+        {
+            TrafficSortDescending = normalized is not ("NAME" or "PID");
+            TrafficSortBy = normalized;
+        }
+    }
 
     public void EnsureInitialized()
     {
@@ -362,6 +623,53 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
     private void SetConnectionFilter(string filter)
     {
         ConnectionFilter = string.IsNullOrWhiteSpace(filter) ? "Усі" : filter;
+    }
+
+    [RelayCommand]
+    private void ToggleOnlySuspicious()
+    {
+        OnlySuspiciousConnections = !OnlySuspiciousConnections;
+    }
+
+    [RelayCommand]
+    public async Task ConfirmTerminateConnectionProcessAsync()
+    {
+        var target = _pendingTerminateConnection;
+        _pendingTerminateConnection = null;
+        IsTerminateConfirmationOpen = false;
+        TerminatePromptText = string.Empty;
+
+        if (target is null)
+        {
+            return;
+        }
+
+        if (_processMonitorService is null)
+        {
+            ActionFeedback = "Служба керування процесами не підключена.";
+            HasActionFeedback = true;
+            return;
+        }
+
+        var result = await _processMonitorService.TerminateProcessAsync(target.Pid).ConfigureAwait(false);
+        _uiDispatch(() =>
+        {
+            ActionFeedback = result.Message;
+            HasActionFeedback = true;
+        });
+
+        if (result.Succeeded)
+        {
+            await RefreshAsync().ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand]
+    private void CancelTerminateConnectionProcess()
+    {
+        _pendingTerminateConnection = null;
+        IsTerminateConfirmationOpen = false;
+        TerminatePromptText = string.Empty;
     }
 
     [RelayCommand]
@@ -545,7 +853,48 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
 
     private Task HandleBlockApplicationAsync(ActiveConnectionItem connection)
     {
-        return HandleBlockAppByPathAsync(connection.ProcessName, connection.ExecutablePath ?? string.Empty);
+        if (!string.IsNullOrWhiteSpace(connection.ExecutablePath))
+        {
+            return HandleBlockAppByPathAsync(connection.ProcessName, connection.ExecutablePath);
+        }
+
+        return HandleBlockRemoteIpAsync(connection);
+    }
+
+    private async Task HandleBlockRemoteIpAsync(ActiveConnectionItem connection)
+    {
+        var result = await _networkService.BlockRemoteIpAsync(
+            connection.RemoteAddress,
+            reason: connection.SuspicionSummary ?? connection.ProcessName,
+            direction: FirewallRuleDirection.Outbound).ConfigureAwait(false);
+
+        _uiDispatch(() =>
+        {
+            ActionFeedback = result.Message;
+            HasActionFeedback = true;
+        });
+
+        if (result.Succeeded)
+        {
+            await RefreshAsync().ConfigureAwait(false);
+        }
+    }
+
+    private void RequestTerminateConnectionProcess(ActiveConnectionItem connection)
+    {
+        if (CriticalProcessProtection.IsCriticalProcess(connection.Pid, connection.ProcessName, Environment.ProcessId))
+        {
+            ActionFeedback = $"Процес «{connection.ProcessName}» (PID {connection.Pid}) захищений ОС від завершення.";
+            HasActionFeedback = true;
+            return;
+        }
+
+        _pendingTerminateConnection = connection;
+        string reasonPart = string.IsNullOrWhiteSpace(connection.SuspicionSummary)
+            ? string.Empty
+            : $" Причина: {connection.SuspicionSummary}.";
+        TerminatePromptText = $"Завершити процес «{connection.ProcessName}» (PID {connection.Pid})?{reasonPart} Незбережені дані програми буде втрачено.";
+        IsTerminateConfirmationOpen = true;
     }
 
     private async Task HandleBlockAppByPathAsync(string processName, string executablePath)
@@ -609,10 +958,16 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
     {
         string q = (SearchQuery ?? string.Empty).Trim();
 
-        // Filter Connections
-        var filteredConns = _allConnections.Where(c =>
+        SuspiciousConnectionCount = _allConnections.Count(static c => c.IsFlagged);
+
+        var connQuery = _allConnections.Where(c =>
         {
-            if (!IsExpertMode && c.IsLoopback)
+            if (OnlySuspiciousConnections && !c.IsFlagged)
+            {
+                return false;
+            }
+
+            if (!IsExpertMode && !OnlySuspiciousConnections && c.IsLoopback)
             {
                 return false;
             }
@@ -639,19 +994,72 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
             return c.ProcessName.Contains(q, StringComparison.OrdinalIgnoreCase) ||
                    c.LocalAddress.Contains(q, StringComparison.OrdinalIgnoreCase) ||
                    c.RemoteAddress.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                   (c.SuspicionSummary?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
                    c.LocalPort.ToString(CultureInfo.InvariantCulture).Contains(q, StringComparison.OrdinalIgnoreCase) ||
                    c.RemotePort.ToString(CultureInfo.InvariantCulture).Contains(q, StringComparison.OrdinalIgnoreCase) ||
                    c.Pid.ToString(CultureInfo.InvariantCulture).Contains(q, StringComparison.OrdinalIgnoreCase);
-        }).Take(200).ToList();
+        });
 
-        Connections.Clear();
-        foreach (var conn in filteredConns)
+        connQuery = (ConnectionSortBy, ConnectionSortDescending) switch
         {
-            Connections.Add(new ActiveConnectionRowViewModel(conn, HandleBlockApplicationAsync));
-        }
+            ("PROTOCOL", true) => connQuery
+                .OrderByDescending(static c => c.Protocol, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.ProcessName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.LocalPort)
+                .ThenBy(static c => c.Pid),
+            ("PROTOCOL", false) => connQuery
+                .OrderBy(static c => c.Protocol, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.ProcessName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.LocalPort)
+                .ThenBy(static c => c.Pid),
+            ("LOCAL", true) => connQuery
+                .OrderByDescending(static c => c.LocalAddress, StringComparer.OrdinalIgnoreCase)
+                .ThenByDescending(static c => c.LocalPort)
+                .ThenBy(static c => c.Pid),
+            ("LOCAL", false) => connQuery
+                .OrderBy(static c => c.LocalAddress, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.LocalPort)
+                .ThenBy(static c => c.Pid),
+            ("REMOTE", true) => connQuery
+                .OrderByDescending(static c => c.RemoteAddress, StringComparer.OrdinalIgnoreCase)
+                .ThenByDescending(static c => c.RemotePort)
+                .ThenBy(static c => c.Pid),
+            ("REMOTE", false) => connQuery
+                .OrderBy(static c => c.RemoteAddress, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.RemotePort)
+                .ThenBy(static c => c.Pid),
+            (_, true) => connQuery
+                .OrderByDescending(static c => c.ProcessName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.Pid)
+                .ThenBy(static c => c.Protocol, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.LocalPort)
+                .ThenBy(static c => c.RemotePort),
+            _ => connQuery
+                .OrderBy(static c => c.ProcessName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.Pid)
+                .ThenBy(static c => c.Protocol, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.LocalPort)
+                .ThenBy(static c => c.RemotePort)
+        };
 
-        // Filter Process Traffic
-        var filteredTraffic = _allTrafficProcesses.Where(p =>
+        var filteredConns = connQuery.Take(200).ToList();
+        CollectionSyncHelper.SyncByKey(
+            Connections,
+            filteredConns,
+            ActiveConnectionRowViewModel.BuildKey,
+            static r => r.ConnectionKey,
+            m => new ActiveConnectionRowViewModel(
+                m,
+                HandleBlockApplicationAsync,
+                HandleBlockRemoteIpAsync,
+                RequestTerminateConnectionProcess),
+            static (r, m) => r.UpdateFrom(m),
+            SelectedConnection,
+            row => SelectedConnection = row,
+            StringComparer.Ordinal);
+
+        // Filter & Sort Process Traffic
+        var trafficQuery = _allTrafficProcesses.Where(p =>
         {
             if (string.IsNullOrEmpty(q))
             {
@@ -661,13 +1069,56 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
             return p.ProcessName.Contains(q, StringComparison.OrdinalIgnoreCase) ||
                    p.Pid.ToString(CultureInfo.InvariantCulture).Contains(q, StringComparison.OrdinalIgnoreCase) ||
                    (p.ExecutablePath?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false);
-        }).Take(120).ToList();
+        });
 
-        ProcessTraffic.Clear();
-        foreach (var item in filteredTraffic)
+        trafficQuery = (TrafficSortBy, TrafficSortDescending) switch
         {
-            ProcessTraffic.Add(new ProcessTrafficRowViewModel(item, HandleBlockAppByPathAsync));
-        }
+            ("PID", true) => trafficQuery.OrderByDescending(static p => p.Pid),
+            ("PID", false) => trafficQuery.OrderBy(static p => p.Pid),
+            ("NAME", true) => trafficQuery
+                .OrderByDescending(static p => p.ProcessName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static p => p.Pid),
+            ("NAME", false) => trafficQuery
+                .OrderBy(static p => p.ProcessName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static p => p.Pid),
+            ("UP", true) => trafficQuery
+                .OrderByDescending(static p => p.UploadBytesPerSec)
+                .ThenByDescending(static p => p.DownloadBytesPerSec)
+                .ThenBy(static p => p.Pid),
+            ("UP", false) => trafficQuery
+                .OrderBy(static p => p.UploadBytesPerSec)
+                .ThenBy(static p => p.DownloadBytesPerSec)
+                .ThenBy(static p => p.Pid),
+            ("TOTAL", true) => trafficQuery
+                .OrderByDescending(static p => p.TotalReceivedBytes + p.TotalSentBytes)
+                .ThenByDescending(static p => p.TotalBytesPerSec)
+                .ThenBy(static p => p.Pid),
+            ("TOTAL", false) => trafficQuery
+                .OrderBy(static p => p.TotalReceivedBytes + p.TotalSentBytes)
+                .ThenBy(static p => p.TotalBytesPerSec)
+                .ThenBy(static p => p.Pid),
+            (_, false) => trafficQuery
+                .OrderBy(static p => p.DownloadBytesPerSec)
+                .ThenBy(static p => p.UploadBytesPerSec)
+                .ThenBy(static p => p.Pid),
+            _ => trafficQuery
+                .OrderByDescending(static p => p.DownloadBytesPerSec)
+                .ThenByDescending(static p => p.UploadBytesPerSec)
+                .ThenByDescending(static p => p.TotalReceivedBytes + p.TotalSentBytes)
+                .ThenBy(static p => p.ProcessName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static p => p.Pid)
+        };
+
+        var filteredTraffic = trafficQuery.Take(120).ToList();
+        CollectionSyncHelper.SyncByKey(
+            ProcessTraffic,
+            filteredTraffic,
+            static m => m.Pid,
+            static r => r.Pid,
+            m => new ProcessTrafficRowViewModel(m, HandleBlockAppByPathAsync),
+            static (r, m) => r.UpdateFrom(m),
+            SelectedTrafficProcess,
+            row => SelectedTrafficProcess = row);
 
         // Filter Firewall Rules
         var filteredRules = _allFirewallRules.Where(r =>
@@ -697,13 +1148,18 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
                    (r.ApplicationPath?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
                    r.LocalPorts.Contains(q, StringComparison.OrdinalIgnoreCase) ||
                    r.RemotePorts.Contains(q, StringComparison.OrdinalIgnoreCase);
-        }).Take(150).ToList();
+        }).OrderBy(static r => r.Name, StringComparer.OrdinalIgnoreCase).Take(150).ToList();
 
-        FirewallRules.Clear();
-        foreach (var rule in filteredRules)
-        {
-            FirewallRules.Add(new FirewallRuleRowViewModel(rule, HandleToggleFirewallRuleAsync, HandleDeleteFirewallRuleAsync));
-        }
+        CollectionSyncHelper.SyncByKey(
+            FirewallRules,
+            filteredRules,
+            static m => m.Name,
+            static r => r.Name,
+            m => new FirewallRuleRowViewModel(m, HandleToggleFirewallRuleAsync, HandleDeleteFirewallRuleAsync),
+            static (r, m) => r.UpdateFrom(m),
+            SelectedFirewallRule,
+            row => SelectedFirewallRule = row,
+            StringComparer.OrdinalIgnoreCase);
 
         int establishedCount = _allConnections.Count(static c => string.Equals(c.State, "ESTABLISHED", StringComparison.OrdinalIgnoreCase));
         SummaryText = ActiveSubTab switch
