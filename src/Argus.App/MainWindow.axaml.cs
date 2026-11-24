@@ -61,7 +61,10 @@ public sealed partial class MainWindow : Window
             vm.SetWindowVisible(true);
         }
 
+        bool previousTopmost = Topmost;
+        Topmost = true;
         Activate();
+        Topmost = previousTopmost;
     }
 
     private void WireWindowEvents()

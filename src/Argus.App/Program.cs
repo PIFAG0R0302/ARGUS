@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+using Argus.App.Services;
 using Argus.Core.Configuration;
 using Argus.Core.Logging;
 using Avalonia;
@@ -6,35 +6,27 @@ using Microsoft.Extensions.Logging;
 
 namespace Argus.App;
 
-internal static partial class Program
+internal static class Program
 {
-    private const string SingleInstanceMutexName = @"Local\Argus_Desktop_SingleInstance";
-    private const string ActivationEventName = @"Local\Argus_Desktop_ActivateEvent";
-    private const int SwRestore = 9;
-    private const uint AsfwAny = uint.MaxValue;
-
-    internal static EventWaitHandle? ActivationEvent { get; private set; }
+    internal static SingleInstanceGuard? InstanceGuard { get; private set; }
 
     [STAThread]
     public static void Main(string[] args)
     {
-        bool allowMultiInstance = args.Any(static a =>
-            a.Equals("--allow-multi-instance", StringComparison.OrdinalIgnoreCase) ||
-            a.Equals("--section", StringComparison.OrdinalIgnoreCase));
+        bool isElevationHandoff = args.Any(static a =>
+            a.Equals("--allow-multi-instance", StringComparison.OrdinalIgnoreCase));
 
-        Mutex? singleInstanceMutex = null;
-        if (!allowMultiInstance)
+        string? requestedSection = ExtractSectionArg(args);
+
+        var guard = new SingleInstanceGuard();
+        if (!guard.TryAcquire(waitForPreviousExit: isElevationHandoff))
         {
-            singleInstanceMutex = new Mutex(initiallyOwned: true, SingleInstanceMutexName, out bool createdNew);
-            if (!createdNew)
-            {
-                SignalExistingInstance();
-                singleInstanceMutex.Dispose();
-                return;
-            }
-
-            ActivationEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ActivationEventName);
+            guard.SignalExistingInstance(requestedSection);
+            guard.Dispose();
+            return;
         }
+
+        InstanceGuard = guard;
 
         using var crashLoggerProvider = new ArgusFileLoggerProvider(ArgusPaths.GetDefaultLogsDirectory());
         var crashLogger = crashLoggerProvider.CreateLogger("Argus.CrashGuard");
@@ -59,9 +51,8 @@ internal static partial class Program
         }
         finally
         {
-            ActivationEvent?.Dispose();
-            ActivationEvent = null;
-            singleInstanceMutex?.Dispose();
+            InstanceGuard = null;
+            guard.Dispose();
         }
     }
 
@@ -71,46 +62,17 @@ internal static partial class Program
             .WithInterFont()
             .LogToTrace();
 
-    private static void SignalExistingInstance()
+    private static string? ExtractSectionArg(string[] args)
     {
-        try
+        for (int i = 0; i < args.Length - 1; i++)
         {
-            _ = AllowSetForegroundWindow(AsfwAny);
-            if (EventWaitHandle.TryOpenExisting(ActivationEventName, out var activateEvent))
+            if (args[i].Equals("--section", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(args[i + 1]))
             {
-                using (activateEvent)
-                {
-                    activateEvent.Set();
-                }
-
-                return;
-            }
-
-            IntPtr hwnd = FindWindowW(null, "ARGUS");
-            if (hwnd != IntPtr.Zero)
-            {
-                ShowWindow(hwnd, SwRestore);
-                SetForegroundWindow(hwnd);
+                return args[i + 1];
             }
         }
-        catch
-        {
-            // best effort window activation
-        }
+
+        return null;
     }
-
-    [LibraryImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool AllowSetForegroundWindow(uint dwProcessId);
-
-    [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)]
-    private static partial IntPtr FindWindowW(string? lpClassName, string lpWindowName);
-
-    [LibraryImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-    [LibraryImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool SetForegroundWindow(IntPtr hWnd);
 }

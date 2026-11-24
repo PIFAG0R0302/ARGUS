@@ -34,7 +34,6 @@ public sealed class App : Application
     private ServiceProvider? _serviceProvider;
     private TrayIcon? _trayIcon;
     private MainWindow? _mainWindow;
-    private RegisteredWaitHandle? _activationWaitHandle;
     private IDisposable? _settingsChangedSubscription;
     private IDisposable? _telemetryAlertSubscription;
     private IDisposable? _trayTooltipTelemetrySubscription;
@@ -164,14 +163,19 @@ public sealed class App : Application
                 });
             });
 
-            if (Program.ActivationEvent is not null)
+            if (Program.InstanceGuard is not null)
             {
-                _activationWaitHandle = ThreadPool.RegisterWaitForSingleObject(
-                    Program.ActivationEvent,
-                    (_, _) => Dispatcher.UIThread.Post(() => RestoreMainWindow(desktop)),
-                    state: null,
-                    millisecondsTimeOutInterval: Timeout.Infinite,
-                    executeOnlyOnce: false);
+                Program.InstanceGuard.StartActivationListener(sectionArg =>
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (!string.IsNullOrWhiteSpace(sectionArg) &&
+                            Enum.TryParse(sectionArg, ignoreCase: true, out ArgusSectionId targetSection))
+                        {
+                            mainViewModel.SelectSection(targetSection);
+                        }
+
+                        RestoreMainWindow(desktop);
+                    }));
             }
 
             if (startMinimized)
@@ -205,9 +209,6 @@ public sealed class App : Application
 
                 deviceChangeMonitor.Stop();
                 telemetryService.StopAsync().GetAwaiter().GetResult();
-
-                _activationWaitHandle?.Unregister(null);
-                _activationWaitHandle = null;
 
                 DisposeTrayIcon();
                 trayNotifications.Dispose();
