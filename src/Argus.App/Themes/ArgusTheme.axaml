@@ -395,8 +395,8 @@
   </Style>
 
   <Style Selector="Button.privilege-pill:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="#3C2C10" />
-    <Setter Property="BorderBrush" Value="#FFD076" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgPillWarnBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusAmberBrush}" />
   </Style>
 
   <Style Selector="Button.privilege-pill.elevated">

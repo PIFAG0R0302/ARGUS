@@ -312,7 +312,7 @@
                 </Grid>
 
                 <!-- Inline Confirmation Prompt before Downloading & Launching Installer -->
-                <Border Background="#181236"
+                <Border Background="{DynamicResource ArgusBgSelectedBrush}"
                         BorderBrush="{DynamicResource ArgusVioletBrush}"
                         BorderThickness="1"
                         CornerRadius="8"

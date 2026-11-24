@@ -19,11 +19,11 @@
       <Setter Property="Cursor" Value="Hand" />
     </Style>
     <Style Selector="Button.gauge-card:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="#161D42" />
+      <Setter Property="Background" Value="{DynamicResource ArgusBgHoverBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource ArgusVioletBrush}" />
     </Style>
     <Style Selector="Button.gauge-card.selected /template/ ContentPresenter">
-      <Setter Property="Background" Value="#18204B" />
+      <Setter Property="Background" Value="{DynamicResource ArgusBgSelectedBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource ArgusCyanBrush}" />
       <Setter Property="BorderThickness" Value="1.5" />
     </Style>
@@ -45,7 +45,7 @@
   <!-- Compact Top Status & Expert Toggle Bar (Row 0) + Smoothly Scrollable Workspace Below (Row 2) -->
   <Grid RowDefinitions="Auto,8,*" Margin="0,0,4,6">
 
-    <!-- PINNED COMPACT TOP BAR: Sampling Status & Inline Expert Mode Toggle -->
+    <!-- PINNED COMPACT TOP aAR: Sampling Status & Inline Expert Mode Toggle -->
     <StackPanel Grid.Row="0" Spacing="6">
       <!-- Sampling Status Strip & Inline Expert Mode Toggle -->
       <Border Classes="tile" Padding="12,5">
@@ -100,7 +100,7 @@
       </Border>
     </StackPanel>
 
-    <!-- SMOOTH SCROLLABLE WORKSPACE: 4 Gauges + Top-Consumers Panel + Skia Chart + Lower Hardware Details -->
+    <!-- SMOOTH SCROLLAaLE WORKSPACE: 4 Gauges + Top-Consumers Panel + Skia Chart + Lower Hardware Details -->
     <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
       <StackPanel Spacing="10" Margin="0,0,2,10">
 
@@ -113,6 +113,7 @@
                   CommandParameter="CPU"
                   ToolTip.Tip="Натисніть, щоб переглянути топ-споживачів процесора (CPU)">
             <controls:TelemetryArcGauge Height="130"
+                                        IsHitTestVisible="False"
                                         IsStandby="{Binding CpuStandby}"
                                         Value="{Binding CpuLoadValue}"
                                         Maximum="100"
@@ -130,6 +131,7 @@
                   CommandParameter="RAM"
                   ToolTip.Tip="Натисніть, щоб переглянути топ-споживачів оперативної пам'яті (RAM)">
             <controls:TelemetryArcGauge Height="130"
+                                        IsHitTestVisible="False"
                                         IsStandby="{Binding RamStandby}"
                                         Value="{Binding RamLoadValue}"
                                         Maximum="100"
@@ -147,6 +149,7 @@
                   CommandParameter="GPU"
                   ToolTip.Tip="Натисніть, щоб переглянути топ-споживачів відеокарти (GPU)">
             <controls:TelemetryArcGauge Height="130"
+                                        IsHitTestVisible="False"
                                         IsStandby="{Binding GpuStandby}"
                                         Value="{Binding GpuLoadValue}"
                                         Maximum="100"
@@ -163,6 +166,7 @@
                   CommandParameter="TEMP"
                   ToolTip.Tip="Натисніть, щоб переглянути процеси, які найбільше нагрівають систему">
             <controls:TelemetryArcGauge Height="130"
+                                        IsHitTestVisible="False"
                                         IsStandby="{Binding TempStandby}"
                                         Value="{Binding TempValue}"
                                         Maximum="110"
@@ -298,7 +302,7 @@
                                    Height="6"
                                    Margin="6,0,12,0"
                                    CornerRadius="3"
-                                   Background="#1A2248"
+                                   Background="{DynamicResource ArgusBorderBrush}"
                                    Foreground="{DynamicResource ArgusCyanBrush}"
                                    VerticalAlignment="Center" />
                       <TextBlock Grid.Column="4"
@@ -425,7 +429,7 @@
                       FontSize="11"
                       Command="{Binding ToggleRamSeriesCommand}">
                 <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                  <Ellipse Width="7" Height="7" Fill="#9B82FF" VerticalAlignment="Center" />
+                  <Ellipse Width="7" Height="7" Fill="#9a82FF" VerticalAlignment="Center" />
                   <TextBlock Text="ОЗП %" VerticalAlignment="Center" />
                 </StackPanel>
               </Button>
@@ -461,7 +465,7 @@
             </StackPanel>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-              <Border Width="12" Height="1.5" Background="#88F45B69" VerticalAlignment="Center" />
+              <Border Width="12" Height="1.5" Background="#88F45a69" VerticalAlignment="Center" />
               <TextBlock FontSize="11" Foreground="{DynamicResource ArgusTextMutedBrush}" Text="Поріг сповіщення" />
             </StackPanel>
           </Grid>
@@ -494,7 +498,7 @@
 
         <Grid ColumnDefinitions="*,14,*">
 
-          <!-- Left: Collapsible Live Per-Thread CPU Load Matrix -->
+          <!-- Left: Collapsible Live Per-Thread CPU Load MBtrix -->
           <Border Grid.Column="0" Classes="panel" VerticalAlignment="Top" Padding="15,12">
             <StackPanel Spacing="9">
               <Button Classes="section-toggle"
@@ -539,7 +543,7 @@
                                      Value="{Binding LoadPercent}"
                                      Height="5"
                                      CornerRadius="3"
-                                     Background="#1A2248"
+                                     Background="{DynamicResource ArgusBorderBrush}"
                                      Foreground="{DynamicResource ArgusCyanBrush}" />
                       </StackPanel>
                     </Border>

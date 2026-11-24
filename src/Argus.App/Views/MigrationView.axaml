@@ -341,7 +341,7 @@
                            Value="{Binding ProgressPercent}"
                            Height="7"
                            Foreground="{DynamicResource ArgusCyanBrush}"
-                           Background="#161E42" />
+                           Background="{DynamicResource ArgusBorderBrush}" />
 
               <Grid ColumnDefinitions="*,Auto">
                 <controls:TelemetrySparkline Grid.Column="0"

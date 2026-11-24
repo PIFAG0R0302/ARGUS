@@ -37,7 +37,7 @@
         </Border>
 
         <!-- Mandatory Kill/Terminate Confirmation Banner -->
-        <Border Background="#2D1219"
+        <Border Background="{DynamicResource ArgusBgPillDangerBrush}"
                 BorderBrush="{DynamicResource ArgusCoralBrush}"
                 BorderThickness="1"
                 CornerRadius="9"
@@ -208,7 +208,7 @@
                     <Border Grid.Column="2"
                             Classes="pill"
                             Padding="6,2"
-                            Background="#1D1A4A"
+                            Background="{DynamicResource ArgusBgSelectedBrush}"
                             BorderBrush="{DynamicResource ArgusVioletBrush}"
                             HorizontalAlignment="Left"
                             VerticalAlignment="Center"
@@ -235,7 +235,7 @@
                                    VerticalAlignment="Center" />
                         <Border Classes="pill"
                                 Padding="6,1"
-                                Background="#261B0A"
+                                Background="{DynamicResource ArgusBgPillWarnBrush}"
                                 BorderBrush="{DynamicResource ArgusAmberBrush}"
                                 IsVisible="{Binding HasCriticalSystem}"
                                 ToolTip.Tip="Містить критичний системний процес Windows — завершення заблоковано."
@@ -312,8 +312,8 @@
                     <ItemsControl ItemsSource="{Binding Instances}">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:ProcessRowViewModel">
-                          <Border Background="#0E142E"
-                                  BorderBrush="#1E2754"
+                          <Border Background="{DynamicResource ArgusBgCardBrush}"
+                                  BorderBrush="{DynamicResource ArgusBorderBrush}"
                                   BorderThickness="1"
                                   CornerRadius="6"
                                   Padding="8,5"
@@ -345,7 +345,7 @@
                                              VerticalAlignment="Center" />
                                   <Border Classes="pill"
                                           Padding="5,1"
-                                          Background="#261B0A"
+                                          Background="{DynamicResource ArgusBgPillWarnBrush}"
                                           BorderBrush="{DynamicResource ArgusAmberBrush}"
                                           IsVisible="{Binding IsCriticalSystem}"
                                           ToolTip.Tip="Критичний системний процес Windows — завершення заблоковано."

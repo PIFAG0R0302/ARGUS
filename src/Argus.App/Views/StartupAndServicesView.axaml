@@ -178,7 +178,7 @@
       </StackPanel>
     </Border>
 
-    <!-- Main Content List -->
+    <!-- MBin Content List -->
     <Border Grid.Row="2" Classes="panel" Padding="14">
       <Grid>
 
@@ -371,7 +371,7 @@
                                 Padding="6,1"
                                 Margin="0,0,6,0"
                                 IsVisible="{Binding IsCriticalProtected}"
-                                Background="#261B0A"
+                                Background="{DynamicResource ArgusBgPillWarnBrush}"
                                 BorderBrush="{DynamicResource ArgusAmberBrush}"
                                 ToolTip.Tip="Критична служба Windows: зупинка, перезапуск і вимкнення заблоковані для захисту стабільності ОС."
                                 VerticalAlignment="Center">

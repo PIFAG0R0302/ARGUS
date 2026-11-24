@@ -99,7 +99,7 @@
                        Value="{Binding OperationProgressPercent}"
                        Height="6"
                        CornerRadius="3"
-                       Background="#161E42"
+                       Background="{DynamicResource ArgusBorderBrush}"
                        Foreground="{DynamicResource ArgusCyanBrush}" />
         </StackPanel>
 
@@ -131,7 +131,7 @@
       </StackPanel>
     </Border>
 
-    <!-- Adaptive Main Body: External JSON Rules & Scan Breakdown (fills full width and window height) -->
+    <!-- Adaptive MBin Body: External JSON Rules & Scan Breakdown (fills full width and window height) -->
     <Border Grid.Row="2" Classes="panel" Padding="14,12">
       <Grid RowDefinitions="Auto,10,*">
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto">

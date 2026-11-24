@@ -8,7 +8,7 @@
   <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Spacing="12" Margin="0,0,4,12">
 
-      <!-- Top Row: 4 Main Live Percentage Radial Gauges from Monitoring + System Disk -->
+      <!-- Top Row: 4 MBin Live Percentage Radial Gauges from Monitoring + System Disk -->
       <UniformGrid Columns="4">
         <Border Classes="panel" Margin="0,0,10,0" Padding="8,5">
           <controls:TelemetryArcGauge Height="132"
@@ -43,7 +43,7 @@
                                       Unit="%"
                                       Label="Відеокарта"
                                       SubLabel="{Binding GpuGaugeSubLabel}"
-                                      AccentStart="#8B5CF6"
+                                      AccentStart="#8a5CF6"
                                       AccentEnd="#2DD4A8" />
         </Border>
         <Border Classes="panel" Padding="8,5">
@@ -55,11 +55,11 @@
                                       Label="Системний диск"
                                       SubLabel="{Binding SystemDiskSubLabel}"
                                       AccentStart="#38D9F5"
-                                      AccentEnd="#9B82FF" />
+                                      AccentEnd="#9a82FF" />
         </Border>
       </UniformGrid>
 
-      <!-- Main Two-Column User Dashboard -->
+      <!-- MBin Two-Column User Dashboard -->
       <Grid ColumnDefinitions="*,14,*">
 
         <!-- Left Column: Hardware Architecture & Node Parameters -->
@@ -139,7 +139,7 @@
                       <TextBlock Classes="body-muted" FontSize="11.5" Text="ОЗП зараз" />
                       <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="11.5" Text="{Binding LiveRamSummaryText}" />
                     </Grid>
-                    <controls:TelemetrySparkline Height="22" Values="{Binding RamSparklineValues}" LineColor="#9B82FF" Margin="0,3,0,0" />
+                    <controls:TelemetrySparkline Height="22" Values="{Binding RamSparklineValues}" LineColor="#9a82FF" Margin="0,3,0,0" />
                   </StackPanel>
                 </Border>
               </Grid>
@@ -204,7 +204,7 @@
                                Value="{Binding CleanupProgressPercent}"
                                Height="6"
                                CornerRadius="3"
-                               Background="#161E42"
+                               Background="{DynamicResource ArgusBorderBrush}"
                                Foreground="{DynamicResource ArgusCyanBrush}" />
                 </StackPanel>
               </Border>

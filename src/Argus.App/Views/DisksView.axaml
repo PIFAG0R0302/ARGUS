@@ -109,7 +109,7 @@
                          Value="{Binding OperationProgressPercent}"
                          Height="6"
                          CornerRadius="3"
-                         Background="#161E42"
+                         Background="{DynamicResource ArgusBorderBrush}"
                          Foreground="{DynamicResource ArgusCyanBrush}" />
           </StackPanel>
         </StackPanel>
@@ -151,7 +151,7 @@
                                  TextTrimming="CharacterEllipsis" />
 
                       <!-- Expert-only Hardware Metadata & Detailed S.M.A.R.T. Strip -->
-                      <Border Background="#0E142D"
+                      <Border Background="{DynamicResource ArgusBgInputBrush}"
                               BorderBrush="{DynamicResource ArgusBorderBrush}"
                               BorderThickness="1"
                               CornerRadius="6"
@@ -235,13 +235,13 @@
             <Setter Property="Cursor" Value="Hand" />
           </Style>
           <Style Selector="Button.folder-row-button:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#1E2857" />
+            <Setter Property="Background" Value="{DynamicResource ArgusBgHoverBrush}" />
           </Style>
           <Style Selector="Button.folder-row-button:pointerover TextBlock.folder-row-title">
             <Setter Property="Foreground" Value="{DynamicResource ArgusCyanBrush}" />
           </Style>
           <Style Selector="Button.folder-row-button:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="#253168" />
+            <Setter Property="Background" Value="{DynamicResource ArgusBgSelectedBrush}" />
           </Style>
           <Style Selector="Button.folder-row-button:disabled">
             <Setter Property="Opacity" Value="1" />
@@ -267,15 +267,15 @@
             <Setter Property="Stroke" Value="{DynamicResource ArgusTextSecondaryBrush}" />
           </Style>
           <Style Selector="Button.row-trash:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#361420" />
+            <Setter Property="Background" Value="{DynamicResource ArgusBgPillDangerBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource ArgusCoralBrush}" />
           </Style>
           <Style Selector="Button.row-trash:pointerover Path">
-            <Setter Property="Stroke" Value="#FFE6EA" />
+            <Setter Property="Stroke" Value="{DynamicResource ArgusCoralBrush}" />
           </Style>
           <Style Selector="Button.row-trash:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="#521B2E" />
-            <Setter Property="BorderBrush" Value="#FF8591" />
+            <Setter Property="Background" Value="{DynamicResource ArgusCoralBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ArgusCoralBrush}" />
           </Style>
           <Style Selector="Button.row-trash:disabled">
             <Setter Property="Opacity" Value="0.32" />
@@ -289,8 +289,8 @@
             <Setter Property="Stroke" Value="{DynamicResource ArgusTextMutedBrush}" />
           </Style>
           <Style Selector="Button.argus-danger">
-            <Setter Property="Background" Value="#361420" />
-            <Setter Property="Foreground" Value="#FFE6EA" />
+            <Setter Property="Background" Value="{DynamicResource ArgusBgPillDangerBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ArgusCoralBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource ArgusCoralBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="8" />
@@ -299,8 +299,8 @@
             <Setter Property="Cursor" Value="Hand" />
           </Style>
           <Style Selector="Button.argus-danger:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#521B2E" />
-            <Setter Property="BorderBrush" Value="#FF8591" />
+            <Setter Property="Background" Value="{DynamicResource ArgusCoralBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ArgusCoralBrush}" />
             <Setter Property="Foreground" Value="#FFFFFF" />
           </Style>
           <Style Selector="Button.argus-danger:disabled">
@@ -339,7 +339,7 @@
           </Grid>
 
           <!-- Drill-Down Breadcrumb Navigation & Selection Action Toolbar -->
-          <Border Background="#0E142D"
+          <Border Background="{DynamicResource ArgusBgInputBrush}"
                   BorderBrush="{DynamicResource ArgusBorderBrush}"
                   BorderThickness="1"
                   CornerRadius="8"
@@ -405,7 +405,7 @@
           </Border>
 
           <!-- Inline Safe Recycle Bin Deletion Confirmation Banner -->
-          <Border Background="#2A121C"
+          <Border Background="{DynamicResource ArgusBgPillDangerBrush}"
                   BorderBrush="{DynamicResource ArgusCoralBrush}"
                   BorderThickness="1"
                   CornerRadius="9"
@@ -553,7 +553,7 @@
                                        Value="{Binding BarPercent}"
                                        Height="6"
                                        CornerRadius="3"
-                                       Background="#1A2248"
+                                       Background="{DynamicResource ArgusBorderBrush}"
                                        Foreground="{DynamicResource ArgusCyanBrush}" />
 
                           <TextBlock FontSize="11"

@@ -15,7 +15,7 @@
       <Setter Property="Cursor" Value="Hand" />
     </Style>
     <Style Selector="Button.device-group-header:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="#1D2654" />
+      <Setter Property="Background" Value="{DynamicResource ArgusBgHoverBrush}" />
     </Style>
   </UserControl.Styles>
 
@@ -325,7 +325,7 @@
                     </Button>
 
                     <!-- Expandable Child Device Nodes Sublist -->
-                    <Border Background="#0E142D"
+                    <Border Background="{DynamicResource ArgusBgInputBrush}"
                             BorderBrush="{DynamicResource ArgusBorderBrush}"
                             BorderThickness="0,1,0,0"
                             CornerRadius="0,0,7,7"
@@ -334,7 +334,7 @@
                       <ItemsControl ItemsSource="{Binding Items}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:DeviceNodeRowItem">
-                            <Border Background="#131B3B"
+                            <Border Background="{DynamicResource ArgusBgCardBrush}"
                                     BorderBrush="{DynamicResource ArgusBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="6"
