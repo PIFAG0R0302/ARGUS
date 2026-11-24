@@ -153,7 +153,8 @@ public sealed partial class FolderSpaceRowItem : ObservableObject
     public FolderSpaceRowItem(
         FolderSpaceNode node,
         Func<FolderSpaceRowItem, Task>? onOpen = null,
-        Action? onSelectionChanged = null)
+        Action? onSelectionChanged = null,
+        Action<FolderSpaceRowItem>? onQuickDelete = null)
     {
         ArgumentNullException.ThrowIfNull(node);
         _onSelectionChanged = onSelectionChanged;
@@ -178,12 +179,16 @@ public sealed partial class FolderSpaceRowItem : ObservableObject
         OpenCommand = new AsyncRelayCommand(
             () => onOpen is not null ? onOpen(this) : Task.CompletedTask,
             () => CanOpen && onOpen is not null);
+        QuickDeleteCommand = new RelayCommand(
+            () => onQuickDelete?.Invoke(this),
+            () => CanSelect && onQuickDelete is not null);
     }
 
     public FolderSpaceRowItem(
         DiskSpaceEntry entry,
         Func<FolderSpaceRowItem, Task>? onOpen = null,
-        Action? onSelectionChanged = null)
+        Action? onSelectionChanged = null,
+        Action<FolderSpaceRowItem>? onQuickDelete = null)
     {
         ArgumentNullException.ThrowIfNull(entry);
         _onSelectionChanged = onSelectionChanged;
@@ -227,6 +232,9 @@ public sealed partial class FolderSpaceRowItem : ObservableObject
         OpenCommand = new AsyncRelayCommand(
             () => onOpen is not null ? onOpen(this) : Task.CompletedTask,
             () => CanOpen && onOpen is not null);
+        QuickDeleteCommand = new RelayCommand(
+            () => onQuickDelete?.Invoke(this),
+            () => CanSelect && onQuickDelete is not null);
     }
 
     public string Name { get; }
@@ -248,8 +256,12 @@ public sealed partial class FolderSpaceRowItem : ObservableObject
     public string SelectionTooltip => CanSelect
         ? "Вибрати для переміщення у Кошик Windows"
         : (ProtectionReason ?? "Елемент захищено від видалення.");
+    public string QuickDeleteTooltip => CanSelect
+        ? $"Перемістити «{Name}» у Кошик Windows"
+        : (ProtectionReason ?? SelectionTooltip);
 
     public ICommand OpenCommand { get; }
+    public ICommand QuickDeleteCommand { get; }
 
     [ObservableProperty]
     private bool _isSelected;
@@ -317,6 +329,9 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
 
     [ObservableProperty]
     private string _deleteConfirmationText = string.Empty;
+
+    [ObservableProperty]
+    private FolderSpaceRowItem? _pendingSingleDeleteItem;
 
     [ObservableProperty]
     private int _operationProgressPercent;
@@ -629,8 +644,33 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
     }
 
     [RelayCommand]
+    public void RequestQuickDelete(FolderSpaceRowItem? item)
+    {
+        if (item is null ||
+            !item.CanSelect ||
+            string.IsNullOrWhiteSpace(item.FullPath))
+        {
+            return;
+        }
+
+        var policy = DiskDeleteSafetyPolicy.EvaluatePath(item.FullPath, isReparsePoint: item.IsReparsePoint);
+        if (!policy.IsAllowed)
+        {
+            return;
+        }
+
+        PendingSingleDeleteItem = item;
+        string kindLabel = item.IsDirectory ? "теку" : "файл";
+        DeleteConfirmationText =
+            $"Перемістити {kindLabel} «{item.Name}» ({item.SizeText}) у Кошик Windows? Елемент можна буде відновити з Кошика.";
+        IsDeleteConfirmationOpen = true;
+    }
+
+    [RelayCommand]
     public void RequestDeleteSelected()
     {
+        PendingSingleDeleteItem = null;
+
         var selected = LargestFolders.Where(static e => e.IsSelected && e.CanSelect).ToArray();
         if (selected.Length == 0)
         {
@@ -654,6 +694,7 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
     [RelayCommand]
     public void CancelDeleteSelected()
     {
+        PendingSingleDeleteItem = null;
         IsDeleteConfirmationOpen = false;
         DeleteConfirmationText = string.Empty;
     }
@@ -663,17 +704,43 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
     {
         if (_spaceAnalyzer is null)
         {
+            PendingSingleDeleteItem = null;
             IsDeleteConfirmationOpen = false;
             DeleteConfirmationText = string.Empty;
             return;
         }
 
-        var selectedItems = LargestFolders.Where(static e => e.IsSelected && e.CanSelect).ToArray();
-        if (selectedItems.Length == 0)
+        FolderSpaceRowItem? singleTarget = PendingSingleDeleteItem;
+        string[] pathsToDelete;
+        string progressStage;
+
+        if (singleTarget is not null)
         {
-            IsDeleteConfirmationOpen = false;
-            DeleteConfirmationText = string.Empty;
-            return;
+            if (!singleTarget.CanSelect ||
+                string.IsNullOrWhiteSpace(singleTarget.FullPath) ||
+                !DiskDeleteSafetyPolicy.EvaluatePath(singleTarget.FullPath, isReparsePoint: singleTarget.IsReparsePoint).IsAllowed)
+            {
+                PendingSingleDeleteItem = null;
+                IsDeleteConfirmationOpen = false;
+                DeleteConfirmationText = string.Empty;
+                return;
+            }
+
+            pathsToDelete = [singleTarget.FullPath];
+            progressStage = $"Переміщення «{singleTarget.Name}» у Кошик Windows…";
+        }
+        else
+        {
+            var selectedItems = LargestFolders.Where(static e => e.IsSelected && e.CanSelect).ToArray();
+            if (selectedItems.Length == 0)
+            {
+                IsDeleteConfirmationOpen = false;
+                DeleteConfirmationText = string.Empty;
+                return;
+            }
+
+            pathsToDelete = selectedItems.Select(static i => i.FullPath).ToArray();
+            progressStage = $"Переміщення у Кошик Windows ({pathsToDelete.Length} шт.)…";
         }
 
         if (Interlocked.CompareExchange(ref _busyGate, 1, 0) != 0)
@@ -684,14 +751,14 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
         bool wasInsideSubfolder = IsInsideSubfolder;
         string currentPath = CurrentBrowsePath;
         char currentVolume = SelectedVolumeLetter;
-        string[] pathsToDelete = selectedItems.Select(static i => i.FullPath).ToArray();
 
         _uiDispatch(() =>
         {
             IsBusy = true;
+            PendingSingleDeleteItem = null;
             IsDeleteConfirmationOpen = false;
             DeleteConfirmationText = string.Empty;
-            SetProgress(15, $"Переміщення у Кошик Windows ({pathsToDelete.Length} шт.)…");
+            SetProgress(15, progressStage);
         });
 
         try
@@ -754,6 +821,7 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
                 tab.IsSelected = tab.DriveLetter == letter;
             }
 
+            PendingSingleDeleteItem = null;
             IsDeleteConfirmationOpen = false;
             DeleteConfirmationText = string.Empty;
             SelectedVolumeSummaryText = $"Сканування найбільших тек на {letter}:\\…";
@@ -793,6 +861,7 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
         _uiDispatch(() =>
         {
             IsBusy = true;
+            PendingSingleDeleteItem = null;
             IsDeleteConfirmationOpen = false;
             DeleteConfirmationText = string.Empty;
             SetProgress(5, $"Сканування вмісту {folderPath}…");
@@ -881,6 +950,7 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
         CurrentBrowsePath = $"{report.DriveLetter}:\\";
         ParentBrowsePath = null;
         IsInsideSubfolder = false;
+        PendingSingleDeleteItem = null;
         IsDeleteConfirmationOpen = false;
         DeleteConfirmationText = string.Empty;
 
@@ -891,7 +961,7 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
         LargestFolders.Clear();
         foreach (var node in report.LargestFolders)
         {
-            LargestFolders.Add(new FolderSpaceRowItem(node, OpenFolderAsync, UpdateSelectionSummary));
+            LargestFolders.Add(new FolderSpaceRowItem(node, OpenFolderAsync, UpdateSelectionSummary, RequestQuickDelete));
         }
 
         IsFolderEmpty = LargestFolders.Count == 0;
@@ -904,6 +974,7 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
         CurrentBrowsePath = report.CurrentPath;
         ParentBrowsePath = report.ParentPath;
         IsInsideSubfolder = !report.IsVolumeRoot;
+        PendingSingleDeleteItem = null;
         IsDeleteConfirmationOpen = false;
         DeleteConfirmationText = string.Empty;
 
@@ -915,7 +986,7 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
         LargestFolders.Clear();
         foreach (var entry in report.Entries)
         {
-            LargestFolders.Add(new FolderSpaceRowItem(entry, OpenFolderAsync, UpdateSelectionSummary));
+            LargestFolders.Add(new FolderSpaceRowItem(entry, OpenFolderAsync, UpdateSelectionSummary, RequestQuickDelete));
         }
 
         IsFolderEmpty = LargestFolders.Count == 0;
@@ -940,7 +1011,7 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
         SelectedEntriesSizeText = WindowsCleanerService.FormatBytes(totalBytes);
         HasSelectedEntries = count > 0;
 
-        if (count == 0 && IsDeleteConfirmationOpen)
+        if (count == 0 && IsDeleteConfirmationOpen && PendingSingleDeleteItem is null)
         {
             IsDeleteConfirmationOpen = false;
             DeleteConfirmationText = string.Empty;

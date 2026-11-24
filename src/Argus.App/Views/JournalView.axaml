@@ -51,11 +51,11 @@
                 <Grid ColumnDefinitions="72,68,140,190,*">
                   <TextBlock Grid.Column="0" Classes="metric-mono" FontSize="11.5" Text="{Binding TimeText}" VerticalAlignment="Center" />
                   <Border Grid.Column="1" Classes="pill" Padding="7,2" HorizontalAlignment="Left" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding SeverityLabel}" FontSize="10.5" Foreground="{StaticResource ArgusCyanBrush}" />
+                    <TextBlock Text="{Binding SeverityLabel}" FontSize="10.5" Foreground="{DynamicResource ArgusCyanBrush}" />
                   </Border>
                   <TextBlock Grid.Column="2"
                              FontSize="12"
-                             Foreground="{StaticResource ArgusVioletSoftBrush}"
+                             Foreground="{DynamicResource ArgusVioletSoftBrush}"
                              Text="{Binding ModuleId}"
                              TextTrimming="CharacterEllipsis"
                              Margin="6,0,10,0"
@@ -63,14 +63,14 @@
                   <TextBlock Grid.Column="3"
                              FontSize="12"
                              FontWeight="SemiBold"
-                             Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                             Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                              Text="{Binding Action}"
                              TextTrimming="CharacterEllipsis"
                              Margin="0,0,12,0"
                              VerticalAlignment="Center" />
                   <TextBlock Grid.Column="4"
                              FontSize="12"
-                             Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                             Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                              Text="{Binding Details}"
                              TextWrapping="Wrap"
                              VerticalAlignment="Center" />

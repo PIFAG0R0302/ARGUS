@@ -25,26 +25,26 @@ public sealed class UxMonitoringUpdateTests : IDisposable
     {
         using var vm = CreateViewModel();
 
+        Assert.False(vm.IsCpuThreadsExpanded);
+        Assert.Equal("▶", vm.CpuThreadsChevron);
+        Assert.False(vm.IsGpuDetailsExpanded);
+        Assert.Equal("▶", vm.GpuDetailsChevron);
+
+        vm.ToggleCpuThreadsCommand.Execute(null);
         Assert.True(vm.IsCpuThreadsExpanded);
         Assert.Equal("▼", vm.CpuThreadsChevron);
-        Assert.True(vm.IsGpuDetailsExpanded);
-        Assert.Equal("▼", vm.GpuDetailsChevron);
 
         vm.ToggleCpuThreadsCommand.Execute(null);
         Assert.False(vm.IsCpuThreadsExpanded);
         Assert.Equal("▶", vm.CpuThreadsChevron);
 
-        vm.ToggleCpuThreadsCommand.Execute(null);
-        Assert.True(vm.IsCpuThreadsExpanded);
-        Assert.Equal("▼", vm.CpuThreadsChevron);
+        vm.ToggleGpuDetailsCommand.Execute(null);
+        Assert.True(vm.IsGpuDetailsExpanded);
+        Assert.Equal("▼", vm.GpuDetailsChevron);
 
         vm.ToggleGpuDetailsCommand.Execute(null);
         Assert.False(vm.IsGpuDetailsExpanded);
         Assert.Equal("▶", vm.GpuDetailsChevron);
-
-        vm.ToggleGpuDetailsCommand.Execute(null);
-        Assert.True(vm.IsGpuDetailsExpanded);
-        Assert.Equal("▼", vm.GpuDetailsChevron);
     }
 
     [Fact]

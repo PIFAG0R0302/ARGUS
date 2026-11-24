@@ -40,6 +40,18 @@
     <SolidColorBrush x:Key="ArgusTextSecondaryBrush" Color="{StaticResource ArgusMistBlue}" />
     <SolidColorBrush x:Key="ArgusTextMutedBrush" Color="{StaticResource ArgusDimSlate}" />
 
+    <!-- Interactive & Semantic State Fallback Brushes -->
+    <SolidColorBrush x:Key="ArgusBgInputBrush" Color="#0A0F24" />
+    <SolidColorBrush x:Key="ArgusBgHoverBrush" Color="#18204A" />
+    <SolidColorBrush x:Key="ArgusBgSelectedBrush" Color="#1C2152" />
+    <SolidColorBrush x:Key="ArgusBgPillOkBrush" Color="#0E2E2B" />
+    <SolidColorBrush x:Key="ArgusBgPillWarnBrush" Color="#2E220D" />
+    <SolidColorBrush x:Key="ArgusBgPillDangerBrush" Color="#31131D" />
+    <SolidColorBrush x:Key="ArgusPrimaryButtonBgBrush" Color="#5E42E8" />
+    <SolidColorBrush x:Key="ArgusPrimaryButtonHoverBrush" Color="#7358FA" />
+    <SolidColorBrush x:Key="ArgusSecondaryButtonBgBrush" Color="#161D42" />
+    <SolidColorBrush x:Key="ArgusSecondaryButtonHoverBrush" Color="#1F2859" />
+
     <!-- Subtle Atmosphere & Signature Gradient Brushes -->
     <LinearGradientBrush x:Key="ArgusWorkspaceBackdrop" StartPoint="0%,0%" EndPoint="100%,100%">
       <GradientStop Color="#060916" Offset="0" />
@@ -87,60 +99,60 @@
   <Style Selector="TextBlock.page-title">
     <Setter Property="FontSize" Value="22" />
     <Setter Property="FontWeight" Value="SemiBold" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextPrimaryBrush}" />
   </Style>
 
   <Style Selector="TextBlock.page-subtitle">
     <Setter Property="FontSize" Value="13" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextSecondaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextSecondaryBrush}" />
     <Setter Property="TextWrapping" Value="Wrap" />
   </Style>
 
   <Style Selector="TextBlock.section-heading">
     <Setter Property="FontSize" Value="15" />
     <Setter Property="FontWeight" Value="SemiBold" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextPrimaryBrush}" />
   </Style>
 
   <Style Selector="TextBlock.body-muted">
     <Setter Property="FontSize" Value="12.5" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextSecondaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextSecondaryBrush}" />
     <Setter Property="TextWrapping" Value="Wrap" />
   </Style>
 
   <Style Selector="TextBlock.metric-mono">
     <Setter Property="FontFamily" Value="{StaticResource ArgusMonoFont}" />
     <Setter Property="FontSize" Value="13" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusCyanBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusCyanBrush}" />
   </Style>
 
   <Style Selector="TextBlock.metric-large">
     <Setter Property="FontFamily" Value="{StaticResource ArgusMonoFont}" />
     <Setter Property="FontSize" Value="22" />
     <Setter Property="FontWeight" Value="SemiBold" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextPrimaryBrush}" />
   </Style>
 
   <!-- Panel & Card Surfaces (Hierarchical Corner Radii: 12px Panels, 8px Inner Tiles, 6px Pills) -->
   <Style Selector="Border.panel">
-    <Setter Property="Background" Value="{StaticResource ArgusBgPanelBrush}" />
-    <Setter Property="BorderBrush" Value="{StaticResource ArgusBorderBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgPanelBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="12" />
     <Setter Property="Padding" Value="20" />
   </Style>
 
   <Style Selector="Border.panel-hero">
-    <Setter Property="Background" Value="{StaticResource ArgusBgPanelBrush}" />
-    <Setter Property="BorderBrush" Value="{StaticResource ArgusHeroCardBorderBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgPanelBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusHeroCardBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="12" />
     <Setter Property="Padding" Value="20" />
   </Style>
 
   <Style Selector="Border.tile">
-    <Setter Property="Background" Value="{StaticResource ArgusBgCardBrush}" />
-    <Setter Property="BorderBrush" Value="{StaticResource ArgusBorderBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgCardBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="8" />
     <Setter Property="Padding" Value="14,12" />
@@ -168,11 +180,11 @@
     <Setter Property="Background" Value="Transparent" />
   </Style>
   <Style Selector="ListBox.argus-list > ListBoxItem:pointerover Border.tile">
-    <Setter Property="BorderBrush" Value="#4A5AA6" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusBorderBrightBrush}" />
   </Style>
   <Style Selector="ListBox.argus-list > ListBoxItem:selected Border.tile">
-    <Setter Property="BorderBrush" Value="{StaticResource ArgusCyanBrush}" />
-    <Setter Property="Background" Value="#161D42" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusCyanBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ArgusSecondaryButtonBgBrush}" />
   </Style>
 
   <!-- Clickable Column Sort Header Button -->
@@ -181,40 +193,40 @@
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Padding" Value="4,2" />
     <Setter Property="CornerRadius" Value="4" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextMutedBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextMutedBrush}" />
     <Setter Property="FontSize" Value="11" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="Cursor" Value="Hand" />
   </Style>
   <Style Selector="Button.column-sort-header:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="#1A2352" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextPrimaryBrush}" />
   </Style>
   <Style Selector="Button.column-sort-header.active">
-    <Setter Property="Foreground" Value="{StaticResource ArgusCyanBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusCyanBrush}" />
   </Style>
 
   <Style Selector="Border.pill">
     <Setter Property="CornerRadius" Value="6" />
     <Setter Property="Padding" Value="9,3" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="Background" Value="#1A2049" />
-    <Setter Property="BorderBrush" Value="#3E498C" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgCardBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusBorderBrightBrush}" />
   </Style>
 
   <Style Selector="Border.pill-ready">
-    <Setter Property="Background" Value="#0E2E2B" />
-    <Setter Property="BorderBrush" Value="#2DD4A8" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgPillOkBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusEmeraldBrush}" />
   </Style>
 
   <Style Selector="Border.pill-warn">
-    <Setter Property="Background" Value="#2E220D" />
-    <Setter Property="BorderBrush" Value="#F5A623" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgPillWarnBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusAmberBrush}" />
   </Style>
 
   <Style Selector="Border.pill-danger">
-    <Setter Property="Background" Value="#31131D" />
-    <Setter Property="BorderBrush" Value="#F45B69" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgPillDangerBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusCoralBrush}" />
   </Style>
 
   <!-- Navigation Rail Group Header & Button -->
@@ -222,7 +234,7 @@
     <Setter Property="FontSize" Value="10" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="LetterSpacing" Value="1.5" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextMutedBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextMutedBrush}" />
     <Setter Property="Margin" Value="10,2,0,4" />
   </Style>
 
@@ -234,27 +246,27 @@
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="CornerRadius" Value="8" />
     <Setter Property="Padding" Value="11,8" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextSecondaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextSecondaryBrush}" />
     <Setter Property="Cursor" Value="Hand" />
   </Style>
 
   <Style Selector="Button.nav-item:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="#141B3E" />
-    <Setter Property="BorderBrush" Value="#2B3670" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusBorderBrightBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextPrimaryBrush}" />
   </Style>
 
   <Style Selector="Button.nav-item.active /template/ ContentPresenter">
-    <Setter Property="Background" Value="#1C2152" />
-    <Setter Property="BorderBrush" Value="{StaticResource ArgusVioletBrush}" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgSelectedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusVioletBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextPrimaryBrush}" />
   </Style>
 
   <!-- Primary & Secondary Action Buttons -->
   <Style Selector="Button.argus-primary">
-    <Setter Property="Background" Value="#5E42E8" />
+    <Setter Property="Background" Value="{DynamicResource ArgusPrimaryButtonBgBrush}" />
     <Setter Property="Foreground" Value="#FFFFFF" />
-    <Setter Property="BorderBrush" Value="#8F75FF" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusVioletSoftBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="8" />
     <Setter Property="Padding" Value="16,9" />
@@ -263,15 +275,15 @@
   </Style>
 
   <Style Selector="Button.argus-primary:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="#7358FA" />
-    <Setter Property="BorderBrush" Value="#38D9F5" />
+    <Setter Property="Background" Value="{DynamicResource ArgusPrimaryButtonHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusCyanBrush}" />
     <Setter Property="Foreground" Value="#FFFFFF" />
   </Style>
 
   <Style Selector="Button.argus-secondary">
-    <Setter Property="Background" Value="#161D42" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
-    <Setter Property="BorderBrush" Value="{StaticResource ArgusBorderBrightBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ArgusSecondaryButtonBgBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextPrimaryBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusBorderBrightBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="8" />
     <Setter Property="Padding" Value="14,9" />
@@ -279,21 +291,21 @@
   </Style>
 
   <Style Selector="Button.argus-secondary:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="#1F2859" />
-    <Setter Property="BorderBrush" Value="{StaticResource ArgusVioletBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ArgusSecondaryButtonHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusVioletBrush}" />
   </Style>
 
   <Style Selector="Button.argus-secondary.selected /template/ ContentPresenter">
-    <Setter Property="Background" Value="#21265C" />
-    <Setter Property="BorderBrush" Value="{StaticResource ArgusCyanBrush}" />
-    <Setter Property="Foreground" Value="#FFFFFF" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgSelectedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusCyanBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextPrimaryBrush}" />
   </Style>
 
   <!-- Filter & Sub-Tab Pill Buttons -->
   <Style Selector="Button.filter-pill">
-    <Setter Property="Background" Value="#141B3E" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextSecondaryBrush}" />
-    <Setter Property="BorderBrush" Value="{StaticResource ArgusBorderBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextSecondaryBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="14" />
     <Setter Property="Padding" Value="12,5" />
@@ -303,23 +315,23 @@
   </Style>
 
   <Style Selector="Button.filter-pill:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="#1F2859" />
-    <Setter Property="BorderBrush" Value="{StaticResource ArgusVioletBrush}" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ArgusSecondaryButtonHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusVioletBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextPrimaryBrush}" />
   </Style>
 
   <Style Selector="Button.filter-pill.selected /template/ ContentPresenter">
-    <Setter Property="Background" Value="#21265C" />
-    <Setter Property="BorderBrush" Value="{StaticResource ArgusCyanBrush}" />
-    <Setter Property="Foreground" Value="#FFFFFF" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgSelectedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusCyanBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextPrimaryBrush}" />
   </Style>
 
   <!-- Profile Selector Buttons -->
   <Style Selector="Button.profile-card">
     <Setter Property="HorizontalAlignment" Value="Stretch" />
     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-    <Setter Property="Background" Value="{StaticResource ArgusBgCardBrush}" />
-    <Setter Property="BorderBrush" Value="{StaticResource ArgusBorderBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgCardBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="10" />
     <Setter Property="Padding" Value="16" />
@@ -327,24 +339,24 @@
   </Style>
 
   <Style Selector="Button.profile-card.selected /template/ ContentPresenter">
-    <Setter Property="Background" Value="#1B2150" />
-    <Setter Property="BorderBrush" Value="{StaticResource ArgusCyanBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgSelectedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusCyanBrush}" />
   </Style>
 
   <!-- TextBox & NumericUpDown Dark Blue-Violet Styling -->
   <Style Selector="TextBox.argus-input">
-    <Setter Property="Background" Value="#0A0F24" />
-    <Setter Property="BorderBrush" Value="{StaticResource ArgusBorderBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgInputBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="8" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextPrimaryBrush}" />
     <Setter Property="Padding" Value="12,8" />
   </Style>
 
   <Style Selector="NumericUpDown.argus-numeric">
-    <Setter Property="Background" Value="#0A0F24" />
-    <Setter Property="BorderBrush" Value="{StaticResource ArgusBorderBrush}" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgInputBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusBorderBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextPrimaryBrush}" />
     <Setter Property="FontFamily" Value="{StaticResource ArgusMonoFont}" />
     <Setter Property="CornerRadius" Value="8" />
   </Style>
@@ -356,15 +368,15 @@
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="CornerRadius" Value="0" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextSecondaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextSecondaryBrush}" />
     <Setter Property="HorizontalContentAlignment" Value="Center" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="Cursor" Value="Hand" />
   </Style>
 
   <Style Selector="Button.titlebar-btn:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="#18204A" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusTextPrimaryBrush}" />
   </Style>
 
   <Style Selector="Button.titlebar-close:pointerover /template/ ContentPresenter">
@@ -373,12 +385,12 @@
   </Style>
 
   <Style Selector="Button.privilege-pill">
-    <Setter Property="Background" Value="#2A1F0B" />
-    <Setter Property="BorderBrush" Value="#F5A623" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgPillWarnBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusAmberBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="6" />
     <Setter Property="Padding" Value="10,4" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusAmberBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusAmberBrush}" />
     <Setter Property="Cursor" Value="Hand" />
   </Style>
 
@@ -388,16 +400,16 @@
   </Style>
 
   <Style Selector="Button.privilege-pill.elevated">
-    <Setter Property="Background" Value="#0D2C28" />
-    <Setter Property="BorderBrush" Value="#2DD4A8" />
-    <Setter Property="Foreground" Value="{StaticResource ArgusEmeraldBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgPillOkBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusEmeraldBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ArgusEmeraldBrush}" />
     <Setter Property="Cursor" Value="Arrow" />
   </Style>
 
   <!-- Hybrid Basic / Expert Mode Inline Toggle Bar -->
   <Style Selector="Border.expert-toggle-bar">
-    <Setter Property="Background" Value="#141B3E" />
-    <Setter Property="BorderBrush" Value="#313E7C" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusBorderBrightBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="8" />
     <Setter Property="Padding" Value="10,3" />
@@ -406,8 +418,8 @@
 
   <!-- Contextual On-Demand UAC Elevation Banner -->
   <Style Selector="Border.uac-callout">
-    <Setter Property="Background" Value="#241B0E" />
-    <Setter Property="BorderBrush" Value="#D99220" />
+    <Setter Property="Background" Value="{DynamicResource ArgusBgPillWarnBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ArgusAmberBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="9" />
     <Setter Property="Padding" Value="12,8" />

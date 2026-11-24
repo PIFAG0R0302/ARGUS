@@ -18,12 +18,12 @@
                   Height="16"
                   Stretch="Uniform"
                   Data="{StaticResource IconShield}"
-                  Stroke="{StaticResource ArgusAmberBrush}"
+                  Stroke="{DynamicResource ArgusAmberBrush}"
                   StrokeThickness="1.5"
                   VerticalAlignment="Center" />
             <TextBlock Grid.Column="2"
                        FontSize="12"
-                       Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                       Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                        TextWrapping="Wrap"
                        VerticalAlignment="Center"
                        Text="Перегляд процесів, CPU %, RAM і Disk I/O працює без прав адміністратора. Для завершення привілейованих процесів потрібні права адміністратора (UAC)." />
@@ -38,7 +38,7 @@
 
         <!-- Mandatory Kill/Terminate Confirmation Banner -->
         <Border Background="#2D1219"
-                BorderBrush="{StaticResource ArgusCoralBrush}"
+                BorderBrush="{DynamicResource ArgusCoralBrush}"
                 BorderThickness="1"
                 CornerRadius="9"
                 Padding="12,9"
@@ -47,16 +47,16 @@
             <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
               <TextBlock FontSize="12.5"
                          FontWeight="SemiBold"
-                         Foreground="{StaticResource ArgusCoralBrush}"
+                         Foreground="{DynamicResource ArgusCoralBrush}"
                          Text="Підтвердження завершення процесу" />
               <TextBlock FontSize="12"
-                         Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                         Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                          TextWrapping="Wrap"
                          Text="{Binding TerminatePromptText}" />
             </StackPanel>
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
               <Button Classes="argus-primary"
-                      Background="{StaticResource ArgusCoralBrush}"
+                      Background="{DynamicResource ArgusCoralBrush}"
                       Padding="12,6"
                       FontSize="12"
                       Content="Так, завершити"
@@ -74,7 +74,7 @@
         <Grid ColumnDefinitions="*,12,Auto">
           <TextBlock Grid.Column="0"
                      FontSize="12"
-                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                     Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                      Text="{Binding SummaryText}"
                      TextWrapping="Wrap"
                      VerticalAlignment="Center" />
@@ -92,7 +92,7 @@
                 <TextBlock Text="Експертний режим"
                            FontSize="11.5"
                            FontWeight="SemiBold"
-                           Foreground="{StaticResource ArgusVioletSoftBrush}"
+                           Foreground="{DynamicResource ArgusVioletSoftBrush}"
                            VerticalAlignment="Center" />
                 <ToggleSwitch IsChecked="{Binding IsExpertMode}"
                               OnContent=""
@@ -107,7 +107,7 @@
 
         <!-- Action Feedback -->
         <TextBlock FontSize="12"
-                   Foreground="{StaticResource ArgusCyanBrush}"
+                   Foreground="{DynamicResource ArgusCyanBrush}"
                    IsVisible="{Binding HasActionFeedback}"
                    Text="{Binding ActionFeedback}"
                    TextWrapping="Wrap" />
@@ -157,7 +157,7 @@
           <TextBlock Grid.Column="12"
                      FontSize="11"
                      FontWeight="SemiBold"
-                     Foreground="{StaticResource ArgusTextMutedBrush}"
+                     Foreground="{DynamicResource ArgusTextMutedBrush}"
                      Text="ДІЇ"
                      HorizontalAlignment="Right"
                      VerticalAlignment="Center" />
@@ -200,7 +200,7 @@
                             IsVisible="{Binding IsSingleInstance}">
                       <TextBlock Classes="metric-mono"
                                  FontSize="11"
-                                 Foreground="{StaticResource ArgusCyanBrush}"
+                                 Foreground="{DynamicResource ArgusCyanBrush}"
                                  Text="{Binding PidOrCountText}" />
                     </Border>
 
@@ -209,14 +209,14 @@
                             Classes="pill"
                             Padding="6,2"
                             Background="#1D1A4A"
-                            BorderBrush="{StaticResource ArgusVioletBrush}"
+                            BorderBrush="{DynamicResource ArgusVioletBrush}"
                             HorizontalAlignment="Left"
                             VerticalAlignment="Center"
                             IsVisible="{Binding IsMultiInstance}">
                       <TextBlock Classes="metric-mono"
                                  FontSize="10.5"
                                  FontWeight="SemiBold"
-                                 Foreground="{StaticResource ArgusVioletSoftBrush}"
+                                 Foreground="{DynamicResource ArgusVioletSoftBrush}"
                                  Text="{Binding PidOrCountText}" />
                     </Border>
 
@@ -225,31 +225,31 @@
                         <TextBlock Text="{Binding Name}"
                                    FontSize="13"
                                    FontWeight="SemiBold"
-                                   Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                   Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                                    Margin="0,0,8,0"
                                    VerticalAlignment="Center" />
                         <TextBlock Text="{Binding ThreadsText}"
                                    FontSize="10.5"
-                                   Foreground="{StaticResource ArgusTextMutedBrush}"
+                                   Foreground="{DynamicResource ArgusTextMutedBrush}"
                                    Margin="0,0,6,0"
                                    VerticalAlignment="Center" />
                         <Border Classes="pill"
                                 Padding="6,1"
                                 Background="#261B0A"
-                                BorderBrush="{StaticResource ArgusAmberBrush}"
+                                BorderBrush="{DynamicResource ArgusAmberBrush}"
                                 IsVisible="{Binding HasCriticalSystem}"
                                 ToolTip.Tip="Містить критичний системний процес Windows — завершення заблоковано."
                                 VerticalAlignment="Center">
                           <TextBlock Text="Захищено ОС"
                                      FontSize="10"
                                      FontWeight="SemiBold"
-                                     Foreground="{StaticResource ArgusAmberBrush}" />
+                                     Foreground="{DynamicResource ArgusAmberBrush}" />
                         </Border>
                       </WrapPanel>
 
                       <TextBlock Classes="metric-mono"
                                  FontSize="10.5"
-                                 Foreground="{StaticResource ArgusTextMutedBrush}"
+                                 Foreground="{DynamicResource ArgusTextMutedBrush}"
                                  Text="{Binding ExecutablePath}"
                                  TextTrimming="CharacterEllipsis"
                                  ToolTip.Tip="{Binding ExecutablePath}" />
@@ -260,7 +260,7 @@
                                FontSize="12"
                                HorizontalAlignment="Right"
                                VerticalAlignment="Center"
-                               Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                               Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                                Text="{Binding CpuText}" />
 
                     <TextBlock Grid.Column="8"
@@ -268,7 +268,7 @@
                                FontSize="12"
                                HorizontalAlignment="Right"
                                VerticalAlignment="Center"
-                               Foreground="{StaticResource ArgusCyanBrush}"
+                               Foreground="{DynamicResource ArgusCyanBrush}"
                                Text="{Binding MemoryText}" />
 
                     <TextBlock Grid.Column="10"
@@ -276,7 +276,7 @@
                                FontSize="11"
                                HorizontalAlignment="Right"
                                VerticalAlignment="Center"
-                               Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                               Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                                Text="{Binding DiskIoText}" />
 
                     <StackPanel Grid.Column="12"
@@ -294,7 +294,7 @@
                       <Button Classes="argus-secondary"
                               Padding="9,4"
                               FontSize="11"
-                              Foreground="{StaticResource ArgusCoralBrush}"
+                              Foreground="{DynamicResource ArgusCoralBrush}"
                               Content="Завершити"
                               IsVisible="{Binding IsSingleInstance}"
                               IsEnabled="{Binding CanTerminateSingle}"
@@ -307,7 +307,7 @@
                   <Border IsVisible="{Binding IsExpanded}"
                           Margin="28,8,0,2"
                           Padding="10,6,0,2"
-                          BorderBrush="{StaticResource ArgusBorderBrush}"
+                          BorderBrush="{DynamicResource ArgusBorderBrush}"
                           BorderThickness="2,0,0,0">
                     <ItemsControl ItemsSource="{Binding Instances}">
                       <ItemsControl.ItemTemplate>
@@ -326,7 +326,7 @@
                                       VerticalAlignment="Center">
                                 <TextBlock Classes="metric-mono"
                                            FontSize="10.5"
-                                           Foreground="{StaticResource ArgusCyanBrush}"
+                                           Foreground="{DynamicResource ArgusCyanBrush}"
                                            Text="{Binding PidText}" />
                               </Border>
 
@@ -335,31 +335,31 @@
                                   <TextBlock Text="{Binding Name}"
                                              FontSize="12"
                                              FontWeight="Medium"
-                                             Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                             Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                                              Margin="0,0,8,0"
                                              VerticalAlignment="Center" />
                                   <TextBlock Text="{Binding ThreadsText}"
                                              FontSize="10"
-                                             Foreground="{StaticResource ArgusTextMutedBrush}"
+                                             Foreground="{DynamicResource ArgusTextMutedBrush}"
                                              Margin="0,0,6,0"
                                              VerticalAlignment="Center" />
                                   <Border Classes="pill"
                                           Padding="5,1"
                                           Background="#261B0A"
-                                          BorderBrush="{StaticResource ArgusAmberBrush}"
+                                          BorderBrush="{DynamicResource ArgusAmberBrush}"
                                           IsVisible="{Binding IsCriticalSystem}"
                                           ToolTip.Tip="Критичний системний процес Windows — завершення заблоковано."
                                           VerticalAlignment="Center">
                                     <TextBlock Text="Захищено ОС"
                                                FontSize="9.5"
                                                FontWeight="SemiBold"
-                                               Foreground="{StaticResource ArgusAmberBrush}" />
+                                               Foreground="{DynamicResource ArgusAmberBrush}" />
                                   </Border>
                                 </WrapPanel>
 
                                 <TextBlock Classes="metric-mono"
                                            FontSize="10"
-                                           Foreground="{StaticResource ArgusTextMutedBrush}"
+                                           Foreground="{DynamicResource ArgusTextMutedBrush}"
                                            Text="{Binding ExecutablePath}"
                                            TextTrimming="CharacterEllipsis"
                                            ToolTip.Tip="{Binding ExecutablePath}" />
@@ -370,7 +370,7 @@
                                          FontSize="11.5"
                                          HorizontalAlignment="Right"
                                          VerticalAlignment="Center"
-                                         Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                         Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                                          Text="{Binding CpuText}" />
 
                               <TextBlock Grid.Column="6"
@@ -378,7 +378,7 @@
                                          FontSize="11.5"
                                          HorizontalAlignment="Right"
                                          VerticalAlignment="Center"
-                                         Foreground="{StaticResource ArgusCyanBrush}"
+                                         Foreground="{DynamicResource ArgusCyanBrush}"
                                          Text="{Binding MemoryText}" />
 
                               <TextBlock Grid.Column="8"
@@ -386,7 +386,7 @@
                                          FontSize="10.5"
                                          HorizontalAlignment="Right"
                                          VerticalAlignment="Center"
-                                         Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                         Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                                          Text="{Binding DiskIoText}" />
 
                               <StackPanel Grid.Column="10"
@@ -404,7 +404,7 @@
                                 <Button Classes="argus-secondary"
                                         Padding="9,3"
                                         FontSize="10.5"
-                                        Foreground="{StaticResource ArgusCoralBrush}"
+                                        Foreground="{DynamicResource ArgusCoralBrush}"
                                         Content="Завершити"
                                         IsEnabled="{Binding CanTerminate}"
                                         Command="{Binding RequestTerminateCommand}"

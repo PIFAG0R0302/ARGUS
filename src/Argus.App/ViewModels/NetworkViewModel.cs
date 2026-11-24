@@ -9,6 +9,13 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Argus.App.ViewModels;
 
+public enum NetworkGroupSortMode
+{
+    Activity = 0,
+    Alphabetical = 1,
+    System = 2
+}
+
 public sealed partial class ActiveConnectionRowViewModel : ObservableObject
 {
     public ActiveConnectionRowViewModel(
@@ -201,6 +208,9 @@ public sealed partial class ConnectionAppGroupViewModel : ObservableObject
     [ObservableProperty]
     private string _suspicionSummary;
 
+    [ObservableProperty]
+    private bool _isSystemProcess;
+
     public string ConnectionCountText => $"{ConnectionCount} з'єдн.";
     public bool HasMultiplePids => PidCount > 1;
     public string PidCountText => $"{PidCount} PID";
@@ -237,15 +247,91 @@ public sealed partial class ConnectionAppGroupViewModel : ObservableObject
         return trimmed.ToLowerInvariant();
     }
 
+    public static bool IsSystemProcessItem(string? executablePath, int pid, string? processName)
+    {
+        if (pid <= 4 || CriticalProcessProtection.IsCriticalProcess(pid, processName, currentProcessId: -1))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(executablePath))
+        {
+            return true;
+        }
+
+        string normalized = executablePath.Trim().Replace('/', '\\');
+        string windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        if (!string.IsNullOrWhiteSpace(windowsDir))
+        {
+            string winPrefix = windowsDir.TrimEnd('\\') + "\\";
+            if (normalized.StartsWith(winPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return normalized.StartsWith(@"C:\Windows\", StringComparison.OrdinalIgnoreCase) ||
+               normalized.Contains(@"\Windows\System32\", StringComparison.OrdinalIgnoreCase) ||
+               normalized.Contains(@"\Windows\SysWOW64\", StringComparison.OrdinalIgnoreCase) ||
+               normalized.StartsWith(@"\SystemRoot\", StringComparison.OrdinalIgnoreCase) ||
+               normalized.StartsWith(@"\Device\", StringComparison.OrdinalIgnoreCase) ||
+               normalized.Contains(@"\Windows Defender\", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsSystemProcessGroup(IReadOnlyList<ActiveConnectionItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        if (items.Count == 0)
+        {
+            return false;
+        }
+
+        string? rawPath = items
+            .FirstOrDefault(static item => !string.IsNullOrWhiteSpace(item.ExecutablePath))
+            ?.ExecutablePath;
+
+        string? displayName = items
+            .FirstOrDefault(static item => !string.IsNullOrWhiteSpace(item.ProcessName))
+            ?.ProcessName;
+
+        if (string.IsNullOrWhiteSpace(rawPath))
+        {
+            return true;
+        }
+
+        foreach (var item in items)
+        {
+            if (item.Pid <= 4 || CriticalProcessProtection.IsCriticalProcess(item.Pid, item.ProcessName, currentProcessId: -1))
+            {
+                return true;
+            }
+        }
+
+        return IsSystemProcessItem(rawPath, items[0].Pid, displayName);
+    }
+
+    public static IReadOnlyList<ActiveConnectionItem> OrderChildConnections(IEnumerable<ActiveConnectionItem> items) =>
+        items
+            .OrderByDescending(static c => c.SuspicionLevel)
+            .ThenBy(static c => c.Protocol, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static c => c.LocalAddress, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static c => c.LocalPort)
+            .ThenBy(static c => c.RemoteAddress, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static c => c.RemotePort)
+            .ThenBy(static c => c.Pid)
+            .ToList();
+
     public void UpdateFrom(IReadOnlyList<ActiveConnectionItem> items)
     {
         ArgumentNullException.ThrowIfNull(items);
 
-        string displayName = items
+        var orderedItems = OrderChildConnections(items);
+
+        string displayName = orderedItems
             .FirstOrDefault(static item => !string.IsNullOrWhiteSpace(item.ProcessName))
             ?.ProcessName ?? "Невідомий процес";
 
-        _rawExecutablePath = items
+        _rawExecutablePath = orderedItems
             .FirstOrDefault(static item => !string.IsNullOrWhiteSpace(item.ExecutablePath))
             ?.ExecutablePath;
 
@@ -254,12 +340,13 @@ public sealed partial class ConnectionAppGroupViewModel : ObservableObject
             ? "Системний / захищений процес"
             : _rawExecutablePath;
         HasExecutablePath = !string.IsNullOrWhiteSpace(_rawExecutablePath);
-        ConnectionCount = items.Count;
-        PidCount = items.Select(static item => item.Pid).Distinct().Count();
-        EstablishedCount = items.Count(static item => string.Equals(item.State, "ESTABLISHED", StringComparison.OrdinalIgnoreCase));
+        IsSystemProcess = IsSystemProcessGroup(orderedItems);
+        ConnectionCount = orderedItems.Count;
+        PidCount = orderedItems.Select(static item => item.Pid).Distinct().Count();
+        EstablishedCount = orderedItems.Count(static item => string.Equals(item.State, "ESTABLISHED", StringComparison.OrdinalIgnoreCase));
 
         ConnectionSuspicionLevel maxLevel = ConnectionSuspicionLevel.None;
-        foreach (var item in items)
+        foreach (var item in orderedItems)
         {
             if (item.SuspicionLevel > maxLevel)
             {
@@ -272,7 +359,7 @@ public sealed partial class ConnectionAppGroupViewModel : ObservableObject
             ? string.Empty
             : string.Join(
                 " · ",
-                items
+                orderedItems
                     .Where(static item => item.IsFlagged && !string.IsNullOrWhiteSpace(item.SuspicionSummary))
                     .OrderByDescending(static item => item.SuspicionLevel)
                     .Select(static item => item.SuspicionSummary!.Trim())
@@ -281,7 +368,7 @@ public sealed partial class ConnectionAppGroupViewModel : ObservableObject
 
         CollectionSyncHelper.SyncByKey(
             Connections,
-            items,
+            orderedItems,
             ActiveConnectionRowViewModel.BuildKey,
             static r => r.ConnectionKey,
             m => new ActiveConnectionRowViewModel(
@@ -590,6 +677,17 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
     [ObservableProperty]
     private FirewallRuleRowViewModel? _selectedFirewallRule;
 
+    // ConnectionGroups stable sorting
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGroupSortAlphabetical))]
+    [NotifyPropertyChangedFor(nameof(IsGroupSortActivity))]
+    [NotifyPropertyChangedFor(nameof(IsGroupSortSystem))]
+    private NetworkGroupSortMode _groupSortMode = NetworkGroupSortMode.Activity;
+
+    public bool IsGroupSortAlphabetical => GroupSortMode == NetworkGroupSortMode.Alphabetical;
+    public bool IsGroupSortActivity => GroupSortMode == NetworkGroupSortMode.Activity;
+    public bool IsGroupSortSystem => GroupSortMode == NetworkGroupSortMode.System;
+
     // Connections sorting
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsConnSortByProtocol))]
@@ -732,10 +830,27 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
     partial void OnSearchQueryChanged(string value) => ApplyFilters();
     partial void OnConnectionFilterChanged(string value) => ApplyFilters();
     partial void OnFirewallFilterChanged(string value) => ApplyFilters();
+    partial void OnGroupSortModeChanged(NetworkGroupSortMode value) => ApplyFilters();
     partial void OnConnectionSortByChanged(string value) => ApplyFilters();
     partial void OnConnectionSortDescendingChanged(bool value) => ApplyFilters();
     partial void OnTrafficSortByChanged(string value) => ApplyFilters();
     partial void OnTrafficSortDescendingChanged(bool value) => ApplyFilters();
+
+    [RelayCommand]
+    private void SetGroupSortMode(string? mode)
+    {
+        if (string.IsNullOrWhiteSpace(mode))
+        {
+            return;
+        }
+
+        GroupSortMode = mode.Trim().ToUpperInvariant() switch
+        {
+            "ALPHABETICAL" or "ALPHA" or "NAME" => NetworkGroupSortMode.Alphabetical,
+            "SYSTEM" or "SYSTEMNESS" => NetworkGroupSortMode.System,
+            _ => NetworkGroupSortMode.Activity
+        };
+    }
 
     [RelayCommand]
     private void SetConnectionSort(string sortKey)
@@ -1216,41 +1331,63 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
             ("PROTOCOL", true) => connQuery
                 .OrderByDescending(static c => c.Protocol, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static c => c.ProcessName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.LocalAddress, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static c => c.LocalPort)
+                .ThenBy(static c => c.RemoteAddress, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.RemotePort)
                 .ThenBy(static c => c.Pid),
             ("PROTOCOL", false) => connQuery
                 .OrderBy(static c => c.Protocol, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static c => c.ProcessName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.LocalAddress, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static c => c.LocalPort)
+                .ThenBy(static c => c.RemoteAddress, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.RemotePort)
                 .ThenBy(static c => c.Pid),
             ("LOCAL", true) => connQuery
                 .OrderByDescending(static c => c.LocalAddress, StringComparer.OrdinalIgnoreCase)
                 .ThenByDescending(static c => c.LocalPort)
+                .ThenBy(static c => c.Protocol, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.RemoteAddress, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.RemotePort)
                 .ThenBy(static c => c.Pid),
             ("LOCAL", false) => connQuery
                 .OrderBy(static c => c.LocalAddress, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static c => c.LocalPort)
+                .ThenBy(static c => c.Protocol, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.RemoteAddress, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.RemotePort)
                 .ThenBy(static c => c.Pid),
             ("REMOTE", true) => connQuery
                 .OrderByDescending(static c => c.RemoteAddress, StringComparer.OrdinalIgnoreCase)
                 .ThenByDescending(static c => c.RemotePort)
+                .ThenBy(static c => c.Protocol, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.LocalAddress, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.LocalPort)
                 .ThenBy(static c => c.Pid),
             ("REMOTE", false) => connQuery
                 .OrderBy(static c => c.RemoteAddress, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static c => c.RemotePort)
+                .ThenBy(static c => c.Protocol, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.LocalAddress, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.LocalPort)
                 .ThenBy(static c => c.Pid),
             (_, true) => connQuery
                 .OrderByDescending(static c => c.ProcessName, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(static c => c.Pid)
                 .ThenBy(static c => c.Protocol, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.LocalAddress, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static c => c.LocalPort)
-                .ThenBy(static c => c.RemotePort),
+                .ThenBy(static c => c.RemoteAddress, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.RemotePort)
+                .ThenBy(static c => c.Pid),
             _ => connQuery
                 .OrderBy(static c => c.ProcessName, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(static c => c.Pid)
                 .ThenBy(static c => c.Protocol, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static c => c.LocalAddress, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static c => c.LocalPort)
+                .ThenBy(static c => c.RemoteAddress, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static c => c.RemotePort)
+                .ThenBy(static c => c.Pid)
         };
 
         var allFilteredConns = connQuery.ToList();
@@ -1270,27 +1407,42 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
             row => SelectedConnection = row,
             StringComparer.Ordinal);
 
-        var groupedData = allFilteredConns
+        var groupedQuery = allFilteredConns
             .GroupBy(static c => ConnectionAppGroupViewModel.BuildGroupKey(c.ProcessName), StringComparer.OrdinalIgnoreCase)
             .Select(static g =>
             {
-                var orderedItems = g
-                    .OrderByDescending(static c => c.SuspicionLevel)
-                    .ThenBy(static c => c.Pid)
-                    .ThenBy(static c => c.Protocol, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(static c => c.LocalPort)
-                    .ThenBy(static c => c.RemotePort)
-                    .ToList();
+                var orderedItems = ConnectionAppGroupViewModel.OrderChildConnections(g);
                 ConnectionSuspicionLevel maxSuspicion = orderedItems.Max(static c => c.SuspicionLevel);
+                int establishedCount = orderedItems.Count(static c => string.Equals(c.State, "ESTABLISHED", StringComparison.OrdinalIgnoreCase));
+                bool isSystemProcess = ConnectionAppGroupViewModel.IsSystemProcessGroup(orderedItems);
                 string displayName = orderedItems
                     .FirstOrDefault(static c => !string.IsNullOrWhiteSpace(c.ProcessName))
                     ?.ProcessName ?? g.Key;
-                return (Key: g.Key, DisplayName: displayName, MaxSuspicion: maxSuspicion, Items: (IReadOnlyList<ActiveConnectionItem>)orderedItems);
-            })
-            .OrderByDescending(static g => g.MaxSuspicion)
-            .ThenBy(static g => g.DisplayName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(static g => g.Key, StringComparer.Ordinal)
-            .ToList();
+                return (
+                    Key: g.Key,
+                    DisplayName: displayName,
+                    MaxSuspicion: maxSuspicion,
+                    EstablishedCount: establishedCount,
+                    IsSystemProcess: isSystemProcess,
+                    Items: orderedItems);
+            });
+
+        var groupedData = (GroupSortMode switch
+        {
+            NetworkGroupSortMode.Alphabetical => groupedQuery
+                .OrderBy(static g => g.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static g => g.Key, StringComparer.Ordinal),
+            NetworkGroupSortMode.System => groupedQuery
+                .OrderBy(static g => g.IsSystemProcess)
+                .ThenBy(static g => g.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static g => g.Key, StringComparer.Ordinal),
+            _ => groupedQuery
+                .OrderByDescending(static g => g.MaxSuspicion)
+                .ThenByDescending(static g => g.EstablishedCount)
+                .ThenByDescending(static g => g.Items.Count)
+                .ThenBy(static g => g.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static g => g.Key, StringComparer.Ordinal)
+        }).ToList();
 
         CollectionSyncHelper.SyncByKey(
             ConnectionGroups,
@@ -1338,27 +1490,32 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
             ("UP", true) => trafficQuery
                 .OrderByDescending(static p => p.UploadBytesPerSec)
                 .ThenByDescending(static p => p.DownloadBytesPerSec)
+                .ThenBy(static p => p.ProcessName, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static p => p.Pid),
             ("UP", false) => trafficQuery
                 .OrderBy(static p => p.UploadBytesPerSec)
                 .ThenBy(static p => p.DownloadBytesPerSec)
+                .ThenBy(static p => p.ProcessName, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static p => p.Pid),
             ("TOTAL", true) => trafficQuery
-                .OrderByDescending(static p => p.TotalReceivedBytes + p.TotalSentBytes)
+                .OrderByDescending(static p => p.TotalTransferredBytes)
                 .ThenByDescending(static p => p.TotalBytesPerSec)
+                .ThenBy(static p => p.ProcessName, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static p => p.Pid),
             ("TOTAL", false) => trafficQuery
-                .OrderBy(static p => p.TotalReceivedBytes + p.TotalSentBytes)
+                .OrderBy(static p => p.TotalTransferredBytes)
                 .ThenBy(static p => p.TotalBytesPerSec)
+                .ThenBy(static p => p.ProcessName, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static p => p.Pid),
             (_, false) => trafficQuery
                 .OrderBy(static p => p.DownloadBytesPerSec)
                 .ThenBy(static p => p.UploadBytesPerSec)
+                .ThenBy(static p => p.ProcessName, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static p => p.Pid),
             _ => trafficQuery
                 .OrderByDescending(static p => p.DownloadBytesPerSec)
                 .ThenByDescending(static p => p.UploadBytesPerSec)
-                .ThenByDescending(static p => p.TotalReceivedBytes + p.TotalSentBytes)
+                .ThenByDescending(static p => p.TotalTransferredBytes)
                 .ThenBy(static p => p.ProcessName, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static p => p.Pid)
         };

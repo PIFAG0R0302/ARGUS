@@ -1,3 +1,3 @@
-57b8ec93ce5ccd49da88af1117ae62eaaecd071092edbd3c86d83728afb38ace  Argus-Setup-1.2.0-win-x64.exe
-1319a28094304be006e1df3efbdfa7f5067d83ce1018f8325e9f9cf46c0ca9e5  Argus-Portable-1.2.0-win-x64.zip
-dbf6bfcb31fe629e2c60a020f60b6d795260637c4efddb08d5697eba90525110  Argus.exe (standalone)
+881b7448340bf5b4e39a72c7ed29f2a3d47951b3581f311925cdd7f803aecb7e  Argus-Setup-1.2.1-win-x64.exe
+9967a6b5dde2cc088592f649162388140613f3da5924676ea438edfccab1fc84  Argus-Portable-1.2.1-win-x64.zip
+3a58ade99be1beeceff3051c2ba576389c66b258bbb9398dbd319b21640d7524  Argus.exe (standalone)

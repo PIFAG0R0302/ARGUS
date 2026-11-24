@@ -31,12 +31,12 @@
           <Grid ColumnDefinitions="*,Auto">
             <TextBlock Classes="section-heading" Text="Процесор і кеш-пам'ять" VerticalAlignment="Center" />
             <Border Grid.Column="1" Classes="pill">
-              <TextBlock Text="WMI / Топологія" FontSize="10.5" Foreground="{StaticResource ArgusCyanBrush}" />
+              <TextBlock Text="WMI / Топологія" FontSize="10.5" Foreground="{DynamicResource ArgusCyanBrush}" />
             </Border>
           </Grid>
           <TextBlock FontSize="13"
                      FontWeight="SemiBold"
-                     Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                     Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                      Text="{Binding CpuTitle}"
                      TextTrimming="CharacterEllipsis" />
           <TextBlock Classes="metric-mono"
@@ -44,7 +44,7 @@
                      Text="{Binding CpuTopologyAndClockText}"
                      TextTrimming="CharacterEllipsis" />
           <TextBlock FontSize="11.5"
-                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                     Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                      Text="{Binding CpuCacheAndArchText}"
                      TextTrimming="CharacterEllipsis" />
         </StackPanel>
@@ -56,12 +56,12 @@
           <Grid ColumnDefinitions="*,Auto">
             <TextBlock Classes="section-heading" Text="Системна плата та UEFI / BIOS" VerticalAlignment="Center" />
             <Border Grid.Column="1" Classes="pill">
-              <TextBlock Text="SMBIOS" FontSize="10.5" Foreground="{StaticResource ArgusVioletSoftBrush}" />
+              <TextBlock Text="SMBIOS" FontSize="10.5" Foreground="{DynamicResource ArgusVioletSoftBrush}" />
             </Border>
           </Grid>
           <TextBlock FontSize="13"
                      FontWeight="SemiBold"
-                     Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                     Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                      Text="{Binding BoardTitle}"
                      TextTrimming="CharacterEllipsis" />
           <TextBlock Classes="metric-mono"
@@ -69,7 +69,7 @@
                      Text="{Binding BiosSummaryText}"
                      TextTrimming="CharacterEllipsis" />
           <TextBlock FontSize="11.5"
-                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                     Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                      Text="{Binding OsAndFirmwareText}"
                      TextTrimming="CharacterEllipsis" />
         </StackPanel>
@@ -99,7 +99,7 @@
                       <TextBlock Grid.Column="0"
                                  FontSize="11.5"
                                  FontWeight="SemiBold"
-                                 Foreground="{StaticResource ArgusVioletSoftBrush}"
+                                 Foreground="{DynamicResource ArgusVioletSoftBrush}"
                                  Text="{Binding SlotLocator}"
                                  VerticalAlignment="Center" />
                       <TextBlock Grid.Column="2"
@@ -109,7 +109,7 @@
                                  VerticalAlignment="Center" />
                       <TextBlock Grid.Column="4"
                                  FontSize="11.5"
-                                 Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                 Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                                  HorizontalAlignment="Right"
                                  Text="{Binding VendorAndPart}"
                                  TextTrimming="CharacterEllipsis"
@@ -129,12 +129,12 @@
           <Grid ColumnDefinitions="*,Auto">
             <TextBlock Classes="section-heading" Text="Відеокарта та мережа" VerticalAlignment="Center" />
             <Border Grid.Column="1" Classes="pill pill-ready">
-              <TextBlock Text="Активні шини" FontSize="10.5" Foreground="{StaticResource ArgusEmeraldBrush}" />
+              <TextBlock Text="Активні шини" FontSize="10.5" Foreground="{DynamicResource ArgusEmeraldBrush}" />
             </Border>
           </Grid>
           <TextBlock FontSize="13"
                      FontWeight="SemiBold"
-                     Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                     Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                      Text="{Binding PrimaryGpuTitle}"
                      TextTrimming="CharacterEllipsis" />
           <TextBlock Classes="metric-mono"
@@ -142,7 +142,7 @@
                      Text="{Binding PrimaryGpuDriverAndIdText}"
                      TextTrimming="CharacterEllipsis" />
           <TextBlock FontSize="11.5"
-                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                     Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                      Text="{Binding PrimaryNicSummaryText}"
                      TextTrimming="CharacterEllipsis" />
         </StackPanel>
@@ -180,7 +180,7 @@
                 <TextBlock Text="Експертний режим"
                            FontSize="11.5"
                            FontWeight="SemiBold"
-                           Foreground="{StaticResource ArgusVioletSoftBrush}"
+                           Foreground="{DynamicResource ArgusVioletSoftBrush}"
                            VerticalAlignment="Center" />
                 <ToggleSwitch IsChecked="{Binding IsExpertMode}"
                               OnContent=""
@@ -241,7 +241,7 @@
           </Grid>
 
           <TextBlock FontSize="11.5"
-                     Foreground="{StaticResource ArgusCyanBrush}"
+                     Foreground="{DynamicResource ArgusCyanBrush}"
                      IsVisible="{Binding HasExpertActionFeedback}"
                      Text="{Binding ExpertActionFeedback}"
                      TextTrimming="CharacterEllipsis" />
@@ -261,7 +261,7 @@
                         <TextBlock Grid.Column="0"
                                    Text="{Binding ExpandChevron}"
                                    FontSize="10.5"
-                                   Foreground="{StaticResource ArgusCyanBrush}"
+                                   Foreground="{DynamicResource ArgusCyanBrush}"
                                    IsVisible="{Binding HasMultipleItems}"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center" />
@@ -276,7 +276,7 @@
                           <TextBlock Text="{Binding StatusLabel}"
                                      FontSize="10.5"
                                      FontWeight="SemiBold"
-                                     Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                                     Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                         </Border>
 
                         <Border Grid.Column="2"
@@ -287,17 +287,17 @@
                                 Padding="8,2">
                           <TextBlock Text="{Binding BusType}"
                                      FontSize="10.5"
-                                     Foreground="{StaticResource ArgusCyanBrush}" />
+                                     Foreground="{DynamicResource ArgusCyanBrush}" />
                         </Border>
 
                         <StackPanel Grid.Column="3" Spacing="2" Margin="10,0,12,0" VerticalAlignment="Center">
                           <TextBlock FontSize="12.5"
                                      FontWeight="SemiBold"
-                                     Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                     Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                                      Text="{Binding DisplayName}"
                                      TextTrimming="CharacterEllipsis" />
                           <TextBlock FontSize="11.5"
-                                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                     Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                                      Text="{Binding CategoryAndManufacturer}"
                                      TextTrimming="CharacterEllipsis" />
                         </StackPanel>
@@ -311,7 +311,7 @@
                           <TextBlock Text="{Binding CountBadgeText}"
                                      FontSize="10.5"
                                      FontWeight="SemiBold"
-                                     Foreground="{StaticResource ArgusVioletSoftBrush}" />
+                                     Foreground="{DynamicResource ArgusVioletSoftBrush}" />
                         </Border>
 
                         <TextBlock Grid.Column="5"
@@ -326,7 +326,7 @@
 
                     <!-- Expandable Child Device Nodes Sublist -->
                     <Border Background="#0E142D"
-                            BorderBrush="{StaticResource ArgusBorderBrush}"
+                            BorderBrush="{DynamicResource ArgusBorderBrush}"
                             BorderThickness="0,1,0,0"
                             CornerRadius="0,0,7,7"
                             Padding="14,8"
@@ -335,7 +335,7 @@
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:DeviceNodeRowItem">
                             <Border Background="#131B3B"
-                                    BorderBrush="{StaticResource ArgusBorderBrush}"
+                                    BorderBrush="{DynamicResource ArgusBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="6"
                                     Margin="0,0,0,5"
@@ -351,32 +351,32 @@
                                       <TextBlock Text="{Binding StatusLabel}"
                                                  FontSize="10"
                                                  FontWeight="SemiBold"
-                                                 Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                                                 Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                                     </Border>
                                     <Border Classes="pill" Padding="6,1" VerticalAlignment="Center">
                                       <TextBlock Text="{Binding BusType}"
                                                  FontSize="10"
-                                                 Foreground="{StaticResource ArgusCyanBrush}" />
+                                                 Foreground="{DynamicResource ArgusCyanBrush}" />
                                     </Border>
                                     <TextBlock FontSize="11.5"
                                                FontWeight="SemiBold"
-                                               Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                               Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                                                Text="{Binding FriendlyName}"
                                                TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center" />
                                   </StackPanel>
                                   <TextBlock FontSize="11"
-                                             Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                             Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                                              Text="{Binding ExpertClassHardwareSummary}"
                                              TextTrimming="CharacterEllipsis" />
                                   <TextBlock Classes="metric-mono"
                                              FontSize="11"
-                                             Foreground="{StaticResource ArgusCyanBrush}"
+                                             Foreground="{DynamicResource ArgusCyanBrush}"
                                              Text="{Binding ExpertDriverAndProblemDetail}"
                                              TextTrimming="CharacterEllipsis" />
                                   <TextBlock Classes="metric-mono"
                                              FontSize="10.5"
-                                             Foreground="{StaticResource ArgusTextMutedBrush}"
+                                             Foreground="{DynamicResource ArgusTextMutedBrush}"
                                              Text="{Binding InstanceId, StringFormat='Instance ID: {0}'}"
                                              TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
@@ -386,9 +386,10 @@
                                         Padding="9,4"
                                         FontSize="11"
                                         VerticalAlignment="Center"
-                                        Content="Копіювати Instance ID"
-                                        Command="{Binding $parent[UserControl].((vm:DevicesViewModel)DataContext).CopyInstanceIdCommand}"
-                                        CommandParameter="{Binding InstanceId}" />
+                                        Content="Пошук драйверів"
+                                        ToolTip.Tip="Запустити пошук і оновлення драйвера для цього пристрою"
+                                        Command="{Binding $parent[UserControl].((vm:DevicesViewModel)DataContext).SearchDeviceDriverCommand}"
+                                        CommandParameter="{Binding}" />
                               </Grid>
                             </Border>
                           </DataTemplate>

@@ -18,12 +18,12 @@
                   Height="16"
                   Stretch="Uniform"
                   Data="{StaticResource IconShield}"
-                  Stroke="{StaticResource ArgusAmberBrush}"
+                  Stroke="{DynamicResource ArgusAmberBrush}"
                   StrokeThickness="1.5"
                   VerticalAlignment="Center" />
             <TextBlock Grid.Column="2"
                        FontSize="12"
-                       Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                       Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                        TextWrapping="Wrap"
                        VerticalAlignment="Center"
                        Text="Перегляд автозапуску й служб та перемикання елементів поточного користувача працюють без адміна. Для HKLM, Task Scheduler і керування службами потрібні права адміністратора (UAC)." />
@@ -64,7 +64,7 @@
                 <TextBlock Text="Експертний режим"
                            FontSize="11.5"
                            FontWeight="SemiBold"
-                           Foreground="{StaticResource ArgusVioletSoftBrush}"
+                           Foreground="{DynamicResource ArgusVioletSoftBrush}"
                            VerticalAlignment="Center" />
                 <ToggleSwitch IsChecked="{Binding IsExpertMode}"
                               OnContent=""
@@ -79,41 +79,10 @@
 
         <!-- Row 2: Quick Filter Pills (no search bar) -->
         <Grid>
-          <!-- Startup Source + State Filter Pills -->
+          <!-- Startup State Filter Pills -->
           <WrapPanel Orientation="Horizontal"
                      IsVisible="{Binding IsStartupTab}"
                      VerticalAlignment="Center">
-            <Button Classes="filter-pill"
-                    Classes.selected="{Binding IsStartupSourceAll}"
-                    Margin="0,0,6,4"
-                    Content="Усі"
-                    Command="{Binding SetStartupFilterCommand}"
-                    CommandParameter="Усі" />
-            <Button Classes="filter-pill"
-                    Classes.selected="{Binding IsStartupSourceRegistry}"
-                    Margin="0,0,6,4"
-                    Content="Registry"
-                    Command="{Binding SetStartupFilterCommand}"
-                    CommandParameter="Registry" />
-            <Button Classes="filter-pill"
-                    Classes.selected="{Binding IsStartupSourceStartup}"
-                    Margin="0,0,6,4"
-                    Content="Startup"
-                    Command="{Binding SetStartupFilterCommand}"
-                    CommandParameter="Startup" />
-            <Button Classes="filter-pill"
-                    Classes.selected="{Binding IsStartupSourceTaskScheduler}"
-                    Margin="0,0,6,4"
-                    Content="Task Scheduler"
-                    Command="{Binding SetStartupFilterCommand}"
-                    CommandParameter="Task Scheduler" />
-
-            <Border Width="1"
-                    Height="18"
-                    Background="{StaticResource ArgusBorderBrush}"
-                    Margin="4,0,10,4"
-                    VerticalAlignment="Center" />
-
             <Button Classes="filter-pill"
                     Classes.selected="{Binding IsStartupStateAll}"
                     Margin="0,0,6,4"
@@ -159,7 +128,7 @@
 
             <Border Width="1"
                     Height="18"
-                    Background="{StaticResource ArgusBorderBrush}"
+                    Background="{DynamicResource ArgusBorderBrush}"
                     Margin="4,0,10,4"
                     VerticalAlignment="Center" />
 
@@ -194,12 +163,12 @@
         <Grid ColumnDefinitions="*,Auto">
           <TextBlock Grid.Column="0"
                      FontSize="12"
-                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                     Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                      Text="{Binding SummaryText}"
                      VerticalAlignment="Center" />
           <TextBlock Grid.Column="1"
                      FontSize="12"
-                     Foreground="{StaticResource ArgusCyanBrush}"
+                     Foreground="{DynamicResource ArgusCyanBrush}"
                      IsVisible="{Binding HasActionFeedback}"
                      Text="{Binding ActionFeedback}"
                      TextTrimming="CharacterEllipsis"
@@ -242,7 +211,7 @@
                        Text="ДІЯ"
                        FontSize="11"
                        FontWeight="SemiBold"
-                       Foreground="{StaticResource ArgusTextMutedBrush}"
+                       Foreground="{DynamicResource ArgusTextMutedBrush}"
                        HorizontalAlignment="Right"
                        VerticalAlignment="Center" />
           </Grid>
@@ -258,13 +227,13 @@
                         <TextBlock Text="{Binding Name}"
                                    FontSize="13.5"
                                    FontWeight="SemiBold"
-                                   Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                   Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                                    Margin="0,0,8,0"
                                    VerticalAlignment="Center" />
                         <Border Classes="pill" Padding="6,1" Margin="0,0,6,0" VerticalAlignment="Center">
                           <TextBlock Text="{Binding SourceBadge}"
                                      FontSize="10.5"
-                                     Foreground="{StaticResource ArgusCyanBrush}" />
+                                     Foreground="{DynamicResource ArgusCyanBrush}" />
                         </Border>
                         <Border Classes="pill pill-ready"
                                 Padding="6,1"
@@ -273,7 +242,7 @@
                                 VerticalAlignment="Center">
                           <TextBlock Text="{Binding StateText}"
                                      FontSize="10.5"
-                                     Foreground="{StaticResource ArgusEmeraldBrush}" />
+                                     Foreground="{DynamicResource ArgusEmeraldBrush}" />
                         </Border>
                         <Border Classes="pill"
                                 Padding="6,1"
@@ -282,7 +251,7 @@
                                 VerticalAlignment="Center">
                           <TextBlock Text="{Binding StateText}"
                                      FontSize="10.5"
-                                     Foreground="{StaticResource ArgusTextMutedBrush}" />
+                                     Foreground="{DynamicResource ArgusTextMutedBrush}" />
                         </Border>
                         <Border Classes="pill"
                                 Padding="6,1"
@@ -291,12 +260,12 @@
                           <TextBlock Text="UAC"
                                      FontSize="10"
                                      FontWeight="SemiBold"
-                                     Foreground="{StaticResource ArgusAmberBrush}" />
+                                     Foreground="{DynamicResource ArgusAmberBrush}" />
                         </Border>
                       </WrapPanel>
 
                       <TextBlock FontSize="11.5"
-                                 Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                 Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                                  Text="{Binding PublisherOrAuthor}" />
 
                       <!-- Expert Mode Technical Metadata -->
@@ -304,13 +273,13 @@
                                   IsVisible="{Binding $parent[UserControl].((vm:StartupAndServicesViewModel)DataContext).IsExpertMode}">
                         <TextBlock Classes="metric-mono"
                                    FontSize="11"
-                                   Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                   Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                                    Text="{Binding CommandText}"
                                    TextTrimming="CharacterEllipsis"
                                    ToolTip.Tip="{Binding CommandText}" />
                         <TextBlock Classes="metric-mono"
                                    FontSize="10.5"
-                                   Foreground="{StaticResource ArgusTextMutedBrush}"
+                                   Foreground="{DynamicResource ArgusTextMutedBrush}"
                                    Text="{Binding LocationPath}"
                                    TextTrimming="CharacterEllipsis" />
                       </StackPanel>
@@ -361,7 +330,7 @@
                        Text="КЕРУВАННЯ"
                        FontSize="11"
                        FontWeight="SemiBold"
-                       Foreground="{StaticResource ArgusTextMutedBrush}"
+                       Foreground="{DynamicResource ArgusTextMutedBrush}"
                        HorizontalAlignment="Right"
                        VerticalAlignment="Center" />
           </Grid>
@@ -377,7 +346,7 @@
                         <TextBlock Text="{Binding DisplayName}"
                                    FontSize="13.5"
                                    FontWeight="SemiBold"
-                                   Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                   Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                                    Margin="0,0,8,0"
                                    VerticalAlignment="Center" />
                         <Border Classes="pill pill-ready"
@@ -387,7 +356,7 @@
                                 VerticalAlignment="Center">
                           <TextBlock Text="{Binding Status}"
                                      FontSize="10.5"
-                                     Foreground="{StaticResource ArgusEmeraldBrush}" />
+                                     Foreground="{DynamicResource ArgusEmeraldBrush}" />
                         </Border>
                         <Border Classes="pill"
                                 Padding="6,1"
@@ -396,25 +365,25 @@
                                 VerticalAlignment="Center">
                           <TextBlock Text="{Binding Status}"
                                      FontSize="10.5"
-                                     Foreground="{StaticResource ArgusTextMutedBrush}" />
+                                     Foreground="{DynamicResource ArgusTextMutedBrush}" />
                         </Border>
                         <Border Classes="pill"
                                 Padding="6,1"
                                 Margin="0,0,6,0"
                                 IsVisible="{Binding IsCriticalProtected}"
                                 Background="#261B0A"
-                                BorderBrush="{StaticResource ArgusAmberBrush}"
+                                BorderBrush="{DynamicResource ArgusAmberBrush}"
                                 ToolTip.Tip="Критична служба Windows: зупинка, перезапуск і вимкнення заблоковані для захисту стабільності ОС."
                                 VerticalAlignment="Center">
                           <TextBlock Text="Захищено ОС"
                                      FontSize="10"
                                      FontWeight="SemiBold"
-                                     Foreground="{StaticResource ArgusAmberBrush}" />
+                                     Foreground="{DynamicResource ArgusAmberBrush}" />
                         </Border>
                       </WrapPanel>
 
                       <TextBlock FontSize="11.5"
-                                 Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                 Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                                  Text="{Binding Description}"
                                  IsVisible="{Binding HasDescription}"
                                  MaxLines="2"
@@ -425,11 +394,11 @@
                                   IsVisible="{Binding $parent[UserControl].((vm:StartupAndServicesViewModel)DataContext).IsExpertMode}">
                         <TextBlock Classes="metric-mono"
                                    FontSize="11"
-                                   Foreground="{StaticResource ArgusCyanBrush}"
+                                   Foreground="{DynamicResource ArgusCyanBrush}"
                                    Text="{Binding ServiceName, StringFormat='Служба: {0}'}" />
                         <TextBlock Classes="metric-mono"
                                    FontSize="10.5"
-                                   Foreground="{StaticResource ArgusTextMutedBrush}"
+                                   Foreground="{DynamicResource ArgusTextMutedBrush}"
                                    Text="{Binding BinaryPath}"
                                    TextTrimming="CharacterEllipsis"
                                    ToolTip.Tip="{Binding BinaryPath}" />

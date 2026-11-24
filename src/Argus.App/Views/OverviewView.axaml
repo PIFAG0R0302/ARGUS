@@ -78,31 +78,31 @@
 
               <Border Classes="tile" Padding="11,8">
                 <StackPanel Spacing="2">
-                  <TextBlock FontSize="11" Foreground="{StaticResource ArgusTextMutedBrush}" Text="ПРОЦЕСОР" />
-                  <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" Text="{Binding CpuArchitectureText}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock FontSize="11" Foreground="{DynamicResource ArgusTextMutedBrush}" Text="ПРОЦЕСОР" />
+                  <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" Text="{Binding CpuArchitectureText}" TextTrimming="CharacterEllipsis" />
                   <TextBlock Classes="metric-mono" FontSize="11" Text="{Binding CpuCacheDetailText}" TextTrimming="CharacterEllipsis" />
                 </StackPanel>
               </Border>
 
               <Border Classes="tile" Padding="11,8">
                 <StackPanel Spacing="2">
-                  <TextBlock FontSize="11" Foreground="{StaticResource ArgusTextMutedBrush}" Text="МОДУЛІ ОПЕРАТИВНОЇ ПАМ'ЯТІ" />
-                  <TextBlock FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" Text="{Binding RamArchitectureText}" TextWrapping="Wrap" />
+                  <TextBlock FontSize="11" Foreground="{DynamicResource ArgusTextMutedBrush}" Text="МОДУЛІ ОПЕРАТИВНОЇ ПАМ'ЯТІ" />
+                  <TextBlock FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" Text="{Binding RamArchitectureText}" TextWrapping="Wrap" />
                 </StackPanel>
               </Border>
 
               <Border Classes="tile" Padding="11,8">
                 <StackPanel Spacing="2">
-                  <TextBlock FontSize="11" Foreground="{StaticResource ArgusTextMutedBrush}" Text="ВІДЕОКАРТА" />
-                  <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" Text="{Binding GpuArchitectureText}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock FontSize="11" Foreground="{DynamicResource ArgusTextMutedBrush}" Text="ВІДЕОКАРТА" />
+                  <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" Text="{Binding GpuArchitectureText}" TextTrimming="CharacterEllipsis" />
                   <TextBlock Classes="metric-mono" FontSize="11" Text="{Binding LiveGpuSummaryText}" TextTrimming="CharacterEllipsis" />
                 </StackPanel>
               </Border>
 
               <Border Classes="tile" Padding="11,8">
                 <StackPanel Spacing="2">
-                  <TextBlock FontSize="11" Foreground="{StaticResource ArgusTextMutedBrush}" Text="СИСТЕМНА ПЛАТА ТА BIOS / UEFI" />
-                  <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" Text="{Binding MotherboardArchitectureText}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock FontSize="11" Foreground="{DynamicResource ArgusTextMutedBrush}" Text="СИСТЕМНА ПЛАТА ТА BIOS / UEFI" />
+                  <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" Text="{Binding MotherboardArchitectureText}" TextTrimming="CharacterEllipsis" />
                   <TextBlock Classes="metric-mono" FontSize="11" Text="{Binding BiosArchitectureText}" TextTrimming="CharacterEllipsis" />
                 </StackPanel>
               </Border>
@@ -156,7 +156,7 @@
                   </Grid>
                   <Grid ColumnDefinitions="Auto,*">
                     <TextBlock Classes="body-muted" FontSize="12" Text="Датчики" />
-                    <TextBlock Grid.Column="1" FontSize="12" HorizontalAlignment="Right" Foreground="{StaticResource ArgusEmeraldBrush}" Text="{Binding SensorTierText}" />
+                    <TextBlock Grid.Column="1" FontSize="12" HorizontalAlignment="Right" Foreground="{DynamicResource ArgusEmeraldBrush}" Text="{Binding SensorTierText}" />
                   </Grid>
                 </StackPanel>
               </Border>
@@ -190,13 +190,13 @@
               <Border Classes="tile" Padding="12,9">
                 <StackPanel Spacing="6">
                   <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock FontSize="12" Foreground="{StaticResource ArgusTextSecondaryBrush}" Text="Знайдено тимчасових файлів і кешу" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusCyanBrush}" Text="{Binding CleanupFoundSummaryText}" />
+                    <TextBlock FontSize="12" Foreground="{DynamicResource ArgusTextSecondaryBrush}" Text="Знайдено тимчасових файлів і кешу" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ArgusCyanBrush}" Text="{Binding CleanupFoundSummaryText}" />
                   </Grid>
 
                   <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Grid.Column="0" FontSize="11.5" Foreground="{StaticResource ArgusTextMutedBrush}" Text="{Binding CleanupStatusText}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
-                    <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="11.5" Foreground="{StaticResource ArgusVioletSoftBrush}" Text="{Binding CleanupProgressText}" />
+                    <TextBlock Grid.Column="0" FontSize="11.5" Foreground="{DynamicResource ArgusTextMutedBrush}" Text="{Binding CleanupStatusText}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
+                    <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="11.5" Foreground="{DynamicResource ArgusVioletSoftBrush}" Text="{Binding CleanupProgressText}" />
                   </Grid>
 
                   <ProgressBar Minimum="0"
@@ -205,7 +205,7 @@
                                Height="6"
                                CornerRadius="3"
                                Background="#161E42"
-                               Foreground="{StaticResource ArgusCyanBrush}" />
+                               Foreground="{DynamicResource ArgusCyanBrush}" />
                 </StackPanel>
               </Border>
             </StackPanel>
@@ -217,7 +217,7 @@
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" Spacing="2">
                   <TextBlock Classes="section-heading" Text="Підключені диски" />
-                  <TextBlock FontSize="11.5" Foreground="{StaticResource ArgusTextMutedBrush}" Text="{Binding DisksFleetSummaryText}" />
+                  <TextBlock FontSize="11.5" Foreground="{DynamicResource ArgusTextMutedBrush}" Text="{Binding DisksFleetSummaryText}" />
                 </StackPanel>
                 <Button Grid.Column="1"
                         Classes="argus-secondary"
@@ -238,11 +238,11 @@
                             <TextBlock Text="{Binding Title}"
                                        FontSize="12.5"
                                        FontWeight="SemiBold"
-                                       Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                       Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                                        TextTrimming="CharacterEllipsis"
                                        VerticalAlignment="Center" />
                             <Border Classes="pill" Classes.pill-ready="{Binding IsSsdOrNvme}" Padding="6,1" VerticalAlignment="Center">
-                              <TextBlock Text="{Binding MediaBadge}" FontSize="10" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                              <TextBlock Text="{Binding MediaBadge}" FontSize="10" Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                             </Border>
                           </StackPanel>
                           <TextBlock Classes="metric-mono" FontSize="11" Text="{Binding DetailsText}" TextTrimming="CharacterEllipsis" />
@@ -255,7 +255,7 @@
                                 Classes.pill-danger="{Binding IsCritical}"
                                 Padding="8,2"
                                 VerticalAlignment="Center">
-                          <TextBlock Text="{Binding HealthLabel}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                          <TextBlock Text="{Binding HealthLabel}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                         </Border>
                       </Grid>
                     </Border>

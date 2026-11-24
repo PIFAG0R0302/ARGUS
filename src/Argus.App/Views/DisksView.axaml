@@ -18,12 +18,12 @@
                     Height="16"
                     Stretch="Uniform"
                     Data="{StaticResource IconShield}"
-                    Stroke="{StaticResource ArgusAmberBrush}"
+                    Stroke="{DynamicResource ArgusAmberBrush}"
                     StrokeThickness="1.6"
                     VerticalAlignment="Center" />
               <TextBlock Grid.Column="2"
                          FontSize="12"
-                         Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                         Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                          Text="Діагностика S.M.A.R.T. і карта місця працюють без прав адміністратора. Для запуску оптимізації SSD (TRIM) або дефрагментації HDD потрібне підвищення прав (UAC)."
                          TextWrapping="Wrap"
                          VerticalAlignment="Center" />
@@ -40,13 +40,13 @@
               <WrapPanel Orientation="Horizontal">
                 <TextBlock Classes="section-heading" Text="Політика безпеки та S.M.A.R.T." VerticalAlignment="Center" Margin="0,0,8,4" />
                 <Border Classes="pill pill-ready" Padding="7,2" Margin="0,0,6,4">
-                  <TextBlock Text="SSD / NVMe: безпечна оптимізація" FontSize="10.5" Foreground="{StaticResource ArgusEmeraldBrush}" />
+                  <TextBlock Text="SSD / NVMe: безпечна оптимізація" FontSize="10.5" Foreground="{DynamicResource ArgusEmeraldBrush}" />
                 </Border>
                 <Border Classes="pill" Padding="7,2" Margin="0,0,6,4">
-                  <TextBlock Text="HDD: дефрагментація" FontSize="10.5" Foreground="{StaticResource ArgusCyanBrush}" />
+                  <TextBlock Text="HDD: дефрагментація" FontSize="10.5" Foreground="{DynamicResource ArgusCyanBrush}" />
                 </Border>
                 <Border Classes="pill" Padding="7,2" Margin="0,0,6,4">
-                  <TextBlock Text="{Binding FleetSummaryText}" FontSize="10.5" Foreground="{StaticResource ArgusVioletSoftBrush}" />
+                  <TextBlock Text="{Binding FleetSummaryText}" FontSize="10.5" Foreground="{DynamicResource ArgusVioletSoftBrush}" />
                 </Border>
               </WrapPanel>
 
@@ -56,10 +56,10 @@
                          TextWrapping="Wrap">
                 <TextBlock.Styles>
                   <Style Selector="TextBlock">
-                    <Setter Property="Foreground" Value="{StaticResource ArgusEmeraldBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource ArgusEmeraldBrush}" />
                   </Style>
                   <Style Selector="TextBlock.warn-text">
-                    <Setter Property="Foreground" Value="{StaticResource ArgusAmberBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource ArgusAmberBrush}" />
                   </Style>
                 </TextBlock.Styles>
               </TextBlock>
@@ -72,7 +72,7 @@
                   <TextBlock Text="Експертний режим"
                              FontSize="11.5"
                              FontWeight="SemiBold"
-                             Foreground="{StaticResource ArgusVioletSoftBrush}"
+                             Foreground="{DynamicResource ArgusVioletSoftBrush}"
                              VerticalAlignment="Center" />
                   <ToggleSwitch IsChecked="{Binding IsExpertMode}"
                                 OnContent=""
@@ -95,13 +95,13 @@
             <Grid ColumnDefinitions="*,Auto">
               <TextBlock Grid.Column="0"
                          FontSize="11.5"
-                         Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                         Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                          Text="{Binding OperationStageText}"
                          TextTrimming="CharacterEllipsis" />
               <TextBlock Grid.Column="1"
                          Classes="metric-mono"
                          FontSize="11.5"
-                         Foreground="{StaticResource ArgusCyanBrush}"
+                         Foreground="{DynamicResource ArgusCyanBrush}"
                          Text="{Binding OperationProgressText}" />
             </Grid>
             <ProgressBar Minimum="0"
@@ -110,7 +110,7 @@
                          Height="6"
                          CornerRadius="3"
                          Background="#161E42"
-                         Foreground="{StaticResource ArgusCyanBrush}" />
+                         Foreground="{DynamicResource ArgusCyanBrush}" />
           </StackPanel>
         </StackPanel>
       </Border>
@@ -132,7 +132,7 @@
                         <TextBlock Text="{Binding Title}"
                                    FontSize="13"
                                    FontWeight="SemiBold"
-                                   Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                   Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                                    VerticalAlignment="Center" />
                         <Border Classes="pill"
                                 Classes.pill-ready="{Binding IsSsdOrNvme}"
@@ -141,7 +141,7 @@
                           <TextBlock Text="{Binding MediaBadge}"
                                      FontSize="10.5"
                                      FontWeight="SemiBold"
-                                     Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                                     Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                         </Border>
                       </StackPanel>
 
@@ -152,7 +152,7 @@
 
                       <!-- Expert-only Hardware Metadata & Detailed S.M.A.R.T. Strip -->
                       <Border Background="#0E142D"
-                              BorderBrush="{StaticResource ArgusBorderBrush}"
+                              BorderBrush="{DynamicResource ArgusBorderBrush}"
                               BorderThickness="1"
                               CornerRadius="6"
                               Padding="9,5"
@@ -165,11 +165,11 @@
                                      TextTrimming="CharacterEllipsis" />
                           <TextBlock Classes="metric-mono"
                                      FontSize="10.5"
-                                     Foreground="{StaticResource ArgusTextMutedBrush}"
+                                     Foreground="{DynamicResource ArgusTextMutedBrush}"
                                      Text="{Binding SerialText}"
                                      TextTrimming="CharacterEllipsis" />
                           <TextBlock FontSize="11"
-                                     Foreground="{StaticResource ArgusEmeraldBrush}"
+                                     Foreground="{DynamicResource ArgusEmeraldBrush}"
                                      Text="{Binding SmartDetailsText}"
                                      TextTrimming="CharacterEllipsis" />
                         </StackPanel>
@@ -190,7 +190,7 @@
                         <TextBlock Text="{Binding HealthLabel}"
                                    FontSize="11"
                                    FontWeight="SemiBold"
-                                   Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                                   Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                       </Border>
 
                       <Border Classes="pill" Padding="9,3" IsVisible="{Binding HasTemperature}">
@@ -224,27 +224,74 @@
       <!-- Visual Large-Folder Space Map & Interactive Drill-Down -->
       <Border Classes="panel-hero" Padding="14,11">
         <Border.Styles>
-          <Style Selector="Button.folder-link">
+          <Style Selector="Button.folder-row-button">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="HorizontalAlignment" Value="Left" />
-            <Setter Property="HorizontalContentAlignment" Value="Left" />
-            <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Foreground" Value="{DynamicResource ArgusTextPrimaryBrush}" />
             <Setter Property="Cursor" Value="Hand" />
           </Style>
-          <Style Selector="Button.folder-link:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="{StaticResource ArgusCyanBrush}" />
+          <Style Selector="Button.folder-row-button:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1E2857" />
           </Style>
-          <Style Selector="Button.folder-link:disabled">
-            <Setter Property="Opacity" Value="0.6" />
+          <Style Selector="Button.folder-row-button:pointerover TextBlock.folder-row-title">
+            <Setter Property="Foreground" Value="{DynamicResource ArgusCyanBrush}" />
+          </Style>
+          <Style Selector="Button.folder-row-button:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#253168" />
+          </Style>
+          <Style Selector="Button.folder-row-button:disabled">
+            <Setter Property="Opacity" Value="1" />
             <Setter Property="Cursor" Value="Arrow" />
+          </Style>
+          <Style Selector="Button.folder-row-button:disabled /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource ArgusTextPrimaryBrush}" />
+          </Style>
+          <Style Selector="Button.row-trash">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="5" />
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+          </Style>
+          <Style Selector="Button.row-trash Path">
+            <Setter Property="Stroke" Value="{DynamicResource ArgusTextSecondaryBrush}" />
+          </Style>
+          <Style Selector="Button.row-trash:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#361420" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ArgusCoralBrush}" />
+          </Style>
+          <Style Selector="Button.row-trash:pointerover Path">
+            <Setter Property="Stroke" Value="#FFE6EA" />
+          </Style>
+          <Style Selector="Button.row-trash:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#521B2E" />
+            <Setter Property="BorderBrush" Value="#FF8591" />
+          </Style>
+          <Style Selector="Button.row-trash:disabled">
+            <Setter Property="Opacity" Value="0.32" />
+            <Setter Property="Cursor" Value="Arrow" />
+          </Style>
+          <Style Selector="Button.row-trash:disabled /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+          </Style>
+          <Style Selector="Button.row-trash:disabled Path">
+            <Setter Property="Stroke" Value="{DynamicResource ArgusTextMutedBrush}" />
           </Style>
           <Style Selector="Button.argus-danger">
             <Setter Property="Background" Value="#361420" />
             <Setter Property="Foreground" Value="#FFE6EA" />
-            <Setter Property="BorderBrush" Value="{StaticResource ArgusCoralBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ArgusCoralBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Padding" Value="12,6" />
@@ -293,7 +340,7 @@
 
           <!-- Drill-Down Breadcrumb Navigation & Selection Action Toolbar -->
           <Border Background="#0E142D"
-                  BorderBrush="{StaticResource ArgusBorderBrush}"
+                  BorderBrush="{DynamicResource ArgusBorderBrush}"
                   BorderThickness="1"
                   CornerRadius="8"
                   Padding="10,7">
@@ -302,7 +349,7 @@
                 <Border Classes="pill" Padding="8,3" VerticalAlignment="Center">
                   <TextBlock Classes="metric-mono"
                              FontSize="11.5"
-                             Foreground="{StaticResource ArgusCyanBrush}"
+                             Foreground="{DynamicResource ArgusCyanBrush}"
                              Text="{Binding CurrentBrowsePath}"
                              TextTrimming="CharacterEllipsis" />
                 </Border>
@@ -331,18 +378,18 @@
                         VerticalAlignment="Center">
                   <StackPanel Orientation="Horizontal" Spacing="5">
                     <TextBlock FontSize="11"
-                               Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                               Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                                Text="Вибрано:" />
                     <TextBlock Classes="metric-mono"
                                FontSize="11"
-                               Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                               Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                                Text="{Binding SelectedEntriesCount}" />
                     <TextBlock FontSize="11"
-                               Foreground="{StaticResource ArgusTextMutedBrush}"
+                               Foreground="{DynamicResource ArgusTextMutedBrush}"
                                Text="·" />
                     <TextBlock Classes="metric-mono"
                                FontSize="11"
-                               Foreground="{StaticResource ArgusAmberBrush}"
+                               Foreground="{DynamicResource ArgusAmberBrush}"
                                Text="{Binding SelectedEntriesSizeText}" />
                   </StackPanel>
                 </Border>
@@ -359,7 +406,7 @@
 
           <!-- Inline Safe Recycle Bin Deletion Confirmation Banner -->
           <Border Background="#2A121C"
-                  BorderBrush="{StaticResource ArgusCoralBrush}"
+                  BorderBrush="{DynamicResource ArgusCoralBrush}"
                   BorderThickness="1"
                   CornerRadius="9"
                   Padding="12,9"
@@ -367,7 +414,7 @@
             <Grid ColumnDefinitions="*,12,Auto">
               <TextBlock Grid.Column="0"
                          FontSize="12"
-                         Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                         Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                          Text="{Binding DeleteConfirmationText}"
                          TextWrapping="Wrap"
                          VerticalAlignment="Center" />
@@ -389,107 +436,138 @@
 
           <!-- Empty Folder Hint -->
           <TextBlock FontSize="12"
-                     Foreground="{StaticResource ArgusTextMutedBrush}"
+                     Foreground="{DynamicResource ArgusTextMutedBrush}"
                      Text="У цій теці немає доступних підтек або файлів."
                      IsVisible="{Binding IsFolderEmpty}"
                      Margin="2,4" />
 
-          <!-- Subfolders & Files Space Grid -->
-          <ItemsControl ItemsSource="{Binding LargestFolders}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <UniformGrid Columns="2" />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:FolderSpaceRowItem">
-                <Border Classes="tile" Margin="0,0,8,6" Padding="11,7" ToolTip.Tip="{Binding FullPath}">
-                  <StackPanel Spacing="4">
-                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+          <!-- Subfolders & Files Space List (single-column, narrower for scannability) -->
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" MaxWidth="820" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ItemsControl Grid.Column="0"
+                          ItemsSource="{Binding LargestFolders}"
+                          HorizontalAlignment="Stretch">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="5" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:FolderSpaceRowItem">
+                  <Border Classes="tile" Padding="8,6" ToolTip.Tip="{Binding FullPath}">
+                    <Grid ColumnDefinitions="Auto,Auto,*">
+                      <!-- Bulk-selection CheckBox (independent of row drill-down) -->
                       <CheckBox Grid.Column="0"
                                 IsChecked="{Binding IsSelected}"
                                 IsEnabled="{Binding CanSelect}"
                                 ToolTip.Tip="{Binding SelectionTooltip}"
+                                ToolTip.ShowOnDisabled="True"
                                 VerticalAlignment="Center"
-                                Margin="0,0,6,0" />
+                                Margin="2,0,4,0" />
 
-                      <!-- Clickable folder name for drill-down -->
+                      <!-- Quick single-item Recycle Bin delete icon button -->
                       <Button Grid.Column="1"
-                              Classes="folder-link"
-                              IsVisible="{Binding IsDirectory}"
-                              IsEnabled="{Binding CanOpen}"
-                              Command="{Binding OpenCommand}"
+                              Classes="row-trash"
+                              IsEnabled="{Binding CanSelect}"
+                              Command="{Binding QuickDeleteCommand}"
+                              ToolTip.Tip="{Binding QuickDeleteTooltip}"
+                              ToolTip.ShowOnDisabled="True"
                               VerticalAlignment="Center"
-                              Margin="0,0,8,0">
-                        <StackPanel Orientation="Horizontal" Spacing="5">
-                          <TextBlock FontSize="12.5"
-                                     FontWeight="SemiBold"
-                                     Text="{Binding Name}"
-                                     TextTrimming="CharacterEllipsis" />
-                          <TextBlock FontSize="12.5"
-                                     Foreground="{StaticResource ArgusCyanBrush}"
-                                     Text="›"
-                                     IsVisible="{Binding CanOpen}" />
-                        </StackPanel>
+                              Margin="0,0,6,0">
+                        <Path Width="13"
+                              Height="13"
+                              Stretch="Uniform"
+                              Data="{StaticResource IconCleanup}"
+                              StrokeThickness="1.5"
+                              StrokeLineCap="Round"
+                              StrokeJoin="Round" />
                       </Button>
 
-                      <!-- Non-clickable file name -->
-                      <TextBlock Grid.Column="1"
-                                 IsVisible="{Binding IsFile}"
-                                 FontSize="12.5"
-                                 FontWeight="SemiBold"
-                                 Foreground="{StaticResource ArgusTextPrimaryBrush}"
-                                 Text="{Binding Name}"
-                                 TextTrimming="CharacterEllipsis"
-                                 VerticalAlignment="Center"
-                                 Margin="0,0,8,0" />
-
-                      <!-- Type & Protection Badges -->
-                      <StackPanel Grid.Column="2"
-                                  Orientation="Horizontal"
-                                  Spacing="4"
+                      <!-- Full-row clickable drill-down surface (disabled with Arrow cursor for files & reparse points) -->
+                      <Button Grid.Column="2"
+                              Classes="folder-row-button"
+                              IsEnabled="{Binding CanOpen}"
+                              Command="{Binding OpenCommand}"
+                              HorizontalAlignment="Stretch"
+                              HorizontalContentAlignment="Stretch"
+                              VerticalAlignment="Stretch"
+                              VerticalContentAlignment="Center">
+                        <StackPanel Spacing="4">
+                          <Grid ColumnDefinitions="*,Auto,Auto">
+                            <Grid Grid.Column="0"
+                                  ColumnDefinitions="*,Auto"
+                                  HorizontalAlignment="Left"
                                   VerticalAlignment="Center"
                                   Margin="0,0,8,0">
-                        <Border Classes="pill" Padding="6,1" VerticalAlignment="Center">
-                          <TextBlock FontSize="10"
-                                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
-                                     Text="{Binding TypeBadge}" />
-                        </Border>
-                        <Border Classes="pill"
-                                Classes.pill-warn="{Binding IsProtectedPath}"
-                                Classes.pill-danger="{Binding IsReparsePoint}"
-                                Padding="6,1"
-                                IsVisible="{Binding IsBlocked}"
-                                ToolTip.Tip="{Binding SelectionTooltip}"
-                                VerticalAlignment="Center">
-                          <TextBlock FontSize="10"
-                                     Foreground="{StaticResource ArgusAmberBrush}"
-                                     Text="{Binding ProtectionBadgeText}" />
-                        </Border>
-                      </StackPanel>
+                              <TextBlock Grid.Column="0"
+                                         Classes="folder-row-title"
+                                         FontSize="12.5"
+                                         FontWeight="SemiBold"
+                                         Foreground="{DynamicResource ArgusTextPrimaryBrush}"
+                                         Text="{Binding Name}"
+                                         TextTrimming="CharacterEllipsis" />
+                              <TextBlock Grid.Column="1"
+                                         FontSize="12.5"
+                                         Foreground="{DynamicResource ArgusCyanBrush}"
+                                         Text="›"
+                                         Margin="5,0,0,0"
+                                         IsVisible="{Binding CanOpen}" />
+                            </Grid>
 
-                      <TextBlock Grid.Column="3"
-                                 Classes="metric-mono"
-                                 FontSize="12"
-                                 Text="{Binding SizeText}"
-                                 VerticalAlignment="Center" />
+                            <!-- Type & Protection Badges -->
+                            <StackPanel Grid.Column="1"
+                                        Orientation="Horizontal"
+                                        Spacing="4"
+                                        VerticalAlignment="Center"
+                                        Margin="0,0,8,0">
+                              <Border Classes="pill" Padding="6,1" VerticalAlignment="Center">
+                                <TextBlock FontSize="10"
+                                           Foreground="{DynamicResource ArgusTextSecondaryBrush}"
+                                           Text="{Binding TypeBadge}" />
+                              </Border>
+                              <Border Classes="pill"
+                                      Classes.pill-warn="{Binding IsProtectedPath}"
+                                      Classes.pill-danger="{Binding IsReparsePoint}"
+                                      Padding="6,1"
+                                      IsVisible="{Binding IsBlocked}"
+                                      ToolTip.Tip="{Binding SelectionTooltip}"
+                                      VerticalAlignment="Center">
+                                <TextBlock FontSize="10"
+                                           Foreground="{DynamicResource ArgusAmberBrush}"
+                                           Text="{Binding ProtectionBadgeText}" />
+                              </Border>
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="2"
+                                       Classes="metric-mono"
+                                       FontSize="12"
+                                       Text="{Binding SizeText}"
+                                       VerticalAlignment="Center" />
+                          </Grid>
+
+                          <ProgressBar Minimum="0"
+                                       Maximum="100"
+                                       Value="{Binding BarPercent}"
+                                       Height="6"
+                                       CornerRadius="3"
+                                       Background="#1A2248"
+                                       Foreground="{DynamicResource ArgusCyanBrush}" />
+
+                          <TextBlock FontSize="11"
+                                     Foreground="{DynamicResource ArgusTextMutedBrush}"
+                                     Text="{Binding DetailText}"
+                                     TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                      </Button>
                     </Grid>
-                    <ProgressBar Minimum="0"
-                                 Maximum="100"
-                                 Value="{Binding BarPercent}"
-                                 Height="6"
-                                 CornerRadius="3"
-                                 Background="#1A2248"
-                                 Foreground="{StaticResource ArgusCyanBrush}" />
-                    <TextBlock FontSize="11"
-                               Foreground="{StaticResource ArgusTextMutedBrush}"
-                               Text="{Binding DetailText}"
-                               TextTrimming="CharacterEllipsis" />
-                  </StackPanel>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </Grid>
         </StackPanel>
       </Border>
 

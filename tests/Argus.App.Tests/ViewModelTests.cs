@@ -33,7 +33,7 @@ public sealed class ViewModelTests : IDisposable
         var vm = env.Main;
 
         Assert.Equal(ArgusSectionId.Overview, vm.ActiveSection.SectionId);
-        Assert.Equal("v1.2.0", vm.VersionBadge);
+        Assert.Equal("v1.2.1", vm.VersionBadge);
         Assert.Equal(10, vm.PrimaryNavigation.Count);
         Assert.Single(vm.FooterNavigation);
 

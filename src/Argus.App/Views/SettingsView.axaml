@@ -40,7 +40,7 @@
                   <TextBlock Text="Масштабування інтерфейсу (80% – 150%)"
                              FontSize="13"
                              FontWeight="SemiBold"
-                             Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                             Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                   <TextBlock Classes="body-muted"
                              Text="Динамічний масштаб: Ctrl + '+' / Ctrl + '-' / Ctrl + 0 або Ctrl + коліщатко миші." />
                 </StackPanel>
@@ -48,7 +48,7 @@
                   <TextBlock Classes="metric-mono"
                              FontSize="12.5"
                              FontWeight="SemiBold"
-                             Foreground="{StaticResource ArgusCyanBrush}"
+                             Foreground="{DynamicResource ArgusCyanBrush}"
                              Text="{Binding UiScaleText}" />
                 </Border>
               </Grid>
@@ -116,7 +116,7 @@
             <StackPanel Spacing="10">
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Spacing="2" Margin="0,0,12,0">
-                  <TextBlock Text="Увімкнути системний трей" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Text="Увімкнути системний трей" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                   <TextBlock Classes="body-muted" Text="Показує іконку в треї та сповіщення ЛИШЕ про перегрів CPU/GPU, критично мале місце на диску й погіршення S.M.A.R.T." />
                 </StackPanel>
                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnableSystemTray}" OnContent="" OffContent="" VerticalAlignment="Center" />
@@ -124,7 +124,7 @@
 
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Spacing="2" Margin="0,0,12,0">
-                  <TextBlock Text="Згортати в системний трей" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Text="Згортати в системний трей" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                   <TextBlock Classes="body-muted" Text="Натискання «Закрити» ховає вікно в трей (працює, коли системний трей увімкнено)." />
                 </StackPanel>
                 <ToggleSwitch Grid.Column="1"
@@ -137,7 +137,7 @@
 
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Spacing="2" Margin="0,0,12,0">
-                  <TextBlock Text="Сповіщати про погіршення S.M.A.R.T. дисків" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Text="Сповіщати про погіршення S.M.A.R.T. дисків" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                   <TextBlock Classes="body-muted" Text="Попереджає про перехід накопичувача в стан «Увага» або «Критичний»." />
                 </StackPanel>
                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnableSmartDegradationAlert}" OnContent="" OffContent="" VerticalAlignment="Center" />
@@ -145,7 +145,7 @@
 
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Spacing="2" Margin="0,0,12,0">
-                  <TextBlock Text="Експертний режим за замовчуванням" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Text="Експертний режим за замовчуванням" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                   <TextBlock Classes="body-muted" Text="Синхронізується з перемикачем у вкладках (процеси, служби, порти, Instance ID, деталі S.M.A.R.T.)." />
                 </StackPanel>
                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding ExpertModeEnabled}" OnContent="" OffContent="" VerticalAlignment="Center" />
@@ -153,7 +153,7 @@
 
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Spacing="2" Margin="0,0,12,0">
-                  <TextBlock Text="Перевіряти оновлення під час запуску" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Text="Перевіряти оновлення під час запуску" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                   <TextBlock Classes="body-muted" Text="Тиха перевірка нових релізів на GitHub; встановлення лише після підтвердження." />
                 </StackPanel>
                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding CheckUpdatesOnStartup}" OnContent="" OffContent="" VerticalAlignment="Center" />
@@ -161,7 +161,7 @@
 
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Spacing="2" Margin="0,0,12,0">
-                  <TextBlock Text="Контрольна точка перед очищенням" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Text="Контрольна точка перед очищенням" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                   <TextBlock Classes="body-muted" Text="Автоматично створювати System Restore перед системними змінами." />
                 </StackPanel>
                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding CreateRestorePointBeforeCleanup}" OnContent="" OffContent="" VerticalAlignment="Center" />
@@ -169,7 +169,7 @@
 
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Spacing="2" Margin="0,0,12,0">
-                  <TextBlock Text="Розширені сенсори PawnIO (опційно)" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Text="Розширені сенсори PawnIO (опційно)" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                   <TextBlock Classes="body-muted" Text="Підписаний драйвер для температур CPU і плати, сумісний із HVCI та Defender." />
                 </StackPanel>
                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnablePawnIoExtendedSensors}" OnContent="" OffContent="" VerticalAlignment="Center" />
@@ -177,7 +177,7 @@
 
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Spacing="2" Margin="0,0,12,0">
-                  <TextBlock Text="Автозапуск разом із Windows" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Text="Автозапуск разом із Windows" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                   <TextBlock Classes="body-muted" Text="Тихий старт у фоновому режимі під час входу в Windows." />
                 </StackPanel>
                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding StartWithWindows}" OnContent="" OffContent="" VerticalAlignment="Center" />
@@ -191,14 +191,61 @@
           </StackPanel>
 
           <TextBlock FontSize="12.5"
-                     Foreground="{StaticResource ArgusEmeraldBrush}"
+                     Foreground="{DynamicResource ArgusEmeraldBrush}"
                      IsVisible="{Binding HasSaveFeedback}"
                      Text="{Binding SaveFeedback}" />
         </StackPanel>
       </Border>
 
-      <!-- Right: GitHub Updater & Code Signature + System Restore + Live Operation Journal -->
+      <!-- Right: Theme Selector + GitHub Updater & Code Signature + System Restore -->
       <StackPanel Grid.Column="2" Spacing="16" VerticalAlignment="Top">
+
+        <!-- Theme Selector (9 Visual Themes: 3 Light + 6 Dark/Graphite) -->
+        <Border Classes="panel-hero">
+          <StackPanel Spacing="10">
+            <StackPanel Spacing="3">
+              <TextBlock Classes="section-heading" Text="Тема оформлення" />
+              <TextBlock Classes="body-muted" Text="Миттєве перемикання без перезапуску й автозбереження у settings.json." />
+            </StackPanel>
+
+            <ItemsControl ItemsSource="{Binding ThemeOptions}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <UniformGrid Columns="3" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="vm:ThemeOptionItem">
+                  <Button Classes="profile-card"
+                          Classes.selected="{Binding IsSelected}"
+                          Margin="0,0,8,8"
+                          Padding="10,8"
+                          Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectThemeCommand}"
+                          CommandParameter="{Binding Id}">
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="{Binding Name}"
+                                 FontSize="12"
+                                 FontWeight="SemiBold"
+                                 Foreground="{DynamicResource ArgusTextPrimaryBrush}"
+                                 TextTrimming="CharacterEllipsis" />
+                      <TextBlock Text="{Binding CategoryLabel}"
+                                 FontSize="10.5"
+                                 Foreground="{DynamicResource ArgusTextMutedBrush}"
+                                 TextTrimming="CharacterEllipsis" />
+                      <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2,0,0">
+                        <Border Width="14" Height="14" CornerRadius="7" Background="{Binding CanvasBrush}" BorderBrush="{DynamicResource ArgusBorderBrightBrush}" BorderThickness="1" />
+                        <Border Width="14" Height="14" CornerRadius="7" Background="{Binding PanelBrush}" BorderBrush="{DynamicResource ArgusBorderBrightBrush}" BorderThickness="1" />
+                        <Border Width="14" Height="14" CornerRadius="7" Background="{Binding PrimaryBrush}" />
+                        <Border Width="14" Height="14" CornerRadius="7" Background="{Binding SecondaryBrush}" />
+                        <Border Width="14" Height="14" CornerRadius="7" Background="{Binding OkBrush}" />
+                      </StackPanel>
+                    </StackPanel>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
 
         <!-- GitHub Releases Auto-Update & Authenticode Verification Card -->
         <Border Classes="panel-hero">
@@ -219,10 +266,10 @@
 
             <WrapPanel Orientation="Horizontal">
               <Border Classes="pill" Padding="7,2" Margin="0,0,6,4">
-                <TextBlock Classes="metric-mono" FontSize="10.5" Foreground="{StaticResource ArgusCyanBrush}" Text="{Binding CurrentVersionText}" />
+                <TextBlock Classes="metric-mono" FontSize="10.5" Foreground="{DynamicResource ArgusCyanBrush}" Text="{Binding CurrentVersionText}" />
               </Border>
               <Border Classes="pill pill-ready" Padding="7,2" Margin="0,0,6,4">
-                <TextBlock FontSize="10.5" Foreground="{StaticResource ArgusEmeraldBrush}" Text="{Binding SignerSummaryText}" />
+                <TextBlock FontSize="10.5" Foreground="{DynamicResource ArgusEmeraldBrush}" Text="{Binding SignerSummaryText}" />
               </Border>
             </WrapPanel>
 
@@ -240,10 +287,10 @@
                        Text="{Binding UpdateStatusText}">
               <TextBlock.Styles>
                 <Style Selector="TextBlock">
-                  <Setter Property="Foreground" Value="{StaticResource ArgusCyanBrush}" />
+                  <Setter Property="Foreground" Value="{DynamicResource ArgusCyanBrush}" />
                 </Style>
                 <Style Selector="TextBlock.warn-text">
-                  <Setter Property="Foreground" Value="{StaticResource ArgusAmberBrush}" />
+                  <Setter Property="Foreground" Value="{DynamicResource ArgusAmberBrush}" />
                 </Style>
               </TextBlock.Styles>
             </TextBlock>
@@ -253,7 +300,7 @@
               <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto">
                   <StackPanel Spacing="3" Margin="0,0,10,0">
-                    <TextBlock FontSize="13" FontWeight="Bold" Foreground="{StaticResource ArgusEmeraldBrush}" Text="{Binding AvailableUpdateTitle}" />
+                    <TextBlock FontSize="13" FontWeight="Bold" Foreground="{DynamicResource ArgusEmeraldBrush}" Text="{Binding AvailableUpdateTitle}" />
                     <TextBlock Classes="body-muted" Text="{Binding AvailableUpdateNotes}" MaxLines="3" TextTrimming="CharacterEllipsis" />
                   </StackPanel>
                   <Button Grid.Column="1"
@@ -266,7 +313,7 @@
 
                 <!-- Inline Confirmation Prompt before Downloading & Launching Installer -->
                 <Border Background="#181236"
-                        BorderBrush="{StaticResource ArgusVioletBrush}"
+                        BorderBrush="{DynamicResource ArgusVioletBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
                         Padding="12,10"
@@ -274,11 +321,11 @@
                   <StackPanel Spacing="8">
                     <TextBlock FontSize="12.5"
                                FontWeight="SemiBold"
-                               Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                               Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                                Text="Оновити встановлений ARGUS до нової версії з GitHub?"
                                TextWrapping="Wrap" />
                     <TextBlock FontSize="11.5"
-                               Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                               Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                                Text="ARGUS завантажить пакет оновлення, перевірить SHA-256 і цифровий підпис, автоматично замінить файли встановленої програми (без майстра інсталяції) й перезапуститься."
                                TextWrapping="Wrap" />
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -299,10 +346,10 @@
                 <!-- 0..100% Download & Verification Progress -->
                 <StackPanel Spacing="4" IsVisible="{Binding IsDownloadingUpdate}">
                   <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Grid.Column="0" FontSize="11.5" Foreground="{StaticResource ArgusTextSecondaryBrush}" Text="{Binding UpdateDownloadStageText}" />
-                    <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="11.5" Foreground="{StaticResource ArgusCyanBrush}" Text="{Binding UpdateDownloadPercentText}" />
+                    <TextBlock Grid.Column="0" FontSize="11.5" Foreground="{DynamicResource ArgusTextSecondaryBrush}" Text="{Binding UpdateDownloadStageText}" />
+                    <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="11.5" Foreground="{DynamicResource ArgusCyanBrush}" Text="{Binding UpdateDownloadPercentText}" />
                   </Grid>
-                  <ProgressBar Minimum="0" Maximum="100" Value="{Binding UpdateDownloadPercent}" Height="6" CornerRadius="3" Foreground="{StaticResource ArgusCyanBrush}" Background="#141C3D" />
+                  <ProgressBar Minimum="0" Maximum="100" Value="{Binding UpdateDownloadPercent}" Height="6" CornerRadius="3" Foreground="{DynamicResource ArgusCyanBrush}" Background="#141C3D" />
                 </StackPanel>
               </StackPanel>
             </Border>
@@ -332,12 +379,12 @@
                       Height="16"
                       Stretch="Uniform"
                       Data="{StaticResource IconShield}"
-                      Stroke="{StaticResource ArgusAmberBrush}"
+                      Stroke="{DynamicResource ArgusAmberBrush}"
                       StrokeThickness="1.6"
                       VerticalAlignment="Center" />
                 <TextBlock Grid.Column="2"
                            FontSize="11.5"
-                           Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                           Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                            Text="Створення контрольної точки відновлення Windows потребує прав адміністратора (UAC)."
                            TextWrapping="Wrap"
                            VerticalAlignment="Center" />
@@ -356,18 +403,18 @@
                        Text="{Binding RestoreFeedback}">
               <TextBlock.Styles>
                 <Style Selector="TextBlock">
-                  <Setter Property="Foreground" Value="{StaticResource ArgusEmeraldBrush}" />
+                  <Setter Property="Foreground" Value="{DynamicResource ArgusEmeraldBrush}" />
                 </Style>
                 <Style Selector="TextBlock.warn-text">
-                  <Setter Property="Foreground" Value="{StaticResource ArgusAmberBrush}" />
+                  <Setter Property="Foreground" Value="{DynamicResource ArgusAmberBrush}" />
                 </Style>
               </TextBlock.Styles>
             </TextBlock>
 
             <Border Classes="tile" Padding="12,9">
               <StackPanel Spacing="4">
-                <TextBlock FontSize="11.5" Foreground="{StaticResource ArgusTextMutedBrush}" Text="{Binding SettingsFilePath, StringFormat='Конфігурація: {0}'}" TextWrapping="Wrap" />
-                <TextBlock FontSize="11.5" Foreground="{StaticResource ArgusTextMutedBrush}" Text="{Binding LogsDirectoryPath, StringFormat='Діагностичні логи: {0}'}" TextWrapping="Wrap" />
+                <TextBlock FontSize="11.5" Foreground="{DynamicResource ArgusTextMutedBrush}" Text="{Binding SettingsFilePath, StringFormat='Конфігурація: {0}'}" TextWrapping="Wrap" />
+                <TextBlock FontSize="11.5" Foreground="{DynamicResource ArgusTextMutedBrush}" Text="{Binding LogsDirectoryPath, StringFormat='Діагностичні логи: {0}'}" TextWrapping="Wrap" />
               </StackPanel>
             </Border>
           </StackPanel>

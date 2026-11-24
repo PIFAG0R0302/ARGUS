@@ -1,4 +1,5 @@
 using System.Globalization;
+using Argus.App.Themes;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -39,12 +40,14 @@ public sealed class TelemetryArcGauge : Control
 
     private static readonly Typeface ValueTypeface = new(new FontFamily("Cascadia Mono, Consolas, Courier New"), FontStyle.Normal, FontWeight.SemiBold);
     private static readonly Typeface LabelTypeface = new(FontFamily.Default, FontStyle.Normal, FontWeight.Medium);
-    private static readonly SolidColorBrush PrimaryTextBrush = new(Color.Parse("#EDF1FF"));
-    private static readonly SolidColorBrush SecondaryTextBrush = new(Color.Parse("#95A0CC"));
-    private static readonly SolidColorBrush MutedTextBrush = new(Color.Parse("#5E6A96"));
-    private static readonly Pen TrackPen = new(new SolidColorBrush(Color.Parse("#1C244D")), 9, lineCap: PenLineCap.Round);
-    private static readonly Pen InnerRingPen = new(new SolidColorBrush(Color.Parse("#232C5E")), 1);
-    private static readonly Pen TickPen = new(new SolidColorBrush(Color.Parse("#364385")), 1.2);
+    private static SolidColorBrush PrimaryTextBrush = new(Color.Parse("#EDF1FF"));
+    private static SolidColorBrush SecondaryTextBrush = new(Color.Parse("#95A0CC"));
+    private static SolidColorBrush MutedTextBrush = new(Color.Parse("#5E6A96"));
+    private static Pen TrackPen = new(new SolidColorBrush(Color.Parse("#1C244D")), 9, lineCap: PenLineCap.Round);
+    private static Pen InnerRingPen = new(new SolidColorBrush(Color.Parse("#232C5E")), 1);
+    private static Pen TickPen = new(new SolidColorBrush(Color.Parse("#364385")), 1.2);
+    private static string? _paletteThemeId;
+    private string? _instanceThemeId;
 
     // Instance-level geometry, brush, and text caches to eliminate per-frame Skia/HarfBuzz GC churn.
     private double _cachedWidth = -1;
@@ -85,6 +88,48 @@ public sealed class TelemetryArcGauge : Control
             AccentStartProperty,
             AccentEndProperty,
             IsStandbyProperty);
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        ArgusThemeManager.ThemeChanged += OnThemeChanged;
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        ArgusThemeManager.ThemeChanged -= OnThemeChanged;
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    private void OnThemeChanged(object? sender, ArgusThemeDefinition theme)
+    {
+        SyncThemePalette();
+        InvalidateVisual();
+    }
+
+    private void SyncThemePalette()
+    {
+        var theme = ArgusThemeManager.CurrentTheme;
+        if (!string.Equals(_paletteThemeId, theme.Id, StringComparison.Ordinal))
+        {
+            _paletteThemeId = theme.Id;
+            PrimaryTextBrush = new SolidColorBrush(Color.Parse(theme.TextPrimary));
+            SecondaryTextBrush = new SolidColorBrush(Color.Parse(theme.TextSecondary));
+            MutedTextBrush = new SolidColorBrush(Color.Parse(theme.TextMuted));
+            TrackPen = new Pen(new SolidColorBrush(Color.Parse(theme.Border)), 9, lineCap: PenLineCap.Round);
+            InnerRingPen = new Pen(new SolidColorBrush(Color.Parse(theme.Border)), 1);
+            TickPen = new Pen(new SolidColorBrush(Color.Parse(theme.BorderBright)), 1.2);
+        }
+
+        if (!string.Equals(_instanceThemeId, theme.Id, StringComparison.Ordinal))
+        {
+            _instanceThemeId = theme.Id;
+            _cachedValueText = null;
+            _cachedUnitText = null;
+            _cachedLabelText = null;
+            _cachedSubLabelText = null;
+        }
     }
 
     public double Value
@@ -144,6 +189,7 @@ public sealed class TelemetryArcGauge : Control
     public override void Render(DrawingContext context)
     {
         base.Render(context);
+        SyncThemePalette();
 
         double width = Bounds.Width;
         double height = Bounds.Height;

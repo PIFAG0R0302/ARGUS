@@ -1,3 +1,4 @@
+using Argus.App.Themes;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -18,7 +19,8 @@ public sealed class TelemetrySparkline : Control
     public static readonly StyledProperty<Color> LineColorProperty =
         AvaloniaProperty.Register<TelemetrySparkline, Color>(nameof(LineColor), Color.Parse("#38D9F5"));
 
-    private static readonly Pen BaselinePen = new(new SolidColorBrush(Color.Parse("#1F2A56")), 1);
+    private static Pen BaselinePen = new(new SolidColorBrush(Color.Parse("#1F2A56")), 1);
+    private static string? _baselineThemeId;
 
     private Color _cachedColor;
     private SolidColorBrush? _cachedDotBrush;
@@ -28,6 +30,32 @@ public sealed class TelemetrySparkline : Control
     static TelemetrySparkline()
     {
         AffectsRender<TelemetrySparkline>(ValuesProperty, MaximumProperty, LineColorProperty);
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        ArgusThemeManager.ThemeChanged += OnThemeChanged;
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        ArgusThemeManager.ThemeChanged -= OnThemeChanged;
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    private void OnThemeChanged(object? sender, ArgusThemeDefinition theme) => InvalidateVisual();
+
+    private static Pen GetBaselinePen()
+    {
+        var theme = ArgusThemeManager.CurrentTheme;
+        if (!string.Equals(_baselineThemeId, theme.Id, StringComparison.Ordinal))
+        {
+            _baselineThemeId = theme.Id;
+            BaselinePen = new Pen(new SolidColorBrush(Color.Parse(theme.Border)), 1);
+        }
+
+        return BaselinePen;
     }
 
     public IReadOnlyList<double>? Values
@@ -59,7 +87,7 @@ public sealed class TelemetrySparkline : Control
             return;
         }
 
-        context.DrawLine(BaselinePen, new Point(0, h - 1), new Point(w, h - 1));
+        context.DrawLine(GetBaselinePen(), new Point(0, h - 1), new Point(w, h - 1));
 
         var values = Values;
         if (values is null || values.Count == 0)

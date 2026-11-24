@@ -326,7 +326,11 @@ public sealed partial class DevicesViewModel : SectionViewModelBase, IDisposable
     [ObservableProperty]
     private string _expertActionFeedback = string.Empty;
 
+    [ObservableProperty]
+    private bool _isSearchingDriver;
+
     public Action<string>? CopyToClipboardHandler { get; set; }
+    public Func<DeviceNodeRowItem, CancellationToken, Task<DriverSearchResult>>? DriverSearchHandler { get; set; }
 
     public DevicesViewModel(
         IDeviceProvider? deviceProvider = null,
@@ -412,6 +416,69 @@ public sealed partial class DevicesViewModel : SectionViewModelBase, IDisposable
         CopyToClipboardHandler?.Invoke(instanceId);
         ExpertActionFeedback = $"Скопійовано Instance ID: {instanceId}";
         HasExpertActionFeedback = true;
+    }
+
+    [RelayCommand]
+    private async Task SearchDeviceDriverAsync(DeviceNodeRowItem? item)
+    {
+        if (item is null || string.IsNullOrWhiteSpace(item.InstanceId) || IsSearchingDriver)
+        {
+            return;
+        }
+
+        string label = string.IsNullOrWhiteSpace(item.FriendlyName) ? item.InstanceId : item.FriendlyName;
+        IsSearchingDriver = true;
+        ExpertActionFeedback = $"Пошук драйверів для «{label}»…";
+        HasExpertActionFeedback = true;
+
+        try
+        {
+            DriverSearchResult result;
+            if (DriverSearchHandler is not null)
+            {
+                result = await DriverSearchHandler(item, CancellationToken.None).ConfigureAwait(false);
+            }
+            else if (_deviceProvider is not null)
+            {
+                result = await _deviceProvider.SearchAndUpdateDriverAsync(item.InstanceId, item.FriendlyName).ConfigureAwait(false);
+            }
+            else
+            {
+                result = new DriverSearchResult(
+                    Succeeded: false,
+                    Outcome: DriverSearchOutcome.Unsupported,
+                    Message: "Провайдер пристроїв недоступний для пошуку драйверів.");
+            }
+
+            string feedback = string.IsNullOrWhiteSpace(result.Message)
+                ? (result.Succeeded
+                    ? $"Пошук драйверів для «{label}» виконано."
+                    : $"Не вдалося знайти драйвер для «{label}».")
+                : result.Message;
+
+            _uiDispatch(() =>
+            {
+                ExpertActionFeedback = feedback;
+                HasExpertActionFeedback = true;
+            });
+
+            if (result.Outcome == DriverSearchOutcome.Updated && _deviceProvider is not null)
+            {
+                await RefreshDevicesAsync().ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            _uiDispatch(() =>
+            {
+                ExpertActionFeedback = $"Помилка пошуку драйверів для «{label}»: {ex.Message}";
+                HasExpertActionFeedback = true;
+            });
+        }
+        finally
+        {
+            _uiDispatch(() => IsSearchingDriver = false);
+        }
     }
 
     [RelayCommand]

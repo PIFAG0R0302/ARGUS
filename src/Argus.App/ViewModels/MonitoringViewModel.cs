@@ -175,7 +175,10 @@ public sealed class GaugeConsumerItem
         string processName,
         string primaryMetricText,
         string secondaryMetricText,
-        double barPercent)
+        double barPercent,
+        string? executablePath = null,
+        bool isCriticalSystem = false,
+        bool isProtectedAccess = false)
     {
         Rank = rank;
         RankText = $"#{rank}";
@@ -185,6 +188,11 @@ public sealed class GaugeConsumerItem
         PrimaryMetricText = primaryMetricText;
         SecondaryMetricText = secondaryMetricText;
         BarPercent = Math.Clamp(barPercent, 0.0, 100.0);
+        ExecutablePath = string.IsNullOrWhiteSpace(executablePath) ? null : executablePath;
+        HasExecutablePath = !string.IsNullOrWhiteSpace(executablePath);
+        IsCriticalSystem = isCriticalSystem || CriticalProcessProtection.IsCriticalProcess(pid, processName, Environment.ProcessId);
+        IsProtectedAccess = isProtectedAccess;
+        CanTerminate = !IsCriticalSystem;
     }
 
     public int Rank { get; }
@@ -195,6 +203,11 @@ public sealed class GaugeConsumerItem
     public string PrimaryMetricText { get; }
     public string SecondaryMetricText { get; }
     public double BarPercent { get; }
+    public string? ExecutablePath { get; }
+    public bool HasExecutablePath { get; }
+    public bool IsCriticalSystem { get; }
+    public bool IsProtectedAccess { get; }
+    public bool CanTerminate { get; }
 }
 
 public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposable
@@ -320,6 +333,7 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
 
     protected override void OnExpertModeChanged(bool isExpertMode)
     {
+        OnPropertyChanged(nameof(ShowGaugeConsumerUacCallout));
         if (isExpertMode)
         {
             if (_isUiActive && _systemInspector is not null)
@@ -331,6 +345,8 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
         {
             PendingTerminateProcess = null;
             ShowInspectorElevationCallout = false;
+            PendingTerminateConsumer = null;
+            ShowGaugeConsumerElevationCallout = false;
         }
     }
 
@@ -342,16 +358,16 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
     public ObservableCollection<WindowsServiceRowItem> FilteredServices { get; }
     public ObservableCollection<LocalPortRowItem> FilteredLocalPorts { get; }
 
-    // Collapsible Hardware Cards (CPU Threads & GPU Adapter)
+    // Collapsible Hardware Cards (CPU Threads & GPU Adapter) — collapsed by default
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CpuThreadsChevron))]
-    private bool _isCpuThreadsExpanded = true;
+    private bool _isCpuThreadsExpanded;
 
     public string CpuThreadsChevron => IsCpuThreadsExpanded ? "▼" : "▶";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(GpuDetailsChevron))]
-    private bool _isGpuDetailsExpanded = true;
+    private bool _isGpuDetailsExpanded;
 
     public string GpuDetailsChevron => IsGpuDetailsExpanded ? "▼" : "▶";
 
@@ -384,6 +400,36 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
 
     [ObservableProperty]
     private string _gaugeConsumersEmptyText = "Немає активних процесів для відображення";
+
+    // Expert process actions inside Top-Consumers Panel
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPendingGaugeConsumerTerminate))]
+    [NotifyPropertyChangedFor(nameof(PendingGaugeConsumerTerminatePrompt))]
+    private GaugeConsumerItem? _pendingTerminateConsumer;
+
+    public bool HasPendingGaugeConsumerTerminate => PendingTerminateConsumer is not null;
+
+    public string PendingGaugeConsumerTerminatePrompt => PendingTerminateConsumer is { } p
+        ? $"Завершити процес «{p.ProcessName}» (PID {p.Pid})?"
+        : string.Empty;
+
+    [ObservableProperty]
+    private bool _hasGaugeConsumerFeedback;
+
+    [ObservableProperty]
+    private string _gaugeConsumerFeedbackText = string.Empty;
+
+    [ObservableProperty]
+    private bool _gaugeConsumerFeedbackIsSuccess = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowGaugeConsumerUacCallout))]
+    private bool _showGaugeConsumerElevationCallout;
+
+    [ObservableProperty]
+    private string _gaugeConsumerElevationReason = "Для завершення захищених процесів потрібне підвищення прав (UAC).";
+
+    public bool ShowGaugeConsumerUacCallout => IsExpertMode && !IsAdministrator && ShowGaugeConsumerElevationCallout;
 
     // Expert Diagnostics State (loaded lazily only when IsExpertMode is ON)
     [ObservableProperty]
@@ -625,6 +671,7 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
             return;
         }
 
+        PendingTerminateConsumer = null;
         ActiveGaugeConsumerKind = normalized;
         ApplyGaugeConsumersHeaderDefaults(normalized);
         _lastGaugeConsumersRefreshUtc = DateTimeOffset.MinValue;
@@ -638,6 +685,124 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
         GaugeConsumers.Clear();
         HasGaugeConsumers = false;
         IsGaugeConsumersLoading = false;
+        PendingTerminateConsumer = null;
+        ShowGaugeConsumerElevationCallout = false;
+        HasGaugeConsumerFeedback = false;
+        GaugeConsumerFeedbackText = string.Empty;
+    }
+
+    [RelayCommand]
+    private void OpenGaugeConsumerFolder(GaugeConsumerItem? item)
+    {
+        if (!IsExpertMode || item is null || !item.HasExecutablePath)
+        {
+            return;
+        }
+
+        bool opened;
+        if (_systemInspector is not null)
+        {
+            opened = _systemInspector.OpenProcessFolder(item.ExecutablePath);
+        }
+        else if (_processMonitor is not null)
+        {
+            opened = _processMonitor.OpenProcessFolder(item.ExecutablePath);
+        }
+        else
+        {
+            return;
+        }
+
+        GaugeConsumerFeedbackIsSuccess = opened;
+        GaugeConsumerFeedbackText = opened
+            ? $"Відкрито папку процесу «{item.ProcessName}»."
+            : $"Не вдалося відкрити папку для «{item.ProcessName}».";
+        HasGaugeConsumerFeedback = true;
+    }
+
+    [RelayCommand]
+    private void RequestTerminateGaugeConsumer(GaugeConsumerItem? item)
+    {
+        if (!IsExpertMode || item is null)
+        {
+            return;
+        }
+
+        if (!item.CanTerminate || CriticalProcessProtection.IsCriticalProcess(item.Pid, item.ProcessName, Environment.ProcessId))
+        {
+            PendingTerminateConsumer = null;
+            GaugeConsumerFeedbackIsSuccess = false;
+            GaugeConsumerFeedbackText = $"Процес «{item.ProcessName}» (PID {item.Pid}) є критичним системним процесом і захищений від завершення.";
+            HasGaugeConsumerFeedback = true;
+            return;
+        }
+
+        PendingTerminateConsumer = item;
+    }
+
+    [RelayCommand]
+    private void CancelTerminateGaugeConsumer()
+    {
+        PendingTerminateConsumer = null;
+    }
+
+    [RelayCommand]
+    private async Task ConfirmTerminateGaugeConsumerAsync()
+    {
+        var target = PendingTerminateConsumer;
+        PendingTerminateConsumer = null;
+
+        if (!IsExpertMode || target is null)
+        {
+            return;
+        }
+
+        if (!target.CanTerminate || CriticalProcessProtection.IsCriticalProcess(target.Pid, target.ProcessName, Environment.ProcessId))
+        {
+            _uiDispatch(() =>
+            {
+                GaugeConsumerFeedbackIsSuccess = false;
+                GaugeConsumerFeedbackText = $"Процес «{target.ProcessName}» (PID {target.Pid}) є критичним системним процесом і захищений від завершення.";
+                HasGaugeConsumerFeedback = true;
+            });
+            return;
+        }
+
+        SystemActionResult result;
+        if (_systemInspector is not null)
+        {
+            result = await _systemInspector.TerminateProcessAsync(target.Pid).ConfigureAwait(false);
+        }
+        else if (_processMonitor is not null)
+        {
+            result = await _processMonitor.TerminateProcessAsync(target.Pid).ConfigureAwait(false);
+        }
+        else
+        {
+            return;
+        }
+
+        _uiDispatch(() =>
+        {
+            GaugeConsumerFeedbackIsSuccess = result.Succeeded;
+            GaugeConsumerFeedbackText = result.Message;
+            HasGaugeConsumerFeedback = true;
+
+            if (result.RequiresElevation)
+            {
+                ShowGaugeConsumerElevationCallout = true;
+                GaugeConsumerElevationReason = result.Message;
+            }
+            else if (result.Succeeded)
+            {
+                ShowGaugeConsumerElevationCallout = false;
+            }
+        });
+
+        if (result.Succeeded)
+        {
+            await RefreshGaugeConsumersAsync().ConfigureAwait(false);
+        }
     }
 
     public async Task RefreshGaugeConsumersAsync(CancellationToken cancellationToken = default)
@@ -807,7 +972,16 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
                     double cpu = Math.Clamp(p.CpuPercent, 0.0, 100.0);
                     string primary = string.Format(CultureInfo.CurrentCulture, "{0:0.0}%", cpu);
                     string secondary = $"{FormatMemorySize(p.WorkingSetBytes)} · {p.ThreadCount} пот.";
-                    items.Add(new GaugeConsumerItem(rank++, p.Pid, p.Name, primary, secondary, cpu));
+                    items.Add(new GaugeConsumerItem(
+                        rank++,
+                        p.Pid,
+                        p.Name,
+                        primary,
+                        secondary,
+                        cpu,
+                        p.ExecutablePath,
+                        p.IsCriticalSystem,
+                        p.IsProtectedAccess));
                 }
 
                 return ("Топ-споживачі CPU", "Процеси з найбільшим навантаженням на процесор", items);
@@ -833,7 +1007,16 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
                         : Math.Clamp((double)p.WorkingSetBytes / peakWorkingSet * 100.0, 0.0, 100.0);
                     string primary = FormatMemorySize(p.WorkingSetBytes);
                     string secondary = string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}% · {1} пот.", p.CpuPercent, p.ThreadCount);
-                    items.Add(new GaugeConsumerItem(rank++, p.Pid, p.Name, primary, secondary, barPct));
+                    items.Add(new GaugeConsumerItem(
+                        rank++,
+                        p.Pid,
+                        p.Name,
+                        primary,
+                        secondary,
+                        barPct,
+                        p.ExecutablePath,
+                        p.IsCriticalSystem,
+                        p.IsProtectedAccess));
                 }
 
                 return ("Топ-споживачі оперативної пам'яті", "Процеси з найбільшим споживанням ОЗП (Working Set)", items);
@@ -873,7 +1056,10 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
                             entry.Process.Name,
                             primary,
                             secondary,
-                            entry.GpuPercent));
+                            entry.GpuPercent,
+                            entry.Process.ExecutablePath,
+                            entry.Process.IsCriticalSystem,
+                            entry.Process.IsProtectedAccess));
                     }
 
                     return ("Топ-споживачі GPU", "Навантаження GPU по процесах (Windows WDDM GPU Engine)", items);
@@ -896,7 +1082,16 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
                         : Math.Clamp((double)p.WorkingSetBytes / maxMem * 100.0, 0.0, 100.0);
                     string primary = string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}%", p.CpuPercent);
                     string secondary = $"RAM {FormatMemorySize(p.WorkingSetBytes)}";
-                    items.Add(new GaugeConsumerItem(fbRank++, p.Pid, p.Name, primary, secondary, barPct));
+                    items.Add(new GaugeConsumerItem(
+                        fbRank++,
+                        p.Pid,
+                        p.Name,
+                        primary,
+                        secondary,
+                        barPct,
+                        p.ExecutablePath,
+                        p.IsCriticalSystem,
+                        p.IsProtectedAccess));
                 }
 
                 return (
@@ -935,7 +1130,10 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
                         entry.Process.Name,
                         primary,
                         secondary,
-                        Math.Clamp(entry.HeatScore, 0.0, 100.0)));
+                        Math.Clamp(entry.HeatScore, 0.0, 100.0),
+                        entry.Process.ExecutablePath,
+                        entry.Process.IsCriticalSystem,
+                        entry.Process.IsProtectedAccess));
                 }
 
                 return (

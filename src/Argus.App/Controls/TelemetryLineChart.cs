@@ -1,4 +1,5 @@
 using System.Globalization;
+using Argus.App.Themes;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -36,10 +37,10 @@ public sealed class TelemetryLineChart : Control
     private static readonly Color GpuColor = Color.Parse("#2DD4A8");
     private static readonly Color ThermalColor = Color.Parse("#F5A623");
 
-    private static readonly SolidColorBrush PlotBackgroundBrush = new(Color.Parse("#080D20"));
-    private static readonly Pen PlotBorderPen = new(new SolidColorBrush(Color.Parse("#242E63")), 1);
-    private static readonly Pen GridPen = new(new SolidColorBrush(Color.Parse("#162048")), 1);
-    private static readonly Pen ThresholdPen = new(new SolidColorBrush(Color.Parse("#88F45B69")), 1.2, DashStyle.Dash);
+    private static SolidColorBrush PlotBackgroundBrush = new(Color.Parse("#080D20"));
+    private static Pen PlotBorderPen = new(new SolidColorBrush(Color.Parse("#242E63")), 1);
+    private static Pen GridPen = new(new SolidColorBrush(Color.Parse("#162048")), 1);
+    private static Pen ThresholdPen = new(new SolidColorBrush(Color.Parse("#88F45B69")), 1.2, DashStyle.Dash);
 
     private static readonly SolidColorBrush CpuCoreBrush = new(CpuColor);
     private static readonly SolidColorBrush CpuHaloBrush = new(Color.FromArgb(80, CpuColor.R, CpuColor.G, CpuColor.B));
@@ -69,13 +70,15 @@ public sealed class TelemetryLineChart : Control
     };
 
     private static readonly Typeface AxisTypeface = new(new FontFamily("Cascadia Mono, Consolas, Courier New"), FontStyle.Normal, FontWeight.Normal);
-    private static readonly SolidColorBrush AxisTextBrush = new(Color.Parse("#6874A3"));
-    private static readonly SolidColorBrush DotGlowBrush = new(Color.Parse("#EDF1FF"));
+    private static SolidColorBrush AxisTextBrush = new(Color.Parse("#6874A3"));
+    private static SolidColorBrush DotGlowBrush = new(Color.Parse("#EDF1FF"));
 
-    private static readonly FormattedText Label100 = CreateAxisText("100%");
-    private static readonly FormattedText Label50 = CreateAxisText("50%");
-    private static readonly FormattedText Label0 = CreateAxisText("0%");
-    private static readonly FormattedText LabelNow = CreateAxisText("зараз");
+    private static FormattedText Label100 = CreateAxisText("100%");
+    private static FormattedText Label50 = CreateAxisText("50%");
+    private static FormattedText Label0 = CreateAxisText("0%");
+    private static FormattedText LabelNow = CreateAxisText("зараз");
+    private static string? _paletteThemeId;
+    private string? _instanceThemeId;
 
     private int _cachedWindowSeconds = -1;
     private FormattedText? _cachedWindowLabel;
@@ -90,6 +93,50 @@ public sealed class TelemetryLineChart : Control
             MaximumProperty,
             WindowSecondsProperty,
             AlertThresholdProperty);
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        ArgusThemeManager.ThemeChanged += OnThemeChanged;
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        ArgusThemeManager.ThemeChanged -= OnThemeChanged;
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    private void OnThemeChanged(object? sender, ArgusThemeDefinition theme)
+    {
+        SyncThemePalette();
+        InvalidateVisual();
+    }
+
+    private void SyncThemePalette()
+    {
+        var theme = ArgusThemeManager.CurrentTheme;
+        if (!string.Equals(_paletteThemeId, theme.Id, StringComparison.Ordinal))
+        {
+            _paletteThemeId = theme.Id;
+            PlotBackgroundBrush = new SolidColorBrush(Color.Parse(theme.ChartPlotBg));
+            PlotBorderPen = new Pen(new SolidColorBrush(Color.Parse(theme.Border)), 1);
+            GridPen = new Pen(new SolidColorBrush(Color.Parse(theme.ChartGrid)), 1);
+            Color crit = Color.Parse(theme.CritColor);
+            ThresholdPen = new Pen(new SolidColorBrush(Color.FromArgb(0x99, crit.R, crit.G, crit.B)), 1.2, DashStyle.Dash);
+            AxisTextBrush = new SolidColorBrush(Color.Parse(theme.TextMuted));
+            DotGlowBrush = new SolidColorBrush(Color.Parse(theme.TextPrimary));
+            Label100 = CreateAxisText("100%");
+            Label50 = CreateAxisText("50%");
+            Label0 = CreateAxisText("0%");
+            LabelNow = CreateAxisText("зараз");
+        }
+
+        if (!string.Equals(_instanceThemeId, theme.Id, StringComparison.Ordinal))
+        {
+            _instanceThemeId = theme.Id;
+            _cachedWindowLabel = null;
+        }
     }
 
     public IReadOnlyList<double>? PrimarySeries
@@ -137,6 +184,7 @@ public sealed class TelemetryLineChart : Control
     public override void Render(DrawingContext context)
     {
         base.Render(context);
+        SyncThemePalette();
 
         double totalW = Bounds.Width;
         double totalH = Bounds.Height;

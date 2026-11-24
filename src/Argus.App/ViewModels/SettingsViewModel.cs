@@ -1,15 +1,45 @@
 using System.Collections.ObjectModel;
 using Argus.App.Services;
+using Argus.App.Themes;
 using Argus.Core.Configuration;
 using Argus.Core.Contracts.Maintenance;
 using Argus.Core.Contracts.System;
 using Argus.Core.Events;
 using Argus.Core.Extensions;
 using Argus.Core.Journal;
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Argus.App.ViewModels;
+
+public sealed partial class ThemeOptionItem : ObservableObject
+{
+    public ThemeOptionItem(ArgusThemeDefinition definition, bool isSelected)
+    {
+        Id = definition.Id;
+        Name = definition.Name;
+        CategoryLabel = definition.CategoryLabel;
+        CanvasBrush = new SolidColorBrush(Color.Parse(definition.Canvas));
+        PanelBrush = new SolidColorBrush(Color.Parse(definition.Panel));
+        PrimaryBrush = new SolidColorBrush(Color.Parse(definition.PrimaryAccent));
+        SecondaryBrush = new SolidColorBrush(Color.Parse(definition.SecondaryAccent));
+        OkBrush = new SolidColorBrush(Color.Parse(definition.OkColor));
+        _isSelected = isSelected;
+    }
+
+    public string Id { get; }
+    public string Name { get; }
+    public string CategoryLabel { get; }
+    public IBrush CanvasBrush { get; }
+    public IBrush PanelBrush { get; }
+    public IBrush PrimaryBrush { get; }
+    public IBrush SecondaryBrush { get; }
+    public IBrush OkBrush { get; }
+
+    [ObservableProperty]
+    private bool _isSelected;
+}
 
 public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposable
 {
@@ -37,6 +67,11 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
     [NotifyPropertyChangedFor(nameof(IsUiScale125))]
     [NotifyPropertyChangedFor(nameof(IsUiScale150))]
     private double _uiScalePercent = ArgusSettings.DefaultUiScalePercent;
+
+    [ObservableProperty]
+    private string _selectedThemeId = ArgusSettings.DefaultThemeId;
+
+    public ObservableCollection<ThemeOptionItem> ThemeOptions { get; } = [];
 
     [ObservableProperty]
     private decimal? _telemetryIntervalMs;
@@ -193,6 +228,12 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
             CurrentVersionText = asmVer is not null ? $"v{asmVer.Major}.{asmVer.Minor}.{asmVer.Build}" : "v1.0.1";
         }
 
+        string initialThemeId = ArgusThemeManager.FindById(settingsStore.Current.ThemeId).Id;
+        foreach (var theme in ArgusThemeManager.Themes)
+        {
+            ThemeOptions.Add(new ThemeOptionItem(theme, theme.Id.Equals(initialThemeId, StringComparison.OrdinalIgnoreCase)));
+        }
+
         ApplyFromSettings(settingsStore.Current);
         StartWithWindows = settingsStore.Current.StartWithWindows || TryReadStartupEnabled();
 
@@ -251,6 +292,28 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
         {
             UiScalePercent = Math.Clamp(percent, ArgusSettings.MinUiScalePercent, ArgusSettings.MaxUiScalePercent);
         }
+    }
+
+    [RelayCommand]
+    public async Task SelectThemeAsync(string? themeId)
+    {
+        var applied = ArgusThemeManager.ApplyTheme(themeId);
+        SelectedThemeId = applied.Id;
+        foreach (var item in ThemeOptions)
+        {
+            item.IsSelected = item.Id.Equals(applied.Id, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var updated = _settingsStore.Current with { ThemeId = applied.Id };
+        await _settingsStore.SaveAsync(updated).ConfigureAwait(false);
+        _eventBus.Publish(new SettingsChangedEvent(_settingsStore.Current));
+
+        await _journal.RecordAsync(
+            moduleId: "argus.settings",
+            severity: OperationSeverity.Info,
+            action: "ThemeChanged",
+            details: $"Тема оформлення: {applied.Name} ({applied.Id})")
+            .ConfigureAwait(false);
     }
 
     partial void OnExpertModeEnabledChanged(bool value)
@@ -453,6 +516,7 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
                 : GitHubUpdateRepository.Trim(),
             TrustedSignerThumbprint = _settingsStore.Current.TrustedSignerThumbprint,
             Language = _settingsStore.Current.Language,
+            ThemeId = SelectedThemeId,
             CleanerExclusions = _settingsStore.Current.CleanerExclusions
         };
 
@@ -487,6 +551,7 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
         }.Normalize();
 
         await _settingsStore.SaveAsync(defaults).ConfigureAwait(false);
+        ArgusThemeManager.ApplyTheme(defaults.ThemeId);
         _eventBus.Publish(new SettingsChangedEvent(defaults));
         ApplyStartupSetting(defaults.StartWithWindows);
 
@@ -613,6 +678,13 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
         StartWithWindows = settings.StartWithWindows;
         CheckUpdatesOnStartup = settings.CheckUpdatesOnStartup;
         GitHubUpdateRepository = settings.GitHubUpdateRepository;
+
+        string normalizedTheme = ArgusThemeManager.FindById(settings.ThemeId).Id;
+        SelectedThemeId = normalizedTheme;
+        foreach (var item in ThemeOptions)
+        {
+            item.IsSelected = item.Id.Equals(normalizedTheme, StringComparison.OrdinalIgnoreCase);
+        }
     }
 
     public void Dispose()

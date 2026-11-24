@@ -361,7 +361,7 @@ public sealed partial class WindowsProcessNetworkTrafficService : IProcessNetwor
             Timestamp: DateTimeOffset.UtcNow);
     }
 
-    private static void SortTrafficItems(List<ProcessNetworkTrafficItem> items)
+    internal static void SortTrafficItems(List<ProcessNetworkTrafficItem> items)
     {
         items.Sort(static (a, b) =>
         {
@@ -377,8 +377,19 @@ public sealed partial class WindowsProcessNetworkTrafficService : IProcessNetwor
                 return byTotal;
             }
 
-            int byConns = b.ActiveConnectionCount.CompareTo(a.ActiveConnectionCount);
-            return byConns != 0 ? byConns : StringComparer.OrdinalIgnoreCase.Compare(a.ProcessName, b.ProcessName);
+            int byName = StringComparer.OrdinalIgnoreCase.Compare(a.ProcessName, b.ProcessName);
+            if (byName != 0)
+            {
+                return byName;
+            }
+
+            int byPid = a.Pid.CompareTo(b.Pid);
+            if (byPid != 0)
+            {
+                return byPid;
+            }
+
+            return b.ActiveConnectionCount.CompareTo(a.ActiveConnectionCount);
         });
     }
 

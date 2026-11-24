@@ -17,16 +17,16 @@
                 Height="18"
                 Stretch="Uniform"
                 Data="{StaticResource IconShield}"
-                Stroke="{StaticResource ArgusAmberBrush}"
+                Stroke="{DynamicResource ArgusAmberBrush}"
                 StrokeThickness="1.65"
                 VerticalAlignment="Center" />
           <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
             <TextBlock FontSize="12.5"
                        FontWeight="SemiBold"
-                       Foreground="{StaticResource ArgusAmberBrush}"
+                       Foreground="{DynamicResource ArgusAmberBrush}"
                        Text="Для запуску клонування ОС CopyOS потрібні права адміністратора (UAC)" />
             <TextBlock FontSize="11.5"
-                       Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                       Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                        Text="Ви можете оглядати диски й налаштовувати план у стандартному режимі, але створення знімка VSS, розмітка накопичувача та запис завантажувача виконуються лише з підвищеними правами."
                        TextWrapping="Wrap" />
           </StackPanel>
@@ -45,13 +45,13 @@
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBlock Classes="section-heading" Text="Джерело активної ОС" VerticalAlignment="Center" />
               <Border Classes="pill pill-ready" Padding="7,2">
-                <TextBlock Text="{Binding SourceFirmwareBadge}" FontSize="10.5" Foreground="{StaticResource ArgusEmeraldBrush}" />
+                <TextBlock Text="{Binding SourceFirmwareBadge}" FontSize="10.5" Foreground="{DynamicResource ArgusEmeraldBrush}" />
               </Border>
               <Border Classes="pill" Padding="7,2">
-                <TextBlock Text="{Binding SourceBitLockerBadge}" FontSize="10.5" Foreground="{StaticResource ArgusCyanBrush}" />
+                <TextBlock Text="{Binding SourceBitLockerBadge}" FontSize="10.5" Foreground="{DynamicResource ArgusCyanBrush}" />
               </Border>
             </StackPanel>
-            <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" Text="{Binding SourceOsTitle}" />
+            <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" Text="{Binding SourceOsTitle}" />
             <TextBlock Classes="metric-mono" FontSize="11.5" Text="{Binding SourceOsMetaText}" TextTrimming="CharacterEllipsis" />
           </StackPanel>
 
@@ -75,9 +75,9 @@
                 Command="{Binding SelectInternalProfileCommand}">
           <StackPanel Spacing="4">
             <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Text="1. Внутрішній диск" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+              <TextBlock Text="1. Внутрішній диск" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
               <Border Grid.Column="1" Classes="pill" Padding="7,2">
-                <TextBlock Text="SATA / M.2 NVMe" FontSize="10.5" Foreground="{StaticResource ArgusCyanBrush}" />
+                <TextBlock Text="SATA / M.2 NVMe" FontSize="10.5" Foreground="{DynamicResource ArgusCyanBrush}" />
               </Border>
             </Grid>
             <TextBlock Classes="body-muted" FontSize="12" Text="Міграція живої Windows на внутрішній SSD/HDD материнської плати." />
@@ -91,9 +91,9 @@
                 Command="{Binding SelectExternalProfileCommand}">
           <StackPanel Spacing="4">
             <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Text="1. Зовнішній носій" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+              <TextBlock Text="1. Зовнішній носій" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
               <Border Grid.Column="1" Classes="pill" Padding="7,2">
-                <TextBlock Text="USB SSD / HDD" FontSize="10.5" Foreground="{StaticResource ArgusVioletSoftBrush}" />
+                <TextBlock Text="USB SSD / HDD" FontSize="10.5" Foreground="{DynamicResource ArgusVioletSoftBrush}" />
               </Border>
             </Grid>
             <TextBlock Classes="body-muted" FontSize="12" Text="Портативна Windows на зовнішній USB-диск із /nofirmwaresync." />
@@ -142,7 +142,7 @@
                       <TextBlock Text="{Binding Title}"
                                  FontSize="13"
                                  FontWeight="SemiBold"
-                                 Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                                 Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                       <TextBlock Classes="metric-mono"
                                  FontSize="11.5"
                                  Text="{Binding MetaText}"
@@ -154,7 +154,7 @@
                             Padding="8,3"
                             VerticalAlignment="Center">
                       <TextBlock FontSize="11"
-                                 Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                 Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                                  Text="{Binding ExistingDataText}" />
                     </Border>
                   </Grid>
@@ -195,7 +195,7 @@
             </StackPanel>
 
             <Border Grid.Column="1" Classes="pill pill-ready" Padding="9,3" VerticalAlignment="Center">
-              <TextBlock FontSize="11" Foreground="{StaticResource ArgusEmeraldBrush}" Text="{Binding ResolvedModeBadge}" />
+              <TextBlock FontSize="11" Foreground="{DynamicResource ArgusEmeraldBrush}" Text="{Binding ResolvedModeBadge}" />
             </Border>
           </Grid>
 
@@ -216,23 +216,23 @@
             <StackPanel Spacing="5">
               <TextBlock FontSize="12"
                          FontWeight="SemiBold"
-                         Foreground="{StaticResource ArgusCyanBrush}"
+                         Foreground="{DynamicResource ArgusCyanBrush}"
                          Text="{Binding PreflightSummaryText}"
                          TextWrapping="Wrap" />
               <TextBlock Classes="metric-mono"
                          FontSize="11"
-                         Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                         Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                          Text="{Binding BootDriversSummary}"
                          TextWrapping="Wrap" />
               <TextBlock FontSize="11.5"
-                         Foreground="{StaticResource ArgusTextMutedBrush}"
+                         Foreground="{DynamicResource ArgusTextMutedBrush}"
                          Text="{Binding FirmwarePolicySummary}"
                          TextWrapping="Wrap" />
               <ItemsControl ItemsSource="{Binding PreflightMessages}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
                     <TextBlock FontSize="11.5"
-                               Foreground="{StaticResource ArgusAmberBrush}"
+                               Foreground="{DynamicResource ArgusAmberBrush}"
                                Text="{Binding}"
                                TextWrapping="Wrap"
                                Margin="0,2,0,0" />
@@ -245,13 +245,13 @@
       </Border>
 
       <!-- Step 3: Target Double-Check Dropdown, Start Button & Live Progress -->
-      <Border Classes="panel-hero" Padding="14,11" BorderBrush="{StaticResource ArgusCoralBrush}">
+      <Border Classes="panel-hero" Padding="14,11" BorderBrush="{DynamicResource ArgusCoralBrush}">
         <StackPanel Spacing="10">
           <StackPanel Spacing="2">
             <TextBlock Text="3. Підтвердження цільового диска і запуск міграції"
                        FontSize="13.5"
                        FontWeight="SemiBold"
-                       Foreground="{StaticResource ArgusCoralBrush}" />
+                       Foreground="{DynamicResource ArgusCoralBrush}" />
             <TextBlock Classes="body-muted"
                        FontSize="11.5"
                        Text="Перевірте ще раз цільовий накопичувач, на який буде перенесено Windows. Після натискання «Почати клонування» з'явиться вікно підтвердження." />
@@ -307,7 +307,7 @@
                   <TextBlock Text="{Binding Label}"
                              FontSize="10.5"
                              HorizontalAlignment="Center"
-                             Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                             Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                 </Border>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
@@ -319,20 +319,20 @@
               <Grid ColumnDefinitions="*,Auto,Auto">
                 <TextBlock Grid.Column="0"
                            FontSize="12"
-                           Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                           Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                            Text="{Binding LiveStatusText}"
                            TextTrimming="CharacterEllipsis"
                            Margin="0,0,10,0" />
                 <TextBlock Grid.Column="1"
                            Classes="metric-mono"
                            FontSize="11.5"
-                           Foreground="{StaticResource ArgusCyanBrush}"
+                           Foreground="{DynamicResource ArgusCyanBrush}"
                            Text="{Binding SpeedText}"
                            Margin="0,0,12,0" />
                 <TextBlock Grid.Column="2"
                            Classes="metric-mono"
                            FontSize="11.5"
-                           Foreground="{StaticResource ArgusVioletSoftBrush}"
+                           Foreground="{DynamicResource ArgusVioletSoftBrush}"
                            Text="{Binding EtaText}" />
               </Grid>
 
@@ -340,7 +340,7 @@
                            Maximum="100"
                            Value="{Binding ProgressPercent}"
                            Height="7"
-                           Foreground="{StaticResource ArgusCyanBrush}"
+                           Foreground="{DynamicResource ArgusCyanBrush}"
                            Background="#161E42" />
 
               <Grid ColumnDefinitions="*,Auto">
@@ -354,13 +354,13 @@
                            Classes="metric-mono"
                            FontSize="11"
                            VerticalAlignment="Center"
-                           Foreground="{StaticResource ArgusTextMutedBrush}"
+                           Foreground="{DynamicResource ArgusTextMutedBrush}"
                            Text="{Binding CopiedBytesText}" />
               </Grid>
 
               <TextBlock Classes="metric-mono"
                          FontSize="11"
-                         Foreground="{StaticResource ArgusEmeraldBrush}"
+                         Foreground="{DynamicResource ArgusEmeraldBrush}"
                          IsVisible="{Binding HasLastLogPath}"
                          Text="{Binding LastLogPathText}"
                          TextTrimming="CharacterEllipsis" />
@@ -377,7 +377,7 @@
           IsVisible="{Binding IsConfirmationDialogOpen}"
           CornerRadius="12">
     <Border Classes="panel-hero"
-            BorderBrush="{StaticResource ArgusCoralBrush}"
+            BorderBrush="{DynamicResource ArgusCoralBrush}"
             MaxWidth="520"
             Padding="22,18"
             HorizontalAlignment="Center"
@@ -386,15 +386,15 @@
         <TextBlock Text="Ви точно впевнені, що хочете почати клонування?"
                    FontSize="16"
                    FontWeight="Bold"
-                   Foreground="{StaticResource ArgusCoralBrush}"
+                   Foreground="{DynamicResource ArgusCoralBrush}"
                    TextWrapping="Wrap" />
 
         <Border Classes="tile" Padding="12,9">
           <StackPanel Spacing="5">
-            <TextBlock FontSize="11" Foreground="{StaticResource ArgusTextMutedBrush}" Text="ЦІЛЬОВИЙ ДИСК ДЛЯ ЗАПИСУ WINDOWS" />
-            <TextBlock FontSize="13.5" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextPrimaryBrush}" Text="{Binding ConfirmationDialogTargetText}" TextWrapping="Wrap" />
-            <TextBlock FontSize="12" Foreground="{StaticResource ArgusAmberBrush}" Text="{Binding ConfirmationDialogWarningText}" TextWrapping="Wrap" />
-            <TextBlock Classes="metric-mono" FontSize="11.5" Foreground="{StaticResource ArgusCyanBrush}" Text="{Binding ResolvedModeBadge}" />
+            <TextBlock FontSize="11" Foreground="{DynamicResource ArgusTextMutedBrush}" Text="ЦІЛЬОВИЙ ДИСК ДЛЯ ЗАПИСУ WINDOWS" />
+            <TextBlock FontSize="13.5" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" Text="{Binding ConfirmationDialogTargetText}" TextWrapping="Wrap" />
+            <TextBlock FontSize="12" Foreground="{DynamicResource ArgusAmberBrush}" Text="{Binding ConfirmationDialogWarningText}" TextWrapping="Wrap" />
+            <TextBlock Classes="metric-mono" FontSize="11.5" Foreground="{DynamicResource ArgusCyanBrush}" Text="{Binding ResolvedModeBadge}" />
           </StackPanel>
         </Border>
 

@@ -1,4 +1,5 @@
 using Argus.App.Services;
+using Argus.App.Themes;
 using Argus.App.ViewModels;
 using Argus.Core;
 using Argus.Core.Configuration;
@@ -56,6 +57,7 @@ public sealed class App : Application
         var logger = _serviceProvider.GetRequiredService<ILogger<App>>();
         var settingsStore = _serviceProvider.GetRequiredService<IArgusSettingsStore>();
         settingsStore.LoadAsync().GetAwaiter().GetResult();
+        ArgusThemeManager.ApplyTheme(settingsStore.Current.ThemeId);
 
         var privilegeService = _serviceProvider.GetRequiredService<IPrivilegeService>();
         logger.LogInformation(

@@ -90,10 +90,36 @@ public sealed record DeviceTopologyChangedEvent(
     string? DeviceInstanceId,
     DateTimeOffset Timestamp);
 
+public enum DriverSearchOutcome
+{
+    WizardLaunched,
+    Updated,
+    FallbackWindowsUpdateOpened,
+    Unsupported,
+    Failed
+}
+
+public sealed record DriverSearchResult(
+    bool Succeeded,
+    DriverSearchOutcome Outcome,
+    string Message,
+    bool RebootRequired = false);
+
 public interface IDeviceProvider
 {
     Task<HardwareInventory> GetInventoryAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<DeviceNode>> GetDevicesAsync(CancellationToken cancellationToken = default);
+
+    Task<DriverSearchResult> SearchAndUpdateDriverAsync(
+        string deviceInstanceId,
+        string? friendlyName = null,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new DriverSearchResult(
+            Succeeded: false,
+            Outcome: DriverSearchOutcome.Unsupported,
+            Message: "Автоматичний пошук драйверів не підтримується поточним провайдером."));
+    }
 }
 
 public interface IDeviceChangeMonitor : IDisposable

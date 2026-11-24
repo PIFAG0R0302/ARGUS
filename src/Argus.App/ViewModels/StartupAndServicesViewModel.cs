@@ -425,13 +425,13 @@ public sealed partial class StartupAndServicesViewModel : SectionViewModelBase, 
     [RelayCommand]
     private void SetStartupFilter(string filter)
     {
-        StartupSourceFilter = string.IsNullOrWhiteSpace(filter) ? "Усі" : filter;
+        StartupSourceFilter = string.IsNullOrWhiteSpace(filter) ? "Усі" : filter.Trim();
     }
 
     [RelayCommand]
     private void SetStartupStateFilter(string filter)
     {
-        StartupStateFilter = string.IsNullOrWhiteSpace(filter) ? "Усі стани" : filter;
+        StartupStateFilter = string.IsNullOrWhiteSpace(filter) ? "Усі стани" : filter.Trim();
     }
 
     [RelayCommand]

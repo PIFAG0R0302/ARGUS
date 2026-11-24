@@ -11,10 +11,12 @@ public sealed record ArgusSettings
     public const int MinUiScalePercent = 80;
     public const int MaxUiScalePercent = 150;
     public const int DefaultUiScalePercent = 100;
+    public const string DefaultThemeId = "deep-observatory";
 
     public int TelemetryIntervalMs { get; init; } = 1000;
     public int HistoryWindowSeconds { get; init; } = 180;
     public int UiScalePercent { get; init; } = DefaultUiScalePercent;
+    public string ThemeId { get; init; } = DefaultThemeId;
     public bool EnablePawnIoExtendedSensors { get; init; }
     public double CpuTemperatureAlertCelsius { get; init; } = 85.0;
     public double GpuTemperatureAlertCelsius { get; init; } = 85.0;
@@ -39,6 +41,7 @@ public sealed record ArgusSettings
         UiScalePercent = UiScalePercent <= 0
             ? DefaultUiScalePercent
             : Math.Clamp(UiScalePercent, MinUiScalePercent, MaxUiScalePercent),
+        ThemeId = string.IsNullOrWhiteSpace(ThemeId) ? DefaultThemeId : ThemeId.Trim().ToLowerInvariant(),
         CpuTemperatureAlertCelsius = Math.Clamp(CpuTemperatureAlertCelsius, 50.0, 115.0),
         GpuTemperatureAlertCelsius = Math.Clamp(GpuTemperatureAlertCelsius, 50.0, 115.0),
         RamUsageAlertPercent = Math.Clamp(RamUsageAlertPercent, 50.0, 99.0),

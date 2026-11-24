@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Management;
 using System.Net.NetworkInformation;
@@ -28,6 +29,20 @@ public sealed partial class WindowsDeviceProvider : IDeviceProvider
     private const uint DnHasProblem = 0x00000400;
     private const uint CmProbDisabled = 22;
     private const int CrSuccess = 0;
+    private const uint DiidFlagShowSearchUi = 0x00000001;
+    private const int ErrorCancelled = 1223;
+
+    internal enum NativeInstallStatus
+    {
+        Installed,
+        Cancelled,
+        Failed
+    }
+
+    internal readonly record struct NativeDriverInstallAttempt(
+        NativeInstallStatus Status,
+        bool RebootRequired,
+        int LastWin32Error);
 
     public Task<HardwareInventory> GetInventoryAsync(CancellationToken cancellationToken = default)
     {
@@ -37,6 +52,262 @@ public sealed partial class WindowsDeviceProvider : IDeviceProvider
     public Task<IReadOnlyList<DeviceNode>> GetDevicesAsync(CancellationToken cancellationToken = default)
     {
         return Task.Run(EnumerateSetupApiDevices, cancellationToken);
+    }
+
+    public Task<DriverSearchResult> SearchAndUpdateDriverAsync(
+        string deviceInstanceId,
+        string? friendlyName = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(deviceInstanceId))
+        {
+            return Task.FromResult(new DriverSearchResult(
+                Succeeded: false,
+                Outcome: DriverSearchOutcome.Failed,
+                Message: "Не вказано Instance ID пристрою для пошуку драйвера."));
+        }
+
+        if (!OperatingSystem.IsWindows())
+        {
+            return Task.FromResult(new DriverSearchResult(
+                Succeeded: false,
+                Outcome: DriverSearchOutcome.Unsupported,
+                Message: "Пошук драйверів підтримується лише в ОС Windows."));
+        }
+
+        string trimmedId = deviceInstanceId.Trim();
+        string deviceLabel = !string.IsNullOrWhiteSpace(friendlyName) ? friendlyName.Trim() : trimmedId;
+
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ExecuteDriverSearch(
+                trimmedId,
+                deviceLabel,
+                IsProcessElevated,
+                TryInvokeNativeDiInstallDevice,
+                TryLaunchElevatedDeviceProperties,
+                TryRunPnpUtilScanDevices,
+                TryOpenWindowsUpdateOptionalUpdates);
+        }, cancellationToken);
+    }
+
+    internal static DriverSearchResult ExecuteDriverSearch(
+        string deviceInstanceId,
+        string deviceLabel,
+        Func<bool> isElevated,
+        Func<string, NativeDriverInstallAttempt> invokeDiInstallDevice,
+        Func<string, bool> launchElevatedDeviceProperties,
+        Action runPnpUtilScanDevices,
+        Func<bool> openWindowsUpdateOptionalUpdates)
+    {
+        if (string.IsNullOrWhiteSpace(deviceInstanceId))
+        {
+            return new DriverSearchResult(
+                Succeeded: false,
+                Outcome: DriverSearchOutcome.Failed,
+                Message: "Не вказано Instance ID пристрою для пошуку драйвера.");
+        }
+
+        string label = string.IsNullOrWhiteSpace(deviceLabel) ? deviceInstanceId : deviceLabel;
+
+        if (isElevated())
+        {
+            var nativeAttempt = invokeDiInstallDevice(deviceInstanceId);
+            if (nativeAttempt.Status == NativeInstallStatus.Installed)
+            {
+                string msg = nativeAttempt.RebootRequired
+                    ? $"Драйвер для «{label}» оновлено. Потрібне перезавантаження системи."
+                    : $"Пошук та оновлення драйвера для «{label}» завершено.";
+                return new DriverSearchResult(
+                    Succeeded: true,
+                    Outcome: DriverSearchOutcome.Updated,
+                    Message: msg,
+                    RebootRequired: nativeAttempt.RebootRequired);
+            }
+
+            if (nativeAttempt.Status == NativeInstallStatus.Cancelled)
+            {
+                return new DriverSearchResult(
+                    Succeeded: true,
+                    Outcome: DriverSearchOutcome.WizardLaunched,
+                    Message: $"Майстер оновлення драйвера для «{label}» закрито користувачем.");
+            }
+        }
+        else if (launchElevatedDeviceProperties(deviceInstanceId))
+        {
+            return new DriverSearchResult(
+                Succeeded: true,
+                Outcome: DriverSearchOutcome.WizardLaunched,
+                Message: $"Відкрито вікно властивостей і оновлення драйвера Windows для «{label}».");
+        }
+
+        // Automatic fallback: best-effort pnputil device scan + Windows Update Optional Updates
+        try
+        {
+            runPnpUtilScanDevices();
+        }
+        catch
+        {
+            // best-effort scan
+        }
+
+        bool openedWindowsUpdate = false;
+        try
+        {
+            openedWindowsUpdate = openWindowsUpdateOptionalUpdates();
+        }
+        catch
+        {
+            openedWindowsUpdate = false;
+        }
+
+        if (openedWindowsUpdate)
+        {
+            return new DriverSearchResult(
+                Succeeded: true,
+                Outcome: DriverSearchOutcome.FallbackWindowsUpdateOpened,
+                Message: $"Запущено сканування пристроїв (pnputil) та відкрито «Необов'язкові оновлення» Windows Update для «{label}».");
+        }
+
+        return new DriverSearchResult(
+            Succeeded: false,
+            Outcome: DriverSearchOutcome.Failed,
+            Message: $"Не вдалося запустити пошук драйверів для «{label}». Спробуйте відкрити Диспетчер пристроїв вручну.");
+    }
+
+    private static bool IsProcessElevated()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return false;
+        }
+
+        try
+        {
+            return IsUserAnAdmin();
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static NativeDriverInstallAttempt TryInvokeNativeDiInstallDevice(string instanceId)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return new NativeDriverInstallAttempt(NativeInstallStatus.Failed, false, 0);
+        }
+
+        IntPtr devInfoSet = SetupDiCreateDeviceInfoList(IntPtr.Zero, IntPtr.Zero);
+        if (devInfoSet == IntPtr.Zero || devInfoSet == new IntPtr(-1))
+        {
+            return new NativeDriverInstallAttempt(NativeInstallStatus.Failed, false, Marshal.GetLastWin32Error());
+        }
+
+        try
+        {
+            var devInfoData = new SpDevInfoData
+            {
+                CbSize = (uint)Marshal.SizeOf<SpDevInfoData>()
+            };
+
+            if (!SetupDiOpenDeviceInfoW(devInfoSet, instanceId, IntPtr.Zero, 0, ref devInfoData))
+            {
+                return new NativeDriverInstallAttempt(NativeInstallStatus.Failed, false, Marshal.GetLastWin32Error());
+            }
+
+            bool installed = DiInstallDevice(
+                IntPtr.Zero,
+                devInfoSet,
+                ref devInfoData,
+                IntPtr.Zero,
+                DiidFlagShowSearchUi,
+                out int needReboot);
+
+            if (installed)
+            {
+                return new NativeDriverInstallAttempt(NativeInstallStatus.Installed, needReboot != 0, 0);
+            }
+
+            int lastError = Marshal.GetLastWin32Error();
+            if (lastError == ErrorCancelled)
+            {
+                return new NativeDriverInstallAttempt(NativeInstallStatus.Cancelled, false, lastError);
+            }
+
+            return new NativeDriverInstallAttempt(NativeInstallStatus.Failed, false, lastError);
+        }
+        catch
+        {
+            return new NativeDriverInstallAttempt(NativeInstallStatus.Failed, false, Marshal.GetLastWin32Error());
+        }
+        finally
+        {
+            _ = SetupDiDestroyDeviceInfoList(devInfoSet);
+        }
+    }
+
+    private static bool TryLaunchElevatedDeviceProperties(string instanceId)
+    {
+        try
+        {
+            string safeInstanceId = instanceId.Replace("\"", string.Empty, StringComparison.Ordinal);
+            using var proc = Process.Start(new ProcessStartInfo
+            {
+                FileName = "rundll32.exe",
+                Arguments = $"devmgr.dll,DeviceProperties_RunDLL /DeviceID \"{safeInstanceId}\"",
+                UseShellExecute = true,
+                Verb = "runas"
+            });
+
+            return proc is not null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void TryRunPnpUtilScanDevices()
+    {
+        try
+        {
+            using var proc = Process.Start(new ProcessStartInfo
+            {
+                FileName = "pnputil.exe",
+                Arguments = "/scan-devices",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            });
+
+            proc?.WaitForExit(5000);
+        }
+        catch
+        {
+            // best-effort
+        }
+    }
+
+    private static bool TryOpenWindowsUpdateOptionalUpdates()
+    {
+        try
+        {
+            using var proc = Process.Start(new ProcessStartInfo
+            {
+                FileName = "ms-settings:windowsupdate-optionalupdates",
+                UseShellExecute = true
+            });
+
+            return proc is not null;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static HardwareInventory CollectInventory()
@@ -863,6 +1134,34 @@ public sealed partial class WindowsDeviceProvider : IDeviceProvider
     [LibraryImport("setupapi.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetupDiDestroyDeviceInfoList(IntPtr deviceInfoSet);
+
+    [LibraryImport("setupapi.dll", SetLastError = true)]
+    private static partial IntPtr SetupDiCreateDeviceInfoList(
+        IntPtr classGuid,
+        IntPtr hwndParent);
+
+    [LibraryImport("setupapi.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetupDiOpenDeviceInfoW(
+        IntPtr deviceInfoSet,
+        string deviceInstanceId,
+        IntPtr hwndParent,
+        uint openFlags,
+        ref SpDevInfoData deviceInfoData);
+
+    [LibraryImport("newdev.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool DiInstallDevice(
+        IntPtr hwndParent,
+        IntPtr deviceInfoSet,
+        ref SpDevInfoData deviceInfoData,
+        IntPtr driverInfoData,
+        uint flags,
+        out int needReboot);
+
+    [LibraryImport("shell32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsUserAnAdmin();
 
     [LibraryImport("CfgMgr32.dll")]
     private static partial int CM_Get_DevNode_Status(

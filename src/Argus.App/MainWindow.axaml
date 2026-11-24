@@ -14,7 +14,7 @@
         WindowDecorations="BorderOnly"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="38"
-        Background="{StaticResource ArgusBgCanvasBrush}">
+        Background="{DynamicResource ArgusBgCanvasBrush}">
 
   <LayoutTransformControl>
     <LayoutTransformControl.LayoutTransform>
@@ -27,7 +27,7 @@
     <Border Grid.Row="0"
             x:Name="TitleBarRegion"
             Background="#080C1F"
-            BorderBrush="{StaticResource ArgusBorderBrush}"
+            BorderBrush="{DynamicResource ArgusBorderBrush}"
             BorderThickness="0,0,0,1"
             PointerPressed="OnTitleBarPointerPressed"
             DoubleTapped="OnTitleBarDoubleTapped">
@@ -47,12 +47,12 @@
                      FontSize="12.5"
                      FontWeight="Bold"
                      LetterSpacing="2.5"
-                     Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                     Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                      VerticalAlignment="Center" />
-          <Border Width="1" Height="14" Background="{StaticResource ArgusBorderBrightBrush}" VerticalAlignment="Center" />
+          <Border Width="1" Height="14" Background="{DynamicResource ArgusBorderBrightBrush}" VerticalAlignment="Center" />
           <TextBlock Text="{Binding ActiveSectionTitle}"
                      FontSize="12"
-                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                     Foreground="{DynamicResource ArgusTextSecondaryBrush}"
                      VerticalAlignment="Center" />
         </StackPanel>
 
@@ -142,8 +142,8 @@
 
       <!-- Left Navigation Rail -->
       <Border Grid.Column="0"
-              Background="{StaticResource ArgusBgRailBrush}"
-              BorderBrush="{StaticResource ArgusBorderBrush}"
+              Background="{DynamicResource ArgusBgRailBrush}"
+              BorderBrush="{DynamicResource ArgusBorderBrush}"
               BorderThickness="0,0,1,0">
         <Grid RowDefinitions="Auto,*,Auto" Margin="14,16,14,16">
 
@@ -163,17 +163,17 @@
                          FontWeight="Bold"
                          LetterSpacing="3.5"
                          VerticalAlignment="Center"
-                         Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                         Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
 
               <Border Grid.Column="2" Classes="pill" VerticalAlignment="Center" Padding="7,2">
                 <TextBlock Text="{Binding VersionBadge}"
                            FontFamily="{StaticResource ArgusMonoFont}"
                            FontSize="10.5"
-                           Foreground="{StaticResource ArgusCyanBrush}" />
+                           Foreground="{DynamicResource ArgusCyanBrush}" />
               </Border>
             </Grid>
 
-            <Border Height="1" Background="{StaticResource ArgusAccentLineBrush}" />
+            <Border Height="1" Background="{DynamicResource ArgusAccentLineBrush}" />
           </StackPanel>
 
           <!-- Grouped Primary Section Navigation -->
@@ -215,7 +215,7 @@
                                       VerticalAlignment="Center">
                                 <TextBlock Text="{Binding BadgeText}"
                                            FontSize="10"
-                                           Foreground="{StaticResource ArgusVioletSoftBrush}" />
+                                           Foreground="{DynamicResource ArgusVioletSoftBrush}" />
                               </Border>
                             </Grid>
                           </Button>
@@ -230,7 +230,7 @@
 
           <!-- Footer Navigation -->
           <StackPanel Grid.Row="2" Spacing="10" Margin="0,12,0,0">
-            <Border Height="1" Background="{StaticResource ArgusBorderBrush}" />
+            <Border Height="1" Background="{DynamicResource ArgusBorderBrush}" />
 
             <ItemsControl ItemsSource="{Binding FooterNavigation}">
               <ItemsControl.ItemTemplate>
@@ -265,13 +265,13 @@
       </Border>
 
       <!-- Right Workspace Area -->
-      <Border Grid.Column="1" Background="{StaticResource ArgusWorkspaceBackdrop}">
+      <Border Grid.Column="1" Background="{DynamicResource ArgusWorkspaceBackdrop}">
         <Grid RowDefinitions="Auto,*,Auto">
 
           <!-- Section Header -->
           <Border Grid.Row="0"
                   Padding="28,20,28,16"
-                  BorderBrush="{StaticResource ArgusBorderBrush}"
+                  BorderBrush="{DynamicResource ArgusBorderBrush}"
                   BorderThickness="0,0,0,1">
             <StackPanel Spacing="4">
               <TextBlock Classes="page-title" Text="{Binding ActiveSectionTitle}" />
@@ -287,13 +287,13 @@
           <!-- Bottom Telemetry Status Strip -->
           <Border Grid.Row="2"
                   Background="#080C1E"
-                  BorderBrush="{StaticResource ArgusBorderBrush}"
+                  BorderBrush="{DynamicResource ArgusBorderBrush}"
                   BorderThickness="0,1,0,0"
                   Padding="28,7">
             <Grid ColumnDefinitions="Auto,*,Auto">
               <TextBlock Grid.Column="0"
                          FontSize="11.5"
-                         Foreground="{StaticResource ArgusTextMutedBrush}"
+                         Foreground="{DynamicResource ArgusTextMutedBrush}"
                          Text="{Binding EngineCaption}" />
               <TextBlock Grid.Column="2"
                          Classes="metric-mono"
