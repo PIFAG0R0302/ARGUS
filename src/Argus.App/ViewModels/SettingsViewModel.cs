@@ -22,9 +22,21 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
     private readonly AppUiModeService? _uiMode;
     private readonly Action? _requestAppExit;
     private readonly Action<Action> _uiDispatch;
+    private readonly IDisposable _settingsChangedSubscription;
     private AppUpdateCheckResult? _latestUpdateResult;
     private int _updateBusyGate;
     private bool _suppressExpertSync;
+    private bool _suppressScaleSync;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UiScaleText))]
+    [NotifyPropertyChangedFor(nameof(IsUiScale80))]
+    [NotifyPropertyChangedFor(nameof(IsUiScale90))]
+    [NotifyPropertyChangedFor(nameof(IsUiScale100))]
+    [NotifyPropertyChangedFor(nameof(IsUiScale110))]
+    [NotifyPropertyChangedFor(nameof(IsUiScale125))]
+    [NotifyPropertyChangedFor(nameof(IsUiScale150))]
+    private double _uiScalePercent = ArgusSettings.DefaultUiScalePercent;
 
     [ObservableProperty]
     private decimal? _telemetryIntervalMs;
@@ -183,13 +195,63 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
 
         ApplyFromSettings(settingsStore.Current);
         StartWithWindows = settingsStore.Current.StartWithWindows || TryReadStartupEnabled();
+
+        _settingsChangedSubscription = _eventBus.Subscribe<SettingsChangedEvent>(e => _uiDispatch(() =>
+        {
+            int incoming = e.Settings.Normalize().UiScalePercent;
+            if (RoundedUiScalePercent == incoming)
+            {
+                return;
+            }
+
+            _suppressScaleSync = true;
+            try
+            {
+                UiScalePercent = incoming;
+            }
+            finally
+            {
+                _suppressScaleSync = false;
+            }
+        }));
     }
 
     public string SettingsFilePath { get; }
     public string LogsDirectoryPath { get; }
 
+    private int RoundedUiScalePercent =>
+        Math.Clamp((int)Math.Round(UiScalePercent), ArgusSettings.MinUiScalePercent, ArgusSettings.MaxUiScalePercent);
+
+    public string UiScaleText => $"{RoundedUiScalePercent}%";
+    public bool IsUiScale80 => RoundedUiScalePercent == 80;
+    public bool IsUiScale90 => RoundedUiScalePercent == 90;
+    public bool IsUiScale100 => RoundedUiScalePercent == 100;
+    public bool IsUiScale110 => RoundedUiScalePercent == 110;
+    public bool IsUiScale125 => RoundedUiScalePercent == 125;
+    public bool IsUiScale150 => RoundedUiScalePercent == 150;
+
     public bool CanCheckForUpdates => !IsCheckingUpdates && !IsDownloadingUpdate;
     public bool CanDownloadUpdate => IsUpdateAvailable && !IsCheckingUpdates && !IsDownloadingUpdate;
+
+    partial void OnUiScalePercentChanged(double value)
+    {
+        if (_suppressScaleSync)
+        {
+            return;
+        }
+
+        int clamped = Math.Clamp((int)Math.Round(value), ArgusSettings.MinUiScalePercent, ArgusSettings.MaxUiScalePercent);
+        _eventBus.Publish(new SettingsChangedEvent(_settingsStore.Current with { UiScalePercent = clamped }));
+    }
+
+    [RelayCommand]
+    private void SetUiScalePreset(string percentText)
+    {
+        if (int.TryParse(percentText, out int percent))
+        {
+            UiScalePercent = Math.Clamp(percent, ArgusSettings.MinUiScalePercent, ArgusSettings.MaxUiScalePercent);
+        }
+    }
 
     partial void OnExpertModeEnabledChanged(bool value)
     {
@@ -373,6 +435,7 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
         {
             TelemetryIntervalMs = (int)Math.Round(TelemetryIntervalMs ?? 1000m),
             HistoryWindowSeconds = (int)Math.Round(HistoryWindowSeconds ?? 180m),
+            UiScalePercent = RoundedUiScalePercent,
             CpuTemperatureAlertCelsius = (double)(CpuTemperatureAlertCelsius ?? 85m),
             GpuTemperatureAlertCelsius = (double)(GpuTemperatureAlertCelsius ?? 85m),
             RamUsageAlertPercent = (double)(RamUsageAlertPercent ?? 90m),
@@ -403,7 +466,7 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
             moduleId: "argus.settings",
             severity: OperationSeverity.Success,
             action: "SettingsSaved",
-            details: $"Інтервал={normalized.TelemetryIntervalMs} мс, системний трей={normalized.EnableSystemTray}, згортання={normalized.MinimizeToTrayOnClose}, експертний режим={normalized.ExpertModeEnabled}, поріг диска={normalized.DiskFreeSpaceAlertPercent:0.#}%, S.M.A.R.T.={normalized.EnableSmartDegradationAlert}, автозапуск={normalized.StartWithWindows}, автооновлення={normalized.CheckUpdatesOnStartup}{startupNote}")
+            details: $"Інтервал={normalized.TelemetryIntervalMs} мс, масштаб={normalized.UiScalePercent}%, системний трей={normalized.EnableSystemTray}, згортання={normalized.MinimizeToTrayOnClose}, експертний режим={normalized.ExpertModeEnabled}, поріг диска={normalized.DiskFreeSpaceAlertPercent:0.#}%, S.M.A.R.T.={normalized.EnableSmartDegradationAlert}, автозапуск={normalized.StartWithWindows}, автооновлення={normalized.CheckUpdatesOnStartup}{startupNote}")
             .ConfigureAwait(false);
 
         _uiDispatch(() =>
@@ -518,6 +581,16 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
     {
         TelemetryIntervalMs = settings.TelemetryIntervalMs;
         HistoryWindowSeconds = settings.HistoryWindowSeconds;
+        _suppressScaleSync = true;
+        try
+        {
+            UiScalePercent = settings.Normalize().UiScalePercent;
+        }
+        finally
+        {
+            _suppressScaleSync = false;
+        }
+
         CpuTemperatureAlertCelsius = (decimal)settings.CpuTemperatureAlertCelsius;
         GpuTemperatureAlertCelsius = (decimal)settings.GpuTemperatureAlertCelsius;
         RamUsageAlertPercent = (decimal)settings.RamUsageAlertPercent;
@@ -544,6 +617,7 @@ public sealed partial class SettingsViewModel : SectionViewModelBase, IDisposabl
 
     public void Dispose()
     {
+        _settingsChangedSubscription.Dispose();
         DetachUiMode();
     }
 

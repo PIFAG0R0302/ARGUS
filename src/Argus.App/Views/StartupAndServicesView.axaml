@@ -77,38 +77,117 @@
           </StackPanel>
         </Grid>
 
-        <!-- Row 2: Search Box + Category Filters -->
-        <Grid ColumnDefinitions="*,14,Auto">
-          <TextBox Grid.Column="0"
-                   Classes="argus-input"
-                   MinWidth="240"
-                   Text="{Binding SearchQuery}"
-                   PlaceholderText="Пошук за назвою програми, командою, службою або шляхом..." />
+        <!-- Row 2: Quick Filter Pills (no search bar) -->
+        <Grid>
+          <!-- Startup Source + State Filter Pills -->
+          <WrapPanel Orientation="Horizontal"
+                     IsVisible="{Binding IsStartupTab}"
+                     VerticalAlignment="Center">
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsStartupSourceAll}"
+                    Margin="0,0,6,4"
+                    Content="Усі"
+                    Command="{Binding SetStartupFilterCommand}"
+                    CommandParameter="Усі" />
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsStartupSourceRegistry}"
+                    Margin="0,0,6,4"
+                    Content="Registry"
+                    Command="{Binding SetStartupFilterCommand}"
+                    CommandParameter="Registry" />
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsStartupSourceStartup}"
+                    Margin="0,0,6,4"
+                    Content="Startup"
+                    Command="{Binding SetStartupFilterCommand}"
+                    CommandParameter="Startup" />
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsStartupSourceTaskScheduler}"
+                    Margin="0,0,6,4"
+                    Content="Task Scheduler"
+                    Command="{Binding SetStartupFilterCommand}"
+                    CommandParameter="Task Scheduler" />
 
-          <!-- Startup Source Filter Pills -->
-          <StackPanel Grid.Column="2"
-                      Orientation="Horizontal"
-                      Spacing="6"
-                      IsVisible="{Binding IsStartupTab}"
-                      VerticalAlignment="Center">
-            <Button Classes="filter-pill" Content="Усі" Command="{Binding SetStartupFilterCommand}" CommandParameter="Усі" />
-            <Button Classes="filter-pill" Content="Реєстр" Command="{Binding SetStartupFilterCommand}" CommandParameter="Реєстр" />
-            <Button Classes="filter-pill" Content="Startup" Command="{Binding SetStartupFilterCommand}" CommandParameter="Startup" />
-            <Button Classes="filter-pill" Content="Планувальник" Command="{Binding SetStartupFilterCommand}" CommandParameter="Планувальник" />
-            <Button Classes="filter-pill" Content="Вимкнені" Command="{Binding SetStartupFilterCommand}" CommandParameter="Вимкнені" />
-          </StackPanel>
+            <Border Width="1"
+                    Height="18"
+                    Background="{StaticResource ArgusBorderBrush}"
+                    Margin="4,0,10,4"
+                    VerticalAlignment="Center" />
 
-          <!-- Services State Filter Pills -->
-          <StackPanel Grid.Column="2"
-                      Orientation="Horizontal"
-                      Spacing="6"
-                      IsVisible="{Binding IsServicesTab}"
-                      VerticalAlignment="Center">
-            <Button Classes="filter-pill" Content="Усі" Command="{Binding SetServiceFilterCommand}" CommandParameter="Усі" />
-            <Button Classes="filter-pill" Content="Працюють" Command="{Binding SetServiceFilterCommand}" CommandParameter="Працюють" />
-            <Button Classes="filter-pill" Content="Зупинені" Command="{Binding SetServiceFilterCommand}" CommandParameter="Зупинені" />
-            <Button Classes="filter-pill" Content="Захищені" Command="{Binding SetServiceFilterCommand}" CommandParameter="Захищені" />
-          </StackPanel>
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsStartupStateAll}"
+                    Margin="0,0,6,4"
+                    Content="Усі стани"
+                    Command="{Binding SetStartupStateFilterCommand}"
+                    CommandParameter="Усі стани" />
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsStartupStateEnabled}"
+                    Margin="0,0,6,4"
+                    Content="Увімкнено"
+                    Command="{Binding SetStartupStateFilterCommand}"
+                    CommandParameter="Увімкнено" />
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsStartupStateDisabled}"
+                    Margin="0,0,0,4"
+                    Content="Вимкнено"
+                    Command="{Binding SetStartupStateFilterCommand}"
+                    CommandParameter="Вимкнено" />
+          </WrapPanel>
+
+          <!-- Services State + Startup Type Filter Pills -->
+          <WrapPanel Orientation="Horizontal"
+                     IsVisible="{Binding IsServicesTab}"
+                     VerticalAlignment="Center">
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsServiceStateAll}"
+                    Margin="0,0,6,4"
+                    Content="Усі"
+                    Command="{Binding SetServiceFilterCommand}"
+                    CommandParameter="Усі" />
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsServiceStateRunning}"
+                    Margin="0,0,6,4"
+                    Content="Працює"
+                    Command="{Binding SetServiceFilterCommand}"
+                    CommandParameter="Працює" />
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsServiceStateStopped}"
+                    Margin="0,0,6,4"
+                    Content="Зупинено"
+                    Command="{Binding SetServiceFilterCommand}"
+                    CommandParameter="Зупинено" />
+
+            <Border Width="1"
+                    Height="18"
+                    Background="{StaticResource ArgusBorderBrush}"
+                    Margin="4,0,10,4"
+                    VerticalAlignment="Center" />
+
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsServiceStartModeAll}"
+                    Margin="0,0,6,4"
+                    Content="Усі типи"
+                    Command="{Binding SetServiceStartModeFilterCommand}"
+                    CommandParameter="Усі типи" />
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsServiceStartModeAutomatic}"
+                    Margin="0,0,6,4"
+                    Content="Автоматично"
+                    Command="{Binding SetServiceStartModeFilterCommand}"
+                    CommandParameter="Автоматично" />
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsServiceStartModeManual}"
+                    Margin="0,0,6,4"
+                    Content="Вручну"
+                    Command="{Binding SetServiceStartModeFilterCommand}"
+                    CommandParameter="Вручну" />
+            <Button Classes="filter-pill"
+                    Classes.selected="{Binding IsServiceStartModeDisabled}"
+                    Margin="0,0,0,4"
+                    Content="Вимкнено"
+                    Command="{Binding SetServiceStartModeFilterCommand}"
+                    CommandParameter="Вимкнено" />
+          </WrapPanel>
         </Grid>
 
         <!-- Summary & Action Feedback -->
@@ -135,8 +214,41 @@
       <Grid>
 
         <!-- Sub-Tab 0: Startup Entries -->
-        <ScrollViewer IsVisible="{Binding IsStartupTab}" VerticalScrollBarVisibility="Auto">
-          <ItemsControl ItemsSource="{Binding StartupEntries}">
+        <Grid RowDefinitions="Auto,*" IsVisible="{Binding IsStartupTab}">
+          <!-- Clickable Sort Header Strip -->
+          <Grid Grid.Row="0" ColumnDefinitions="*,12,150,12,110,12,102" Margin="12,0,18,8">
+            <Button Grid.Column="0"
+                    Classes="column-sort-header"
+                    Classes.active="{Binding IsStartupSortByName}"
+                    HorizontalAlignment="Left"
+                    Content="{Binding StartupSortNameHeader}"
+                    Command="{Binding SetStartupSortCommand}"
+                    CommandParameter="NAME" />
+            <Button Grid.Column="2"
+                    Classes="column-sort-header"
+                    Classes.active="{Binding IsStartupSortBySource}"
+                    HorizontalAlignment="Left"
+                    Content="{Binding StartupSortSourceHeader}"
+                    Command="{Binding SetStartupSortCommand}"
+                    CommandParameter="SOURCE" />
+            <Button Grid.Column="4"
+                    Classes="column-sort-header"
+                    Classes.active="{Binding IsStartupSortByState}"
+                    HorizontalAlignment="Left"
+                    Content="{Binding StartupSortStateHeader}"
+                    Command="{Binding SetStartupSortCommand}"
+                    CommandParameter="STATE" />
+            <TextBlock Grid.Column="6"
+                       Text="ДІЯ"
+                       FontSize="11"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource ArgusTextMutedBrush}"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Center" />
+          </Grid>
+
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding StartupEntries}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:StartupEntryRowViewModel">
                 <Border Classes="tile" Padding="12,10" Margin="0,0,4,8">
@@ -216,12 +328,46 @@
                 </Border>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </ScrollViewer>
+            </ItemsControl>
+          </ScrollViewer>
+        </Grid>
 
         <!-- Sub-Tab 1: Windows Services -->
-        <ScrollViewer IsVisible="{Binding IsServicesTab}" VerticalScrollBarVisibility="Auto">
-          <ItemsControl ItemsSource="{Binding Services}">
+        <Grid RowDefinitions="Auto,*" IsVisible="{Binding IsServicesTab}">
+          <!-- Clickable Sort Header Strip -->
+          <Grid Grid.Row="0" ColumnDefinitions="*,12,110,12,130,12,220" Margin="12,0,18,8">
+            <Button Grid.Column="0"
+                    Classes="column-sort-header"
+                    Classes.active="{Binding IsServiceSortByName}"
+                    HorizontalAlignment="Left"
+                    Content="{Binding ServiceSortNameHeader}"
+                    Command="{Binding SetServiceSortCommand}"
+                    CommandParameter="NAME" />
+            <Button Grid.Column="2"
+                    Classes="column-sort-header"
+                    Classes.active="{Binding IsServiceSortByState}"
+                    HorizontalAlignment="Left"
+                    Content="{Binding ServiceSortStateHeader}"
+                    Command="{Binding SetServiceSortCommand}"
+                    CommandParameter="STATE" />
+            <Button Grid.Column="4"
+                    Classes="column-sort-header"
+                    Classes.active="{Binding IsServiceSortByStartMode}"
+                    HorizontalAlignment="Left"
+                    Content="{Binding ServiceSortStartModeHeader}"
+                    Command="{Binding SetServiceSortCommand}"
+                    CommandParameter="STARTMODE" />
+            <TextBlock Grid.Column="6"
+                       Text="КЕРУВАННЯ"
+                       FontSize="11"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource ArgusTextMutedBrush}"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Center" />
+          </Grid>
+
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Services}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:ManagedServiceRowViewModel">
                 <Border Classes="tile" Padding="12,10" Margin="0,0,4,8">
@@ -323,8 +469,9 @@
                 </Border>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </ScrollViewer>
+            </ItemsControl>
+          </ScrollViewer>
+        </Grid>
 
       </Grid>
     </Border>

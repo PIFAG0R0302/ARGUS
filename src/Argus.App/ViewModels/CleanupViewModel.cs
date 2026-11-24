@@ -189,7 +189,7 @@ public sealed partial class CleanupViewModel : SectionViewModelBase, IDisposable
         : base(
             ArgusSectionId.Cleanup,
             "Очищення системи",
-            "Безпечне двокрокове очищення на зовнішніх JSON-правилах із білим списком винятків і System Restore",
+            "Безпечне двокрокове очищення на зовнішніх JSON-правилах із підтримкою System Restore",
             uiMode,
             uiDispatch)
     {

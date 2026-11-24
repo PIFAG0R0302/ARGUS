@@ -24,6 +24,7 @@ vm-tests/
 /ArgusSetup.zip
 ArgusSetup/*.exe
 ArgusSetup/*.zip
+ArgusSetup/*.rar
 *.pfx
 *.p12
 

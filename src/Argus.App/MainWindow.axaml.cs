@@ -66,6 +66,8 @@ public sealed partial class MainWindow : Window
 
     private void WireWindowEvents()
     {
+        AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
+        AddHandler(PointerWheelChangedEvent, OnPreviewPointerWheelChanged, RoutingStrategies.Tunnel);
         KeyDown += OnWindowKeyDown;
         Closing += OnWindowClosing;
         PropertyChanged += OnWindowPropertyChanged;
@@ -189,6 +191,52 @@ public sealed partial class MainWindow : Window
             : WindowState.Maximized;
     }
 
+    private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (!e.KeyModifiers.HasFlag(KeyModifiers.Control) || DataContext is not MainWindowViewModel vm)
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case Key.OemPlus:
+            case Key.Add:
+                vm.ZoomIn();
+                e.Handled = true;
+                break;
+            case Key.OemMinus:
+            case Key.Subtract:
+                vm.ZoomOut();
+                e.Handled = true;
+                break;
+            case Key.D0:
+            case Key.NumPad0:
+                vm.ResetZoom();
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private void OnPreviewPointerWheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        if (!e.KeyModifiers.HasFlag(KeyModifiers.Control) || DataContext is not MainWindowViewModel vm)
+        {
+            return;
+        }
+
+        if (e.Delta.Y > 0)
+        {
+            vm.ZoomIn();
+            e.Handled = true;
+        }
+        else if (e.Delta.Y < 0)
+        {
+            vm.ZoomOut();
+            e.Handled = true;
+        }
+    }
+
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
         if (!e.KeyModifiers.HasFlag(KeyModifiers.Control) || DataContext is not MainWindowViewModel vm)
@@ -207,7 +255,6 @@ public sealed partial class MainWindow : Window
             Key.D7 or Key.NumPad7 => ArgusSectionId.Migration,
             Key.D8 or Key.NumPad8 => ArgusSectionId.Processes,
             Key.D9 or Key.NumPad9 => ArgusSectionId.StartupAndServices,
-            Key.D0 or Key.NumPad0 => ArgusSectionId.Journal,
             Key.OemComma => ArgusSectionId.Settings,
             _ => null
         };

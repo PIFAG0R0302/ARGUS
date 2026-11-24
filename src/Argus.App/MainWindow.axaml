@@ -16,7 +16,12 @@
         ExtendClientAreaTitleBarHeightHint="38"
         Background="{StaticResource ArgusBgCanvasBrush}">
 
-  <Grid x:Name="RootShell" RowDefinitions="38,*">
+  <LayoutTransformControl>
+    <LayoutTransformControl.LayoutTransform>
+      <ScaleTransform ScaleX="{Binding UiScaleFactor}"
+                      ScaleY="{Binding UiScaleFactor}" />
+    </LayoutTransformControl.LayoutTransform>
+    <Grid x:Name="RootShell" RowDefinitions="38,*">
 
     <!-- Custom Frameless Futuristic Title Bar (preserves Windows Snap & resize borders) -->
     <Border Grid.Row="0"
@@ -300,4 +305,5 @@
       </Border>
     </Grid>
   </Grid>
+  </LayoutTransformControl>
 </Window>

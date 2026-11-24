@@ -9,6 +9,8 @@ namespace Argus.App.ViewModels;
 
 public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 {
+    public const int UiScaleStepPercent = 10;
+
     private readonly Dictionary<ArgusSectionId, SectionViewModelBase> _sections;
     private readonly OverviewViewModel _overview;
     private readonly MonitoringViewModel _monitoring;
@@ -19,9 +21,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly MigrationViewModel _migration;
     private readonly ProcessesViewModel? _processes;
     private readonly StartupAndServicesViewModel? _startupAndServices;
+    private readonly IArgusSettingsStore _settingsStore;
+    private readonly Argus.Core.Events.IArgusEventBus? _eventBus;
     private readonly IPrivilegeService _privilegeService;
     private readonly Action? _requestAppExit;
     private readonly IDisposable? _updateSubscription;
+    private readonly IDisposable? _settingsSubscription;
     private bool _isWindowVisible = true;
 
     [ObservableProperty]
@@ -41,6 +46,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _isMaximized;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UiScaleFactor))]
+    [NotifyPropertyChangedFor(nameof(UiScaleText))]
+    private int _uiScalePercent = ArgusSettings.DefaultUiScalePercent;
 
     public MainWindowViewModel(
         OverviewViewModel overview,
@@ -82,8 +92,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _migration = migration;
         _processes = processes;
         _startupAndServices = startupAndServices;
+        _settingsStore = settingsStore;
+        _eventBus = eventBus;
         _privilegeService = privilegeService;
         _requestAppExit = requestAppExit;
+        _uiScalePercent = settingsStore.Current.Normalize().UiScalePercent;
 
         _sections = new Dictionary<ArgusSectionId, SectionViewModelBase>
         {
@@ -186,6 +199,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 HasUpdateAvailable = e.Update.IsUpdateAvailable;
                 UpdateBadgeText = $"Доступне оновлення v{e.Update.LatestVersion}";
             }));
+            _settingsSubscription = eventBus.Subscribe<SettingsChangedEvent>(e => dispatch(() =>
+            {
+                int normalizedScale = e.Settings.Normalize().UiScalePercent;
+                if (UiScalePercent != normalizedScale)
+                {
+                    UiScalePercent = normalizedScale;
+                }
+            }));
         }
     }
 
@@ -197,6 +218,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public bool IsAdministrator { get; }
     public string PrivilegeBadgeText { get; }
     public string PrivilegeTooltip { get; }
+    public double UiScaleFactor => UiScalePercent / 100.0;
+    public string UiScaleText => $"{UiScalePercent}%";
 
     public IReadOnlyList<NavigationGroupViewModel> NavigationGroups { get; }
     public IReadOnlyList<NavigationItemViewModel> PrimaryNavigation { get; }
@@ -298,6 +321,41 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    public void ZoomIn() => ApplyZoom(UiScalePercent + UiScaleStepPercent);
+
+    [RelayCommand]
+    public void ZoomOut() => ApplyZoom(UiScalePercent - UiScaleStepPercent);
+
+    [RelayCommand]
+    public void ResetZoom() => ApplyZoom(ArgusSettings.DefaultUiScalePercent);
+
+    private void ApplyZoom(int targetPercent)
+    {
+        int clamped = Math.Clamp(targetPercent, ArgusSettings.MinUiScalePercent, ArgusSettings.MaxUiScalePercent);
+        if (clamped == UiScalePercent)
+        {
+            return;
+        }
+
+        UiScalePercent = clamped;
+        var updated = (_settingsStore.Current with { UiScalePercent = clamped }).Normalize();
+        _eventBus?.Publish(new SettingsChangedEvent(updated));
+        _ = PersistUiScaleAsync(updated);
+    }
+
+    private async Task PersistUiScaleAsync(ArgusSettings updated)
+    {
+        try
+        {
+            await _settingsStore.SaveAsync(updated).ConfigureAwait(false);
+        }
+        catch
+        {
+            // Best-effort persistence on interactive zoom hotkeys
+        }
+    }
+
+    [RelayCommand]
     private void OpenUpdateSettings()
     {
         SelectSection(ArgusSectionId.Settings);
@@ -306,6 +364,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _updateSubscription?.Dispose();
+        _settingsSubscription?.Dispose();
         foreach (var section in _sections.Values)
         {
             if (section is IDisposable disposable)

@@ -32,6 +32,86 @@
             <NumericUpDown Grid.Row="10" Grid.Column="1" Classes="argus-numeric" Minimum="2" Maximum="50" Increment="1" Value="{Binding DiskFreeSpaceAlertPercent}" />
           </Grid>
 
+          <!-- Global UI Scaling (80% - 150%) -->
+          <Border Classes="tile">
+            <StackPanel Spacing="8">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,12,0">
+                  <TextBlock Text="Масштабування інтерфейсу (80% – 150%)"
+                             FontSize="13"
+                             FontWeight="SemiBold"
+                             Foreground="{StaticResource ArgusTextPrimaryBrush}" />
+                  <TextBlock Classes="body-muted"
+                             Text="Динамічний масштаб: Ctrl + '+' / Ctrl + '-' / Ctrl + 0 або Ctrl + коліщатко миші." />
+                </StackPanel>
+                <Border Grid.Column="1" Classes="pill" Padding="10,4" VerticalAlignment="Center">
+                  <TextBlock Classes="metric-mono"
+                             FontSize="12.5"
+                             FontWeight="SemiBold"
+                             Foreground="{StaticResource ArgusCyanBrush}"
+                             Text="{Binding UiScaleText}" />
+                </Border>
+              </Grid>
+
+              <Slider Minimum="80"
+                      Maximum="150"
+                      TickFrequency="5"
+                      IsSnapToTickEnabled="True"
+                      Value="{Binding UiScalePercent}" />
+
+              <WrapPanel Orientation="Horizontal">
+                <Button Classes="filter-pill"
+                        Classes.selected="{Binding IsUiScale80}"
+                        Margin="0,0,6,4"
+                        Padding="10,4"
+                        FontSize="11.5"
+                        Content="80%"
+                        Command="{Binding SetUiScalePresetCommand}"
+                        CommandParameter="80" />
+                <Button Classes="filter-pill"
+                        Classes.selected="{Binding IsUiScale90}"
+                        Margin="0,0,6,4"
+                        Padding="10,4"
+                        FontSize="11.5"
+                        Content="90%"
+                        Command="{Binding SetUiScalePresetCommand}"
+                        CommandParameter="90" />
+                <Button Classes="filter-pill"
+                        Classes.selected="{Binding IsUiScale100}"
+                        Margin="0,0,6,4"
+                        Padding="10,4"
+                        FontSize="11.5"
+                        Content="100%"
+                        Command="{Binding SetUiScalePresetCommand}"
+                        CommandParameter="100" />
+                <Button Classes="filter-pill"
+                        Classes.selected="{Binding IsUiScale110}"
+                        Margin="0,0,6,4"
+                        Padding="10,4"
+                        FontSize="11.5"
+                        Content="110%"
+                        Command="{Binding SetUiScalePresetCommand}"
+                        CommandParameter="110" />
+                <Button Classes="filter-pill"
+                        Classes.selected="{Binding IsUiScale125}"
+                        Margin="0,0,6,4"
+                        Padding="10,4"
+                        FontSize="11.5"
+                        Content="125%"
+                        Command="{Binding SetUiScalePresetCommand}"
+                        CommandParameter="125" />
+                <Button Classes="filter-pill"
+                        Classes.selected="{Binding IsUiScale150}"
+                        Margin="0,0,0,4"
+                        Padding="10,4"
+                        FontSize="11.5"
+                        Content="150%"
+                        Command="{Binding SetUiScalePresetCommand}"
+                        CommandParameter="150" />
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+
           <Border Classes="tile">
             <StackPanel Spacing="10">
               <Grid ColumnDefinitions="*,Auto">

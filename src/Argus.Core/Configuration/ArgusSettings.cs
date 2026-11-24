@@ -8,9 +8,13 @@ public sealed record ArgusSettings
     public const string DefaultTrustedSignerThumbprint = "9D1B22482AC32CEA02F398527F9409FCA09EA78D";
     public const string LegacySourceGitHubRepository = "PIFAG0R0302/ARGUS";
     public const string DefaultGitHubRepository = "PIFAG0R0302/ARGUS-Updates";
+    public const int MinUiScalePercent = 80;
+    public const int MaxUiScalePercent = 150;
+    public const int DefaultUiScalePercent = 100;
 
     public int TelemetryIntervalMs { get; init; } = 1000;
     public int HistoryWindowSeconds { get; init; } = 180;
+    public int UiScalePercent { get; init; } = DefaultUiScalePercent;
     public bool EnablePawnIoExtendedSensors { get; init; }
     public double CpuTemperatureAlertCelsius { get; init; } = 85.0;
     public double GpuTemperatureAlertCelsius { get; init; } = 85.0;
@@ -32,6 +36,9 @@ public sealed record ArgusSettings
     {
         TelemetryIntervalMs = Math.Clamp(TelemetryIntervalMs, 250, 10_000),
         HistoryWindowSeconds = Math.Clamp(HistoryWindowSeconds, 30, 3_600),
+        UiScalePercent = UiScalePercent <= 0
+            ? DefaultUiScalePercent
+            : Math.Clamp(UiScalePercent, MinUiScalePercent, MaxUiScalePercent),
         CpuTemperatureAlertCelsius = Math.Clamp(CpuTemperatureAlertCelsius, 50.0, 115.0),
         GpuTemperatureAlertCelsius = Math.Clamp(GpuTemperatureAlertCelsius, 50.0, 115.0),
         RamUsageAlertPercent = Math.Clamp(RamUsageAlertPercent, 50.0, 99.0),

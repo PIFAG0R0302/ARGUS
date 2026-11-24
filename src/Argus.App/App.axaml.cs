@@ -411,7 +411,8 @@ public sealed class App : Application
             uiDispatch,
             sp.GetRequiredService<ITelemetryReportExporter>(),
             sp.GetRequiredService<AppUiModeService>(),
-            sp.GetRequiredService<ISystemInspectorService>()));
+            sp.GetRequiredService<ISystemInspectorService>(),
+            sp.GetRequiredService<IProcessMonitorService>()));
         services.AddSingleton(sp => new DevicesViewModel(
             sp.GetRequiredService<IDeviceProvider>(),
             sp.GetRequiredService<IArgusEventBus>(),

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.Text;
 using Argus.App.Services;
 using Argus.Core.Contracts.Devices;
 using Argus.Core.Events;
@@ -80,6 +81,169 @@ public sealed class DeviceNodeRowItem
     public bool IsProblem { get; }
 }
 
+public sealed partial class DeviceGroupViewModel : ObservableObject
+{
+    public DeviceGroupViewModel(string groupKey, IReadOnlyList<DeviceNode> nodes)
+    {
+        GroupKey = groupKey;
+        Items = [];
+        Update(nodes);
+    }
+
+    public string GroupKey { get; }
+    public ObservableCollection<DeviceNodeRowItem> Items { get; }
+
+    [ObservableProperty]
+    private string _displayName = string.Empty;
+
+    [ObservableProperty]
+    private string _busType = string.Empty;
+
+    [ObservableProperty]
+    private string _categoryAndManufacturer = string.Empty;
+
+    [ObservableProperty]
+    private string _basicDriverText = "—";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMultipleItems))]
+    [NotifyPropertyChangedFor(nameof(ExpandChevron))]
+    private int _itemCount;
+
+    [ObservableProperty]
+    private string _countBadgeText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasProblem;
+
+    [ObservableProperty]
+    private bool _isAllOk = true;
+
+    [ObservableProperty]
+    private string _statusLabel = "OK";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ExpandChevron))]
+    private bool _isExpanded;
+
+    public bool HasMultipleItems => ItemCount > 1;
+    public string ExpandChevron => HasMultipleItems ? (IsExpanded ? "▼" : "▶") : string.Empty;
+
+    [RelayCommand]
+    private void ToggleExpanded()
+    {
+        IsExpanded = !IsExpanded;
+    }
+
+    public void Update(IReadOnlyList<DeviceNode> nodes)
+    {
+        if (nodes.Count == 0)
+        {
+            return;
+        }
+
+        var primary = nodes[0];
+        DisplayName = string.IsNullOrWhiteSpace(primary.FriendlyName)
+            ? "Невідомий пристрій"
+            : primary.FriendlyName.Trim();
+        BusType = primary.BusType;
+        CategoryAndManufacturer = $"{primary.Category} · {primary.Manufacturer}";
+        BasicDriverText = string.IsNullOrWhiteSpace(primary.DriverVersion)
+            ? "—"
+            : $"Драйвер {primary.DriverVersion}";
+        ItemCount = nodes.Count;
+        CountBadgeText = FormatEntryCount(nodes.Count);
+
+        int problemCount = 0;
+        int firstProblemCode = 0;
+        bool anyDisabled = false;
+
+        foreach (var node in nodes)
+        {
+            if (node.Status is DeviceStatus.Warning or DeviceStatus.Error)
+            {
+                problemCount++;
+                if (firstProblemCode == 0 && node.ProblemCode > 0)
+                {
+                    firstProblemCode = node.ProblemCode;
+                }
+            }
+            else if (node.Status == DeviceStatus.Disabled)
+            {
+                anyDisabled = true;
+            }
+        }
+
+        HasProblem = problemCount > 0;
+        IsAllOk = !HasProblem && !anyDisabled;
+        StatusLabel = HasProblem
+            ? (problemCount == 1
+                ? (firstProblemCode > 0 ? $"Код {firstProblemCode}" : "Увага")
+                : $"Пробл.: {problemCount}")
+            : (anyDisabled ? "Вимкнено" : "OK");
+
+        Items.Clear();
+        foreach (var node in nodes)
+        {
+            Items.Add(new DeviceNodeRowItem(node));
+        }
+    }
+
+    internal static string NormalizeGroupKey(string? friendlyName)
+    {
+        if (string.IsNullOrWhiteSpace(friendlyName))
+        {
+            return "невідомий пристрій";
+        }
+
+        string trimmed = friendlyName.Trim();
+        var sb = new StringBuilder(trimmed.Length);
+        bool prevSpace = false;
+
+        foreach (char c in trimmed)
+        {
+            if (char.IsWhiteSpace(c))
+            {
+                if (!prevSpace)
+                {
+                    sb.Append(' ');
+                    prevSpace = true;
+                }
+            }
+            else
+            {
+                sb.Append(c);
+                prevSpace = false;
+            }
+        }
+
+        return sb.ToString().ToLowerInvariant();
+    }
+
+    internal static string FormatEntryCount(int count)
+    {
+        if (count <= 1)
+        {
+            return string.Empty;
+        }
+
+        int mod100 = count % 100;
+        int mod10 = count % 10;
+
+        if (mod10 == 1 && mod100 != 11)
+        {
+            return $"{count} запис";
+        }
+
+        if (mod10 is >= 2 and <= 4 && (mod100 < 12 || mod100 > 14))
+        {
+            return $"{count} записи";
+        }
+
+        return $"{count} записів";
+    }
+}
+
 public sealed partial class DevicesViewModel : SectionViewModelBase, IDisposable
 {
     private readonly IDeviceProvider? _deviceProvider;
@@ -98,7 +262,7 @@ public sealed partial class DevicesViewModel : SectionViewModelBase, IDisposable
     private bool _isLoading;
 
     [ObservableProperty]
-    private string _pnpMonitorStatusText = "Монітор CfgMgr32 / WM_DEVICECHANGE активний";
+    private string _pnpMonitorStatusText = "Моніторинг підключень активний";
 
     [ObservableProperty]
     private string _showingCountText = "Завантаження дерева пристроїв…";
@@ -182,6 +346,7 @@ public sealed partial class DevicesViewModel : SectionViewModelBase, IDisposable
 
         RamSlots = [];
         FilteredDevices = [];
+        DeviceGroups = [];
 
         if (eventBus is not null)
         {
@@ -204,6 +369,7 @@ public sealed partial class DevicesViewModel : SectionViewModelBase, IDisposable
 
     public ObservableCollection<RamSlotRowItem> RamSlots { get; }
     public ObservableCollection<DeviceNodeRowItem> FilteredDevices { get; }
+    public ObservableCollection<DeviceGroupViewModel> DeviceGroups { get; }
 
     public bool IsFilterAll => ActiveFilter == DeviceFilterMode.All;
     public bool IsFilterPcie => ActiveFilter == DeviceFilterMode.Pcie;
@@ -440,7 +606,34 @@ public sealed partial class DevicesViewModel : SectionViewModelBase, IDisposable
             FilteredDevices.Add(new DeviceNodeRowItem(filtered[i]));
         }
 
-        ShowingCountText = $"Показано {FilteredDevices.Count} із {_allDevices.Count} пристроїв SetupAPI";
+        var groupedList = new List<(string Key, List<DeviceNode> Nodes)>();
+        var groupIndexByKey = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var node in filtered)
+        {
+            string key = DeviceGroupViewModel.NormalizeGroupKey(node.FriendlyName);
+            if (groupIndexByKey.TryGetValue(key, out int idx))
+            {
+                groupedList[idx].Nodes.Add(node);
+            }
+            else if (groupedList.Count < 250)
+            {
+                groupIndexByKey[key] = groupedList.Count;
+                groupedList.Add((key, [node]));
+            }
+        }
+
+        CollectionSyncHelper.SyncByKey(
+            DeviceGroups,
+            groupedList,
+            static m => m.Key,
+            static r => r.GroupKey,
+            static m => new DeviceGroupViewModel(m.Key, m.Nodes),
+            static (r, m) => r.Update(m.Nodes),
+            currentSelection: null,
+            setSelection: static _ => { },
+            comparer: StringComparer.Ordinal);
+
+        ShowingCountText = $"Показано {DeviceGroups.Count} груп ({FilteredDevices.Count} із {_allDevices.Count} записів)";
     }
 
     private static bool MatchesFilterMode(DeviceNode node, DeviceFilterMode mode) => mode switch

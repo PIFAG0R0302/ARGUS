@@ -167,20 +167,58 @@ public sealed partial class ExtraSensorItem : ObservableObject
     }
 }
 
+public sealed class GaugeConsumerItem
+{
+    public GaugeConsumerItem(
+        int rank,
+        int pid,
+        string processName,
+        string primaryMetricText,
+        string secondaryMetricText,
+        double barPercent)
+    {
+        Rank = rank;
+        RankText = $"#{rank}";
+        Pid = pid;
+        PidText = $"PID {pid}";
+        ProcessName = processName;
+        PrimaryMetricText = primaryMetricText;
+        SecondaryMetricText = secondaryMetricText;
+        BarPercent = Math.Clamp(barPercent, 0.0, 100.0);
+    }
+
+    public int Rank { get; }
+    public string RankText { get; }
+    public int Pid { get; }
+    public string PidText { get; }
+    public string ProcessName { get; }
+    public string PrimaryMetricText { get; }
+    public string SecondaryMetricText { get; }
+    public double BarPercent { get; }
+}
+
 public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposable
 {
+    private static readonly TimeSpan GaugeConsumersRefreshInterval = TimeSpan.FromSeconds(2.5);
+
     private readonly IArgusSettingsStore _settingsStore;
     private readonly ITelemetryService _telemetryService;
     private readonly ISensorTierStatusProvider _tierStatusProvider;
     private readonly ITelemetryReportExporter? _reportExporter;
     private readonly ISystemInspectorService? _systemInspector;
+    private readonly IProcessMonitorService? _processMonitor;
+    private readonly IGpuProcessMetricsReader _gpuProcessMetricsReader;
+    private readonly bool _ownsGpuMetricsReader;
     private readonly Action<Action> _uiDispatch;
     private readonly IDisposable _telemetrySubscription;
     private readonly IDisposable _settingsSubscription;
     private readonly IDisposable _alertSubscription;
     private volatile bool _isUiActive = true;
     private int _inspectorBusyGate;
+    private int _gaugeConsumersBusyGate;
     private bool _inspectorLoadedOnce;
+    private TelemetrySnapshot? _lastSnapshot;
+    private DateTimeOffset _lastGaugeConsumersRefreshUtc = DateTimeOffset.MinValue;
     private IReadOnlyList<ProcessInspectItem> _allProcesses = [];
     private IReadOnlyList<WindowsServiceInspectItem> _allServices = [];
     private IReadOnlyList<LocalPortInspectItem> _allLocalPorts = [];
@@ -193,7 +231,9 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
         Action<Action>? uiDispatch = null,
         ITelemetryReportExporter? reportExporter = null,
         AppUiModeService? uiMode = null,
-        ISystemInspectorService? systemInspector = null)
+        ISystemInspectorService? systemInspector = null,
+        IProcessMonitorService? processMonitor = null,
+        IGpuProcessMetricsReader? gpuProcessMetricsReader = null)
         : base(
             ArgusSectionId.Monitoring,
             "Моніторинг у реальному часі",
@@ -208,10 +248,22 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
         _uiDispatch = uiDispatch ?? (static action => action());
         _reportExporter = reportExporter;
         _systemInspector = systemInspector;
+        _processMonitor = processMonitor;
+        if (gpuProcessMetricsReader is not null)
+        {
+            _gpuProcessMetricsReader = gpuProcessMetricsReader;
+            _ownsGpuMetricsReader = false;
+        }
+        else
+        {
+            _gpuProcessMetricsReader = new GpuProcessMetricsReader();
+            _ownsGpuMetricsReader = true;
+        }
 
         CoreLoads = [];
         StorageItems = [];
         ExtraSensors = [];
+        GaugeConsumers = [];
         FilteredProcesses = [];
         FilteredServices = [];
         FilteredLocalPorts = [];
@@ -258,6 +310,11 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
             {
                 _ = RefreshInspectorAsync();
             }
+
+            if (IsGaugeConsumersOpen)
+            {
+                _ = RefreshGaugeConsumersAsync();
+            }
         }
     }
 
@@ -280,9 +337,53 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
     public ObservableCollection<CoreLoadItem> CoreLoads { get; }
     public ObservableCollection<StorageRowItem> StorageItems { get; }
     public ObservableCollection<ExtraSensorItem> ExtraSensors { get; }
+    public ObservableCollection<GaugeConsumerItem> GaugeConsumers { get; }
     public ObservableCollection<ProcessRowItem> FilteredProcesses { get; }
     public ObservableCollection<WindowsServiceRowItem> FilteredServices { get; }
     public ObservableCollection<LocalPortRowItem> FilteredLocalPorts { get; }
+
+    // Collapsible Hardware Cards (CPU Threads & GPU Adapter)
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CpuThreadsChevron))]
+    private bool _isCpuThreadsExpanded = true;
+
+    public string CpuThreadsChevron => IsCpuThreadsExpanded ? "▼" : "▶";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GpuDetailsChevron))]
+    private bool _isGpuDetailsExpanded = true;
+
+    public string GpuDetailsChevron => IsGpuDetailsExpanded ? "▼" : "▶";
+
+    // Interactive Gauge Top-Consumers Panel ("CPU", "RAM", "GPU", "TEMP", or null)
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGaugeConsumersOpen))]
+    [NotifyPropertyChangedFor(nameof(IsCpuGaugeSelected))]
+    [NotifyPropertyChangedFor(nameof(IsRamGaugeSelected))]
+    [NotifyPropertyChangedFor(nameof(IsGpuGaugeSelected))]
+    [NotifyPropertyChangedFor(nameof(IsTempGaugeSelected))]
+    private string? _activeGaugeConsumerKind;
+
+    public bool IsGaugeConsumersOpen => !string.IsNullOrEmpty(ActiveGaugeConsumerKind);
+    public bool IsCpuGaugeSelected => string.Equals(ActiveGaugeConsumerKind, "CPU", StringComparison.OrdinalIgnoreCase);
+    public bool IsRamGaugeSelected => string.Equals(ActiveGaugeConsumerKind, "RAM", StringComparison.OrdinalIgnoreCase);
+    public bool IsGpuGaugeSelected => string.Equals(ActiveGaugeConsumerKind, "GPU", StringComparison.OrdinalIgnoreCase);
+    public bool IsTempGaugeSelected => string.Equals(ActiveGaugeConsumerKind, "TEMP", StringComparison.OrdinalIgnoreCase);
+
+    [ObservableProperty]
+    private string _gaugeConsumersTitle = string.Empty;
+
+    [ObservableProperty]
+    private string _gaugeConsumersSubtitle = string.Empty;
+
+    [ObservableProperty]
+    private bool _isGaugeConsumersLoading;
+
+    [ObservableProperty]
+    private bool _hasGaugeConsumers;
+
+    [ObservableProperty]
+    private string _gaugeConsumersEmptyText = "Немає активних процесів для відображення";
 
     // Expert Diagnostics State (loaded lazily only when IsExpertMode is ON)
     [ObservableProperty]
@@ -496,6 +597,385 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
 
     [ObservableProperty]
     private bool _hasExtraSensors;
+
+    [RelayCommand]
+    private void ToggleCpuThreads()
+    {
+        IsCpuThreadsExpanded = !IsCpuThreadsExpanded;
+    }
+
+    [RelayCommand]
+    private void ToggleGpuDetails()
+    {
+        IsGpuDetailsExpanded = !IsGpuDetailsExpanded;
+    }
+
+    [RelayCommand]
+    private void SelectGaugeConsumerKind(string? kind)
+    {
+        string normalized = NormalizeGaugeKind(kind);
+        if (string.IsNullOrEmpty(normalized))
+        {
+            return;
+        }
+
+        if (string.Equals(ActiveGaugeConsumerKind, normalized, StringComparison.Ordinal))
+        {
+            CloseGaugeConsumers();
+            return;
+        }
+
+        ActiveGaugeConsumerKind = normalized;
+        ApplyGaugeConsumersHeaderDefaults(normalized);
+        _lastGaugeConsumersRefreshUtc = DateTimeOffset.MinValue;
+        _ = RefreshGaugeConsumersAsync();
+    }
+
+    [RelayCommand]
+    private void CloseGaugeConsumers()
+    {
+        ActiveGaugeConsumerKind = null;
+        GaugeConsumers.Clear();
+        HasGaugeConsumers = false;
+        IsGaugeConsumersLoading = false;
+    }
+
+    public async Task RefreshGaugeConsumersAsync(CancellationToken cancellationToken = default)
+    {
+        string? requestedKind = ActiveGaugeConsumerKind;
+        if (string.IsNullOrEmpty(requestedKind))
+        {
+            return;
+        }
+
+        if (Interlocked.CompareExchange(ref _gaugeConsumersBusyGate, 1, 0) != 0)
+        {
+            return;
+        }
+
+        _uiDispatch(() => IsGaugeConsumersLoading = true);
+        try
+        {
+            var snapshot = _lastSnapshot;
+            if (_processMonitor is null)
+            {
+                _uiDispatch(() =>
+                {
+                    if (!string.Equals(ActiveGaugeConsumerKind, requestedKind, StringComparison.Ordinal))
+                    {
+                        return;
+                    }
+
+                    ApplyGaugeConsumersHeaderDefaults(requestedKind);
+                    GaugeConsumers.Clear();
+                    HasGaugeConsumers = false;
+                    GaugeConsumersEmptyText = "Служба моніторингу процесів недоступна.";
+                });
+                return;
+            }
+
+            var processes = await _processMonitor.GetProcessMetricsAsync(cancellationToken).ConfigureAwait(false);
+            IReadOnlyDictionary<int, double>? gpuUsage = null;
+            if (string.Equals(requestedKind, "GPU", StringComparison.Ordinal) ||
+                string.Equals(requestedKind, "TEMP", StringComparison.Ordinal))
+            {
+                gpuUsage = await Task.Run(
+                    () => _gpuProcessMetricsReader.SamplePerProcessGpuUtilization(),
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            var (title, subtitle, items) = BuildGaugeConsumers(requestedKind, processes, gpuUsage, snapshot);
+            _lastGaugeConsumersRefreshUtc = DateTimeOffset.UtcNow;
+
+            _uiDispatch(() =>
+            {
+                if (!string.Equals(ActiveGaugeConsumerKind, requestedKind, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                GaugeConsumersTitle = title;
+                GaugeConsumersSubtitle = subtitle;
+                GaugeConsumers.Clear();
+                foreach (var item in items)
+                {
+                    GaugeConsumers.Add(item);
+                }
+
+                HasGaugeConsumers = GaugeConsumers.Count > 0;
+                if (!HasGaugeConsumers)
+                {
+                    GaugeConsumersEmptyText = "Немає активних процесів для відображення.";
+                }
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected on cancellation.
+        }
+        catch
+        {
+            _uiDispatch(() =>
+            {
+                if (!string.Equals(ActiveGaugeConsumerKind, requestedKind, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                GaugeConsumers.Clear();
+                HasGaugeConsumers = false;
+                GaugeConsumersEmptyText = "Не вдалося отримати список процесів.";
+            });
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _gaugeConsumersBusyGate, 0);
+            _uiDispatch(() => IsGaugeConsumersLoading = false);
+
+            // If the user switched to another gauge while this refresh was running, refresh for the new kind.
+            string? currentKind = ActiveGaugeConsumerKind;
+            if (!string.IsNullOrEmpty(currentKind) &&
+                !string.Equals(currentKind, requestedKind, StringComparison.Ordinal))
+            {
+                _ = RefreshGaugeConsumersAsync();
+            }
+        }
+    }
+
+    private static string NormalizeGaugeKind(string? kind)
+    {
+        if (string.IsNullOrWhiteSpace(kind))
+        {
+            return string.Empty;
+        }
+
+        return kind.Trim().ToUpperInvariant() switch
+        {
+            "CPU" => "CPU",
+            "RAM" => "RAM",
+            "GPU" => "GPU",
+            "TEMP" => "TEMP",
+            _ => string.Empty
+        };
+    }
+
+    private void ApplyGaugeConsumersHeaderDefaults(string kind)
+    {
+        switch (kind)
+        {
+            case "CPU":
+                GaugeConsumersTitle = "Топ-споживачі CPU";
+                GaugeConsumersSubtitle = "Процеси з найбільшим навантаженням на процесор";
+                break;
+            case "RAM":
+                GaugeConsumersTitle = "Топ-споживачі оперативної пам'яті";
+                GaugeConsumersSubtitle = "Процеси з найбільшим споживанням ОЗП (Working Set)";
+                break;
+            case "GPU":
+                GaugeConsumersTitle = "Топ-споживачі GPU";
+                GaugeConsumersSubtitle = "Опитування лічильників GPU Engine по процесах…";
+                break;
+            case "TEMP":
+                GaugeConsumersTitle = "Джерела нагріву системи (Температура)";
+                GaugeConsumersSubtitle = $"{BuildThermalSummaryText(_lastSnapshot)} · Топ процесів за навантаженням CPU / GPU";
+                break;
+        }
+    }
+
+    private static (string Title, string Subtitle, List<GaugeConsumerItem> Items) BuildGaugeConsumers(
+        string kind,
+        IReadOnlyList<ProcessMetricsItem> processes,
+        IReadOnlyDictionary<int, double>? gpuUsage,
+        TelemetrySnapshot? snapshot)
+    {
+        const int maxItems = 6;
+        var items = new List<GaugeConsumerItem>(maxItems);
+
+        switch (kind)
+        {
+            case "CPU":
+            {
+                var top = processes
+                    .Where(p => p.Pid > 0)
+                    .OrderByDescending(p => p.CpuPercent)
+                    .ThenByDescending(p => p.WorkingSetBytes)
+                    .Take(maxItems);
+
+                int rank = 1;
+                foreach (var p in top)
+                {
+                    double cpu = Math.Clamp(p.CpuPercent, 0.0, 100.0);
+                    string primary = string.Format(CultureInfo.CurrentCulture, "{0:0.0}%", cpu);
+                    string secondary = $"{FormatMemorySize(p.WorkingSetBytes)} · {p.ThreadCount} пот.";
+                    items.Add(new GaugeConsumerItem(rank++, p.Pid, p.Name, primary, secondary, cpu));
+                }
+
+                return ("Топ-споживачі CPU", "Процеси з найбільшим навантаженням на процесор", items);
+            }
+
+            case "RAM":
+            {
+                var top = processes
+                    .Where(p => p.Pid > 0)
+                    .OrderByDescending(p => p.WorkingSetBytes)
+                    .ThenByDescending(p => p.CpuPercent)
+                    .Take(maxItems)
+                    .ToList();
+
+                long totalRamBytes = snapshot?.Memory.TotalBytes ?? 0;
+                long peakWorkingSet = top.Count > 0 ? Math.Max(1L, top[0].WorkingSetBytes) : 1L;
+
+                int rank = 1;
+                foreach (var p in top)
+                {
+                    double barPct = totalRamBytes > 0
+                        ? Math.Clamp((double)p.WorkingSetBytes / totalRamBytes * 100.0, 0.0, 100.0)
+                        : Math.Clamp((double)p.WorkingSetBytes / peakWorkingSet * 100.0, 0.0, 100.0);
+                    string primary = FormatMemorySize(p.WorkingSetBytes);
+                    string secondary = string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}% · {1} пот.", p.CpuPercent, p.ThreadCount);
+                    items.Add(new GaugeConsumerItem(rank++, p.Pid, p.Name, primary, secondary, barPct));
+                }
+
+                return ("Топ-споживачі оперативної пам'яті", "Процеси з найбільшим споживанням ОЗП (Working Set)", items);
+            }
+
+            case "GPU":
+            {
+                var withGpu = new List<(ProcessMetricsItem Process, double GpuPercent)>();
+                if (gpuUsage is { Count: > 0 })
+                {
+                    foreach (var p in processes)
+                    {
+                        if (p.Pid > 0 && gpuUsage.TryGetValue(p.Pid, out double gpuPct) && gpuPct > 0.05)
+                        {
+                            withGpu.Add((p, Math.Clamp(gpuPct, 0.0, 100.0)));
+                        }
+                    }
+                }
+
+                if (withGpu.Count > 0)
+                {
+                    int rank = 1;
+                    foreach (var entry in withGpu
+                        .OrderByDescending(x => x.GpuPercent)
+                        .ThenByDescending(x => x.Process.WorkingSetBytes)
+                        .Take(maxItems))
+                    {
+                        string primary = string.Format(CultureInfo.CurrentCulture, "GPU {0:0.0}%", entry.GpuPercent);
+                        string secondary = string.Format(
+                            CultureInfo.CurrentCulture,
+                            "CPU {0:0.0}% · {1}",
+                            entry.Process.CpuPercent,
+                            FormatMemorySize(entry.Process.WorkingSetBytes));
+                        items.Add(new GaugeConsumerItem(
+                            rank++,
+                            entry.Process.Pid,
+                            entry.Process.Name,
+                            primary,
+                            secondary,
+                            entry.GpuPercent));
+                    }
+
+                    return ("Топ-споживачі GPU", "Навантаження GPU по процесах (Windows WDDM GPU Engine)", items);
+                }
+
+                // Graceful fallback when per-PID GPU counters are unavailable or all 0%
+                var fallback = processes
+                    .Where(p => p.Pid > 0)
+                    .OrderByDescending(p => p.CpuPercent)
+                    .ThenByDescending(p => p.WorkingSetBytes)
+                    .Take(maxItems)
+                    .ToList();
+
+                long maxMem = fallback.Count > 0 ? Math.Max(1L, fallback.Max(p => p.WorkingSetBytes)) : 1L;
+                int fbRank = 1;
+                foreach (var p in fallback)
+                {
+                    double barPct = p.CpuPercent > 0.1
+                        ? Math.Clamp(p.CpuPercent, 0.0, 100.0)
+                        : Math.Clamp((double)p.WorkingSetBytes / maxMem * 100.0, 0.0, 100.0);
+                    string primary = string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}%", p.CpuPercent);
+                    string secondary = $"RAM {FormatMemorySize(p.WorkingSetBytes)}";
+                    items.Add(new GaugeConsumerItem(fbRank++, p.Pid, p.Name, primary, secondary, barPct));
+                }
+
+                return (
+                    "Топ-споживачі GPU",
+                    "Лічильники GPU по процесах наразі 0% або недоступні — показано найактивніші процеси за CPU/RAM",
+                    items);
+            }
+
+            default: // "TEMP"
+            {
+                string thermalSummary = BuildThermalSummaryText(snapshot);
+                var scored = processes
+                    .Where(p => p.Pid > 0)
+                    .Select(p =>
+                    {
+                        double gpuPct = gpuUsage is not null && gpuUsage.TryGetValue(p.Pid, out double g)
+                            ? Math.Clamp(g, 0.0, 100.0)
+                            : 0.0;
+                        double heatScore = Math.Clamp(p.CpuPercent, 0.0, 100.0) + gpuPct;
+                        return (Process: p, GpuPercent: gpuPct, HeatScore: heatScore);
+                    })
+                    .OrderByDescending(x => x.HeatScore)
+                    .ThenByDescending(x => x.Process.WorkingSetBytes)
+                    .Take(maxItems);
+
+                int rank = 1;
+                foreach (var entry in scored)
+                {
+                    string primary = entry.GpuPercent > 0.05
+                        ? string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}% · GPU {1:0.0}%", entry.Process.CpuPercent, entry.GpuPercent)
+                        : string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}%", entry.Process.CpuPercent);
+                    string secondary = $"RAM {FormatMemorySize(entry.Process.WorkingSetBytes)} · {entry.Process.ThreadCount} пот.";
+                    items.Add(new GaugeConsumerItem(
+                        rank++,
+                        entry.Process.Pid,
+                        entry.Process.Name,
+                        primary,
+                        secondary,
+                        Math.Clamp(entry.HeatScore, 0.0, 100.0)));
+                }
+
+                return (
+                    "Джерела нагріву системи (Температура)",
+                    $"{thermalSummary} · Топ процесів за тепловим навантаженням (CPU / GPU)",
+                    items);
+            }
+        }
+    }
+
+    private static string BuildThermalSummaryText(TelemetrySnapshot? snapshot)
+    {
+        if (snapshot is null)
+        {
+            return "CPU: н/д · GPU: н/д";
+        }
+
+        string cpuTemp = snapshot.Cpu.PackageTemperatureCelsius.HasValue
+            ? string.Format(CultureInfo.CurrentCulture, "{0:0} °C", snapshot.Cpu.PackageTemperatureCelsius.Value)
+            : "н/д";
+
+        var primaryGpu = snapshot.Gpus.FirstOrDefault();
+        string gpuTemp = primaryGpu?.TemperatureCelsius is { } gTemp
+            ? string.Format(CultureInfo.CurrentCulture, "{0:0} °C", gTemp)
+            : "н/д";
+
+        return $"CPU: {cpuTemp} · GPU: {gpuTemp}";
+    }
+
+    private static string FormatMemorySize(long bytes)
+    {
+        const double mib = 1024.0 * 1024.0;
+        const double gib = 1024.0 * 1024.0 * 1024.0;
+        if (bytes >= gib)
+        {
+            return string.Format(CultureInfo.CurrentCulture, "{0:0.00} ГіБ", bytes / gib);
+        }
+
+        return string.Format(CultureInfo.CurrentCulture, "{0:0.0} МБ", bytes / mib);
+    }
 
     [RelayCommand]
     private void SelectProcessesTab()
@@ -964,6 +1444,7 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
 
     private void ApplySnapshot(TelemetrySnapshot snap)
     {
+        _lastSnapshot = snap;
         HasLiveSample = true;
         LastUpdatedText = $"Оновлено о {snap.Timestamp.ToLocalTime():HH:mm:ss}";
 
@@ -1070,6 +1551,14 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
         SyncStorageItems(snap.Storage);
         SyncExtraSensors(snap.ExtraSensors);
         RebuildChartSeriesFromHistory(history, windowSamples);
+
+        // 6. Periodic refresh of open interactive gauge consumers panel
+        if (IsGaugeConsumersOpen &&
+            _isUiActive &&
+            (DateTimeOffset.UtcNow - _lastGaugeConsumersRefreshUtc) >= GaugeConsumersRefreshInterval)
+        {
+            _ = RefreshGaugeConsumersAsync();
+        }
     }
 
     internal static (double? PeakCelsius, string SourceLabel) ResolvePeakTemperature(TelemetrySnapshot snap)
@@ -1233,5 +1722,9 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
         _telemetrySubscription.Dispose();
         _settingsSubscription.Dispose();
         _alertSubscription.Dispose();
+        if (_ownsGpuMetricsReader)
+        {
+            _gpuProcessMetricsReader.Dispose();
+        }
     }
 }

@@ -168,6 +168,37 @@ public sealed record VolumeSpaceReport(
     long FreeBytes,
     IReadOnlyList<FolderSpaceNode> LargestFolders);
 
+public sealed record DiskSpaceEntry(
+    string Name,
+    string FullPath,
+    bool IsDirectory,
+    long SizeBytes,
+    int FileCount,
+    double ShareOfParentPercent,
+    double ShareOfTopListPercent,
+    bool IsProtectedPath = false,
+    bool IsReparsePoint = false,
+    string? ProtectionReason = null);
+
+public sealed record FolderContentsReport(
+    char DriveLetter,
+    string CurrentPath,
+    string? ParentPath,
+    bool IsVolumeRoot,
+    long TotalMeasuredBytes,
+    IReadOnlyList<DiskSpaceEntry> Entries);
+
+public sealed record DiskDeleteFailure(
+    string FullPath,
+    string Reason);
+
+public sealed record DiskRecycleDeleteResult(
+    int DeletedCount,
+    long FreedBytes,
+    int BlockedCount,
+    IReadOnlyList<string> DeletedPaths,
+    IReadOnlyList<DiskDeleteFailure> Failures);
+
 public interface IDiskSpaceAnalyzer
 {
     Task<VolumeSpaceReport> AnalyzeVolumeSpaceAsync(
@@ -175,6 +206,42 @@ public interface IDiskSpaceAnalyzer
         int topFolderCount = 8,
         CancellationToken cancellationToken = default,
         IProgress<(int Percent, string FolderName)>? progress = null);
+
+    Task<FolderContentsReport> AnalyzeFolderContentsAsync(
+        string folderPath,
+        int maxEntries = 40,
+        CancellationToken cancellationToken = default,
+        IProgress<(int Percent, string EntryName)>? progress = null)
+    {
+        char letter = !string.IsNullOrWhiteSpace(folderPath) && folderPath.Length >= 2 && folderPath[1] == ':'
+            ? char.ToUpperInvariant(folderPath[0])
+            : 'C';
+
+        return Task.FromResult(new FolderContentsReport(
+            DriveLetter: letter,
+            CurrentPath: folderPath ?? string.Empty,
+            ParentPath: null,
+            IsVolumeRoot: true,
+            TotalMeasuredBytes: 0,
+            Entries: []));
+    }
+
+    Task<DiskRecycleDeleteResult> DeleteToRecycleBinAsync(
+        IReadOnlyList<string> fullPaths,
+        CancellationToken cancellationToken = default)
+    {
+        var paths = fullPaths ?? [];
+        var failures = paths
+            .Select(static p => new DiskDeleteFailure(p, "Переміщення у Кошик не підтримується поточним аналізатором."))
+            .ToArray();
+
+        return Task.FromResult(new DiskRecycleDeleteResult(
+            DeletedCount: 0,
+            FreedBytes: 0,
+            BlockedCount: failures.Length,
+            DeletedPaths: [],
+            Failures: failures));
+    }
 }
 
 public sealed record RestorePointResult(

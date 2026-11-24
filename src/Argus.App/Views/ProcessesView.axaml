@@ -70,13 +70,14 @@
           </Grid>
         </Border>
 
-        <!-- Row 1: Search Box + Refresh + Inline Expert Mode Toggle -->
+        <!-- Row 1: Summary + Refresh + Inline Expert Mode Toggle -->
         <Grid ColumnDefinitions="*,12,Auto">
-          <TextBox Grid.Column="0"
-                   Classes="argus-input"
-                   MinWidth="260"
-                   Text="{Binding SearchQuery}"
-                   PlaceholderText="Пошук процесу за назвою, PID або шляхом до .exe..." />
+          <TextBlock Grid.Column="0"
+                     FontSize="12"
+                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                     Text="{Binding SummaryText}"
+                     TextWrapping="Wrap"
+                     VerticalAlignment="Center" />
 
           <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
             <Button Classes="argus-secondary"
@@ -104,82 +105,122 @@
           </StackPanel>
         </Grid>
 
-        <!-- Summary & Action Feedback -->
-        <Grid ColumnDefinitions="*,Auto">
-          <TextBlock Grid.Column="0"
-                     FontSize="12"
-                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
-                     Text="{Binding SummaryText}"
-                     VerticalAlignment="Center" />
-          <TextBlock Grid.Column="1"
-                     FontSize="12"
-                     Foreground="{StaticResource ArgusCyanBrush}"
-                     IsVisible="{Binding HasActionFeedback}"
-                     Text="{Binding ActionFeedback}"
-                     TextTrimming="CharacterEllipsis"
-                     MaxWidth="480"
-                     VerticalAlignment="Center" />
-        </Grid>
+        <!-- Action Feedback -->
+        <TextBlock FontSize="12"
+                   Foreground="{StaticResource ArgusCyanBrush}"
+                   IsVisible="{Binding HasActionFeedback}"
+                   Text="{Binding ActionFeedback}"
+                   TextWrapping="Wrap" />
       </StackPanel>
     </Border>
 
-    <!-- Live Process Table -->
+    <!-- Live Grouped Process Table -->
     <Border Grid.Row="2" Classes="panel" Padding="14">
       <Grid RowDefinitions="Auto,*">
         <!-- Clickable Column Header Strip -->
-        <Grid Grid.Row="0" ColumnDefinitions="72,10,*,10,74,10,92,10,164,10,152" Margin="12,0,18,8">
-          <Button Grid.Column="0"
+        <Grid Grid.Row="0" ColumnDefinitions="28,6,78,10,*,10,74,10,92,10,164,10,152" Margin="10,0,18,8">
+          <Button Grid.Column="2"
                   Classes="column-sort-header"
                   Classes.active="{Binding IsSortByPid}"
                   HorizontalAlignment="Left"
                   Content="{Binding SortPidHeader}"
                   Command="{Binding SetSortCommand}"
                   CommandParameter="PID" />
-          <Button Grid.Column="2"
+          <Button Grid.Column="4"
                   Classes="column-sort-header"
                   Classes.active="{Binding IsSortByName}"
                   HorizontalAlignment="Left"
                   Content="{Binding SortNameHeader}"
                   Command="{Binding SetSortCommand}"
                   CommandParameter="NAME" />
-          <Button Grid.Column="4"
+          <Button Grid.Column="6"
                   Classes="column-sort-header"
                   Classes.active="{Binding IsSortByCpu}"
                   HorizontalAlignment="Right"
                   Content="{Binding SortCpuHeader}"
                   Command="{Binding SetSortCommand}"
                   CommandParameter="CPU" />
-          <Button Grid.Column="6"
+          <Button Grid.Column="8"
                   Classes="column-sort-header"
                   Classes.active="{Binding IsSortByRam}"
                   HorizontalAlignment="Right"
                   Content="{Binding SortRamHeader}"
                   Command="{Binding SetSortCommand}"
                   CommandParameter="RAM" />
-          <Button Grid.Column="8"
+          <Button Grid.Column="10"
                   Classes="column-sort-header"
                   Classes.active="{Binding IsSortByDisk}"
                   HorizontalAlignment="Right"
                   Content="{Binding SortDiskHeader}"
                   Command="{Binding SetSortCommand}"
                   CommandParameter="DISK" />
-          <TextBlock Grid.Column="10" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ArgusTextMutedBrush}" Text="ДІЇ" HorizontalAlignment="Right" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="12"
+                     FontSize="11"
+                     FontWeight="SemiBold"
+                     Foreground="{StaticResource ArgusTextMutedBrush}"
+                     Text="ДІЇ"
+                     HorizontalAlignment="Right"
+                     VerticalAlignment="Center" />
         </Grid>
 
         <ListBox Grid.Row="1"
                  Classes="argus-list"
-                 ItemsSource="{Binding Processes}"
-                 SelectedItem="{Binding SelectedProcess}"
+                 ItemsSource="{Binding ProcessGroups}"
+                 SelectedItem="{Binding SelectedGroup}"
                  ScrollViewer.VerticalScrollBarVisibility="Auto">
           <ListBox.ItemTemplate>
-            <DataTemplate x:DataType="vm:ProcessRowViewModel">
-              <Border Classes="tile" Padding="12,8" Margin="0,0,4,6">
-                <Grid ColumnDefinitions="72,10,*,10,74,10,92,10,164,10,152">
-                    <Border Grid.Column="0" Classes="pill" Padding="6,2" HorizontalAlignment="Left" VerticalAlignment="Center">
-                      <TextBlock Classes="metric-mono" FontSize="11" Foreground="{StaticResource ArgusCyanBrush}" Text="{Binding PidText}" />
+            <DataTemplate x:DataType="vm:ProcessGroupViewModel">
+              <Border Classes="tile" Padding="10,8" Margin="0,0,4,6">
+                <StackPanel Spacing="0">
+
+                  <!-- Application Group Summary Row -->
+                  <Grid ColumnDefinitions="28,6,78,10,*,10,74,10,92,10,164,10,152"
+                        Background="Transparent"
+                        Cursor="Hand"
+                        PointerPressed="OnGroupHeaderPointerPressed">
+
+                    <Button Grid.Column="0"
+                            Classes="column-sort-header"
+                            Width="24"
+                            Height="24"
+                            Padding="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            FontSize="10"
+                            Content="{Binding ExpandGlyph}"
+                            Command="{Binding ToggleExpandedCommand}"
+                            ToolTip.Tip="Розгорнути або згорнути список інстансів програми" />
+
+                    <!-- Single-instance PID pill -->
+                    <Border Grid.Column="2"
+                            Classes="pill"
+                            Padding="6,2"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            IsVisible="{Binding IsSingleInstance}">
+                      <TextBlock Classes="metric-mono"
+                                 FontSize="11"
+                                 Foreground="{StaticResource ArgusCyanBrush}"
+                                 Text="{Binding PidOrCountText}" />
                     </Border>
 
-                    <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
+                    <!-- Multi-instance count badge -->
+                    <Border Grid.Column="2"
+                            Classes="pill"
+                            Padding="6,2"
+                            Background="#1D1A4A"
+                            BorderBrush="{StaticResource ArgusVioletBrush}"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            IsVisible="{Binding IsMultiInstance}">
+                      <TextBlock Classes="metric-mono"
+                                 FontSize="10.5"
+                                 FontWeight="SemiBold"
+                                 Foreground="{StaticResource ArgusVioletSoftBrush}"
+                                 Text="{Binding PidOrCountText}" />
+                    </Border>
+
+                    <StackPanel Grid.Column="4" Spacing="2" VerticalAlignment="Center">
                       <WrapPanel Orientation="Horizontal">
                         <TextBlock Text="{Binding Name}"
                                    FontSize="13"
@@ -196,8 +237,8 @@
                                 Padding="6,1"
                                 Background="#261B0A"
                                 BorderBrush="{StaticResource ArgusAmberBrush}"
-                                IsVisible="{Binding IsCriticalSystem}"
-                                ToolTip.Tip="Критичний системний процес Windows — завершення заблоковано."
+                                IsVisible="{Binding HasCriticalSystem}"
+                                ToolTip.Tip="Містить критичний системний процес Windows — завершення заблоковано."
                                 VerticalAlignment="Center">
                           <TextBlock Text="Захищено ОС"
                                      FontSize="10"
@@ -214,7 +255,7 @@
                                  ToolTip.Tip="{Binding ExecutablePath}" />
                     </StackPanel>
 
-                    <TextBlock Grid.Column="4"
+                    <TextBlock Grid.Column="6"
                                Classes="metric-mono"
                                FontSize="12"
                                HorizontalAlignment="Right"
@@ -222,7 +263,7 @@
                                Foreground="{StaticResource ArgusTextPrimaryBrush}"
                                Text="{Binding CpuText}" />
 
-                    <TextBlock Grid.Column="6"
+                    <TextBlock Grid.Column="8"
                                Classes="metric-mono"
                                FontSize="12"
                                HorizontalAlignment="Right"
@@ -230,7 +271,7 @@
                                Foreground="{StaticResource ArgusCyanBrush}"
                                Text="{Binding MemoryText}" />
 
-                    <TextBlock Grid.Column="8"
+                    <TextBlock Grid.Column="10"
                                Classes="metric-mono"
                                FontSize="11"
                                HorizontalAlignment="Right"
@@ -238,7 +279,7 @@
                                Foreground="{StaticResource ArgusTextSecondaryBrush}"
                                Text="{Binding DiskIoText}" />
 
-                    <StackPanel Grid.Column="10"
+                    <StackPanel Grid.Column="12"
                                 Orientation="Horizontal"
                                 Spacing="6"
                                 HorizontalAlignment="Right"
@@ -255,16 +296,133 @@
                               FontSize="11"
                               Foreground="{StaticResource ArgusCoralBrush}"
                               Content="Завершити"
-                              IsEnabled="{Binding CanTerminate}"
-                              Command="{Binding RequestTerminateCommand}"
+                              IsVisible="{Binding IsSingleInstance}"
+                              IsEnabled="{Binding CanTerminateSingle}"
+                              Command="{Binding RequestTerminateSingleCommand}"
                               ToolTip.Tip="Завершити процес (з обов'язковим підтвердженням)" />
                     </StackPanel>
                   </Grid>
-                </Border>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
-        </Grid>
-      </Border>
-    </Grid>
+
+                  <!-- Expandable Child Instances Sublist -->
+                  <Border IsVisible="{Binding IsExpanded}"
+                          Margin="28,8,0,2"
+                          Padding="10,6,0,2"
+                          BorderBrush="{StaticResource ArgusBorderBrush}"
+                          BorderThickness="2,0,0,0">
+                    <ItemsControl ItemsSource="{Binding Instances}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ProcessRowViewModel">
+                          <Border Background="#0E142E"
+                                  BorderBrush="#1E2754"
+                                  BorderThickness="1"
+                                  CornerRadius="6"
+                                  Padding="8,5"
+                                  Margin="0,0,0,4">
+                            <Grid ColumnDefinitions="70,10,*,10,74,10,92,10,164,10,152">
+                              <Border Grid.Column="0"
+                                      Classes="pill"
+                                      Padding="6,1"
+                                      HorizontalAlignment="Left"
+                                      VerticalAlignment="Center">
+                                <TextBlock Classes="metric-mono"
+                                           FontSize="10.5"
+                                           Foreground="{StaticResource ArgusCyanBrush}"
+                                           Text="{Binding PidText}" />
+                              </Border>
+
+                              <StackPanel Grid.Column="2" Spacing="1" VerticalAlignment="Center">
+                                <WrapPanel Orientation="Horizontal">
+                                  <TextBlock Text="{Binding Name}"
+                                             FontSize="12"
+                                             FontWeight="Medium"
+                                             Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                             Margin="0,0,8,0"
+                                             VerticalAlignment="Center" />
+                                  <TextBlock Text="{Binding ThreadsText}"
+                                             FontSize="10"
+                                             Foreground="{StaticResource ArgusTextMutedBrush}"
+                                             Margin="0,0,6,0"
+                                             VerticalAlignment="Center" />
+                                  <Border Classes="pill"
+                                          Padding="5,1"
+                                          Background="#261B0A"
+                                          BorderBrush="{StaticResource ArgusAmberBrush}"
+                                          IsVisible="{Binding IsCriticalSystem}"
+                                          ToolTip.Tip="Критичний системний процес Windows — завершення заблоковано."
+                                          VerticalAlignment="Center">
+                                    <TextBlock Text="Захищено ОС"
+                                               FontSize="9.5"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource ArgusAmberBrush}" />
+                                  </Border>
+                                </WrapPanel>
+
+                                <TextBlock Classes="metric-mono"
+                                           FontSize="10"
+                                           Foreground="{StaticResource ArgusTextMutedBrush}"
+                                           Text="{Binding ExecutablePath}"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip.Tip="{Binding ExecutablePath}" />
+                              </StackPanel>
+
+                              <TextBlock Grid.Column="4"
+                                         Classes="metric-mono"
+                                         FontSize="11.5"
+                                         HorizontalAlignment="Right"
+                                         VerticalAlignment="Center"
+                                         Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                                         Text="{Binding CpuText}" />
+
+                              <TextBlock Grid.Column="6"
+                                         Classes="metric-mono"
+                                         FontSize="11.5"
+                                         HorizontalAlignment="Right"
+                                         VerticalAlignment="Center"
+                                         Foreground="{StaticResource ArgusCyanBrush}"
+                                         Text="{Binding MemoryText}" />
+
+                              <TextBlock Grid.Column="8"
+                                         Classes="metric-mono"
+                                         FontSize="10.5"
+                                         HorizontalAlignment="Right"
+                                         VerticalAlignment="Center"
+                                         Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                         Text="{Binding DiskIoText}" />
+
+                              <StackPanel Grid.Column="10"
+                                          Orientation="Horizontal"
+                                          Spacing="6"
+                                          HorizontalAlignment="Right"
+                                          VerticalAlignment="Center">
+                                <Button Classes="argus-secondary"
+                                        Padding="8,3"
+                                        FontSize="10.5"
+                                        Content="Тека"
+                                        IsEnabled="{Binding HasExecutablePath}"
+                                        Command="{Binding OpenFolderCommand}"
+                                        ToolTip.Tip="Відкрити розташування .exe у Провіднику" />
+                                <Button Classes="argus-secondary"
+                                        Padding="9,3"
+                                        FontSize="10.5"
+                                        Foreground="{StaticResource ArgusCoralBrush}"
+                                        Content="Завершити"
+                                        IsEnabled="{Binding CanTerminate}"
+                                        Command="{Binding RequestTerminateCommand}"
+                                        ToolTip.Tip="Завершити процес (з обов'язковим підтвердженням)" />
+                              </StackPanel>
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </Border>
+
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
+    </Border>
+  </Grid>
 </UserControl>

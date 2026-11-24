@@ -11,6 +11,8 @@ namespace Argus.App.ViewModels;
 
 public sealed partial class ProcessRowViewModel : ObservableObject
 {
+    private readonly RelayCommand _openFolderCommand;
+
     public ProcessRowViewModel(
         ProcessMetricsItem model,
         Action<ProcessMetricsItem> onRequestTerminate,
@@ -34,7 +36,7 @@ public sealed partial class ProcessRowViewModel : ObservableObject
         _hasDiskActivity = model.TotalDiskBytesPerSec >= 1024.0;
 
         RequestTerminateCommand = new RelayCommand(() => onRequestTerminate(Model), () => CanTerminate);
-        OpenFolderCommand = new RelayCommand(() => onOpenFolder(Model.ExecutablePath), () => HasExecutablePath);
+        _openFolderCommand = new RelayCommand(() => onOpenFolder(Model.ExecutablePath), () => HasExecutablePath);
     }
 
     public ProcessMetricsItem Model { get; private set; }
@@ -71,7 +73,7 @@ public sealed partial class ProcessRowViewModel : ObservableObject
     private bool _hasDiskActivity;
 
     public ICommand RequestTerminateCommand { get; }
-    public ICommand OpenFolderCommand { get; }
+    public ICommand OpenFolderCommand => _openFolderCommand;
 
     public void UpdateFrom(ProcessMetricsItem model)
     {
@@ -87,6 +89,8 @@ public sealed partial class ProcessRowViewModel : ObservableObject
         HasExecutablePath = !string.IsNullOrWhiteSpace(model.ExecutablePath);
         IsHighCpu = model.CpuPercent >= 15.0;
         HasDiskActivity = model.TotalDiskBytesPerSec >= 1024.0;
+
+        _openFolderCommand.NotifyCanExecuteChanged();
     }
 
     private static string FormatExecutablePath(ProcessMetricsItem model) =>
@@ -121,6 +125,190 @@ public sealed partial class ProcessRowViewModel : ObservableObject
     }
 }
 
+internal sealed record ProcessGroupSnapshot(
+    string GroupKey,
+    string DisplayName,
+    int LowestPid,
+    double TotalCpuPercent,
+    long TotalWorkingSetBytes,
+    double TotalDiskReadBytesPerSec,
+    double TotalDiskWriteBytesPerSec,
+    int TotalThreadCount,
+    bool HasCriticalSystem,
+    string? RepresentativeRawPath,
+    string RepresentativeDisplayPath,
+    IReadOnlyList<ProcessMetricsItem> Instances)
+{
+    public double TotalDiskBytesPerSec => TotalDiskReadBytesPerSec + TotalDiskWriteBytesPerSec;
+}
+
+public sealed partial class ProcessGroupViewModel : ObservableObject
+{
+    private readonly Action<ProcessMetricsItem> _onRequestTerminate;
+    private readonly Action<string?> _onOpenFolder;
+    private readonly RelayCommand _openFolderCommand;
+    private readonly RelayCommand _requestTerminateSingleCommand;
+    private string? _representativeRawPath;
+    private ProcessMetricsItem? _singleInstanceModel;
+
+    internal ProcessGroupViewModel(
+        ProcessGroupSnapshot snapshot,
+        Action<ProcessMetricsItem> onRequestTerminate,
+        Action<string?> onOpenFolder)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        _onRequestTerminate = onRequestTerminate ?? throw new ArgumentNullException(nameof(onRequestTerminate));
+        _onOpenFolder = onOpenFolder ?? throw new ArgumentNullException(nameof(onOpenFolder));
+
+        GroupKey = snapshot.GroupKey;
+        Instances = [];
+
+        _openFolderCommand = new RelayCommand(
+            () => _onOpenFolder(_representativeRawPath),
+            () => HasExecutablePath);
+
+        _requestTerminateSingleCommand = new RelayCommand(
+            () =>
+            {
+                if (_singleInstanceModel is not null)
+                {
+                    _onRequestTerminate(_singleInstanceModel);
+                }
+            },
+            () => CanTerminateSingle && _singleInstanceModel is not null);
+
+        UpdateFrom(snapshot);
+    }
+
+    public string GroupKey { get; }
+    public ObservableCollection<ProcessRowViewModel> Instances { get; }
+
+    [ObservableProperty]
+    private ProcessRowViewModel? _selectedInstance;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ExpandGlyph))]
+    private bool _isExpanded;
+
+    public string ExpandGlyph => IsExpanded ? "▼" : "▶";
+
+    [ObservableProperty]
+    private string _name = string.Empty;
+
+    [ObservableProperty]
+    private int _instanceCount;
+
+    [ObservableProperty]
+    private bool _isMultiInstance;
+
+    [ObservableProperty]
+    private bool _isSingleInstance;
+
+    [ObservableProperty]
+    private int _representativePid;
+
+    [ObservableProperty]
+    private string _pidOrCountText = string.Empty;
+
+    [ObservableProperty]
+    private double _totalCpuPercent;
+
+    [ObservableProperty]
+    private long _totalWorkingSetBytes;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TotalDiskBytesPerSec))]
+    private double _totalDiskReadBytesPerSec;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TotalDiskBytesPerSec))]
+    private double _totalDiskWriteBytesPerSec;
+
+    public double TotalDiskBytesPerSec => TotalDiskReadBytesPerSec + TotalDiskWriteBytesPerSec;
+
+    [ObservableProperty]
+    private int _totalThreadCount;
+
+    [ObservableProperty]
+    private string _threadsText = string.Empty;
+
+    [ObservableProperty]
+    private string _cpuText = string.Empty;
+
+    [ObservableProperty]
+    private string _memoryText = string.Empty;
+
+    [ObservableProperty]
+    private string _diskIoText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasCriticalSystem;
+
+    [ObservableProperty]
+    private string _executablePath = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasExecutablePath;
+
+    [ObservableProperty]
+    private bool _canTerminateSingle;
+
+    public ICommand OpenFolderCommand => _openFolderCommand;
+    public ICommand RequestTerminateSingleCommand => _requestTerminateSingleCommand;
+
+    [RelayCommand]
+    private void ToggleExpanded()
+    {
+        IsExpanded = !IsExpanded;
+    }
+
+    internal void UpdateFrom(ProcessGroupSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        Name = snapshot.DisplayName;
+        InstanceCount = snapshot.Instances.Count;
+        IsMultiInstance = InstanceCount > 1;
+        IsSingleInstance = InstanceCount == 1;
+        RepresentativePid = snapshot.LowestPid;
+        PidOrCountText = IsMultiInstance
+            ? $"{InstanceCount} проц."
+            : snapshot.LowestPid.ToString(CultureInfo.InvariantCulture);
+
+        TotalCpuPercent = snapshot.TotalCpuPercent;
+        TotalWorkingSetBytes = snapshot.TotalWorkingSetBytes;
+        TotalDiskReadBytesPerSec = snapshot.TotalDiskReadBytesPerSec;
+        TotalDiskWriteBytesPerSec = snapshot.TotalDiskWriteBytesPerSec;
+        TotalThreadCount = snapshot.TotalThreadCount;
+
+        ThreadsText = $"{snapshot.TotalThreadCount} пот.";
+        CpuText = string.Format(CultureInfo.CurrentCulture, "{0:0.0}%", snapshot.TotalCpuPercent);
+        MemoryText = ProcessRowViewModel.FormatMemory(snapshot.TotalWorkingSetBytes);
+        DiskIoText = ProcessRowViewModel.FormatDiskIo(snapshot.TotalDiskReadBytesPerSec, snapshot.TotalDiskWriteBytesPerSec);
+        HasCriticalSystem = snapshot.HasCriticalSystem;
+
+        _representativeRawPath = snapshot.RepresentativeRawPath;
+        ExecutablePath = snapshot.RepresentativeDisplayPath;
+        HasExecutablePath = !string.IsNullOrWhiteSpace(snapshot.RepresentativeRawPath);
+
+        _singleInstanceModel = snapshot.Instances.Count == 1 ? snapshot.Instances[0] : null;
+        CanTerminateSingle = _singleInstanceModel is not null && !_singleInstanceModel.IsCriticalSystem;
+
+        CollectionSyncHelper.SyncByKey(
+            Instances,
+            snapshot.Instances,
+            static m => m.Pid,
+            static r => r.Pid,
+            m => new ProcessRowViewModel(m, _onRequestTerminate, _onOpenFolder),
+            static (r, m) => r.UpdateFrom(m),
+            SelectedInstance,
+            row => SelectedInstance = row);
+
+        _openFolderCommand.NotifyCanExecuteChanged();
+        _requestTerminateSingleCommand.NotifyCanExecuteChanged();
+    }
+}
+
 public sealed partial class ProcessesViewModel : SectionViewModelBase, IDisposable
 {
     private readonly IProcessMonitorService _processService;
@@ -148,6 +336,7 @@ public sealed partial class ProcessesViewModel : SectionViewModelBase, IDisposab
         _uiDispatch = uiDispatch ?? (static action => action());
 
         Processes = [];
+        ProcessGroups = [];
         _pollTimer = new Timer(OnPollTick, null, Timeout.Infinite, Timeout.Infinite);
 
         if (autoLoadOnInit)
@@ -157,6 +346,10 @@ public sealed partial class ProcessesViewModel : SectionViewModelBase, IDisposab
     }
 
     public ObservableCollection<ProcessRowViewModel> Processes { get; }
+    public ObservableCollection<ProcessGroupViewModel> ProcessGroups { get; }
+
+    [ObservableProperty]
+    private ProcessGroupViewModel? _selectedGroup;
 
     [ObservableProperty]
     private string _searchQuery = string.Empty;
@@ -400,46 +593,12 @@ public sealed partial class ProcessesViewModel : SectionViewModelBase, IDisposab
                 (p.ExecutablePath?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false));
         }
 
-        query = (SortBy, SortDescending) switch
-        {
-            ("CPU", true) => query
-                .OrderByDescending(static p => p.CpuPercent)
-                .ThenByDescending(static p => p.WorkingSetBytes)
-                .ThenBy(static p => p.Pid),
-            ("CPU", false) => query
-                .OrderBy(static p => p.CpuPercent)
-                .ThenBy(static p => p.WorkingSetBytes)
-                .ThenBy(static p => p.Pid),
-            ("DISK", true) => query
-                .OrderByDescending(static p => p.TotalDiskBytesPerSec)
-                .ThenByDescending(static p => p.WorkingSetBytes)
-                .ThenBy(static p => p.Pid),
-            ("DISK", false) => query
-                .OrderBy(static p => p.TotalDiskBytesPerSec)
-                .ThenBy(static p => p.WorkingSetBytes)
-                .ThenBy(static p => p.Pid),
-            ("NAME", true) => query
-                .OrderByDescending(static p => p.Name, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(static p => p.Pid),
-            ("NAME", false) => query
-                .OrderBy(static p => p.Name, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(static p => p.Pid),
-            ("PID", true) => query.OrderByDescending(static p => p.Pid),
-            ("PID", false) => query.OrderBy(static p => p.Pid),
-            (_, false) => query
-                .OrderBy(static p => p.WorkingSetBytes)
-                .ThenBy(static p => p.CpuPercent)
-                .ThenBy(static p => p.Pid),
-            _ => query
-                .OrderByDescending(static p => p.WorkingSetBytes)
-                .ThenByDescending(static p => p.CpuPercent)
-                .ThenBy(static p => p.Pid)
-        };
+        var filtered = query.ToList();
 
-        var visible = query.Take(160).ToList();
+        var visibleFlat = SortItems(filtered, SortBy, SortDescending).Take(160).ToList();
         CollectionSyncHelper.SyncByKey(
             Processes,
-            visible,
+            visibleFlat,
             static m => m.Pid,
             static r => r.Pid,
             m => new ProcessRowViewModel(m, RequestTerminate, OpenFolder),
@@ -447,12 +606,168 @@ public sealed partial class ProcessesViewModel : SectionViewModelBase, IDisposab
             SelectedProcess,
             row => SelectedProcess = row);
 
+        var groupSnapshots = filtered
+            .GroupBy(static p => NormalizeGroupKey(p.Name), StringComparer.OrdinalIgnoreCase)
+            .Select(group => CreateGroupSnapshot(group.Key, group, SortBy, SortDescending));
+
+        var sortedGroups = SortGroups(groupSnapshots, SortBy, SortDescending).Take(160).ToList();
+        CollectionSyncHelper.SyncByKey(
+            ProcessGroups,
+            sortedGroups,
+            static g => g.GroupKey,
+            static vm => vm.GroupKey,
+            g => new ProcessGroupViewModel(g, RequestTerminate, OpenFolder),
+            static (vm, g) => vm.UpdateFrom(g),
+            SelectedGroup,
+            group => SelectedGroup = group,
+            StringComparer.OrdinalIgnoreCase);
+
+        int visibleProcessCount = sortedGroups.Sum(static g => g.Instances.Count);
         string hiddenSuffix = showCritical
             ? $" · Експертний режим (системні: {HiddenCriticalCount})"
             : $" · Сховано критичних системних: {HiddenCriticalCount} (увімкніть «Експертний режим» для показу)";
 
-        SummaryText = $"Показано {Processes.Count} із {_allProcesses.Count} процесів{hiddenSuffix}";
+        SummaryText = $"Програм: {ProcessGroups.Count} · Процесів: {visibleProcessCount} із {_allProcesses.Count}{hiddenSuffix}";
     }
+
+    private static string NormalizeGroupKey(string? name) =>
+        string.IsNullOrWhiteSpace(name) ? "(невідомо)" : name.Trim();
+
+    private static ProcessGroupSnapshot CreateGroupSnapshot(
+        string groupKey,
+        IEnumerable<ProcessMetricsItem> items,
+        string sortBy,
+        bool sortDescending)
+    {
+        var sortedInstances = SortItems(items, sortBy, sortDescending).ToList();
+
+        string displayName = sortedInstances
+            .Select(static p => p.Name?.Trim())
+            .FirstOrDefault(static n => !string.IsNullOrEmpty(n))
+            ?? groupKey;
+
+        int lowestPid = sortedInstances.Min(static p => p.Pid);
+        double totalCpu = sortedInstances.Sum(static p => p.CpuPercent);
+        long totalRam = sortedInstances.Sum(static p => p.WorkingSetBytes);
+        double totalRead = sortedInstances.Sum(static p => p.DiskReadBytesPerSec);
+        double totalWrite = sortedInstances.Sum(static p => p.DiskWriteBytesPerSec);
+        int totalThreads = sortedInstances.Sum(static p => p.ThreadCount);
+        bool hasCritical = sortedInstances.Any(static p => p.IsCriticalSystem);
+
+        string? rawPath = sortedInstances
+            .Select(static p => p.ExecutablePath)
+            .FirstOrDefault(static path => !string.IsNullOrWhiteSpace(path));
+
+        string displayPath = !string.IsNullOrWhiteSpace(rawPath)
+            ? rawPath
+            : (sortedInstances.Any(static p => p.IsProtectedAccess)
+                ? "Системний / захищений доступ"
+                : "Шлях недоступний");
+
+        return new ProcessGroupSnapshot(
+            groupKey,
+            displayName,
+            lowestPid,
+            totalCpu,
+            totalRam,
+            totalRead,
+            totalWrite,
+            totalThreads,
+            hasCritical,
+            rawPath,
+            displayPath,
+            sortedInstances);
+    }
+
+    private static IEnumerable<ProcessMetricsItem> SortItems(
+        IEnumerable<ProcessMetricsItem> source,
+        string sortBy,
+        bool sortDescending) =>
+        (sortBy, sortDescending) switch
+        {
+            ("CPU", true) => source
+                .OrderByDescending(static p => p.CpuPercent)
+                .ThenByDescending(static p => p.WorkingSetBytes)
+                .ThenBy(static p => p.Pid),
+            ("CPU", false) => source
+                .OrderBy(static p => p.CpuPercent)
+                .ThenBy(static p => p.WorkingSetBytes)
+                .ThenBy(static p => p.Pid),
+            ("DISK", true) => source
+                .OrderByDescending(static p => p.TotalDiskBytesPerSec)
+                .ThenByDescending(static p => p.WorkingSetBytes)
+                .ThenBy(static p => p.Pid),
+            ("DISK", false) => source
+                .OrderBy(static p => p.TotalDiskBytesPerSec)
+                .ThenBy(static p => p.WorkingSetBytes)
+                .ThenBy(static p => p.Pid),
+            ("NAME", true) => source
+                .OrderByDescending(static p => p.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static p => p.Pid),
+            ("NAME", false) => source
+                .OrderBy(static p => p.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static p => p.Pid),
+            ("PID", true) => source.OrderByDescending(static p => p.Pid),
+            ("PID", false) => source.OrderBy(static p => p.Pid),
+            (_, false) => source
+                .OrderBy(static p => p.WorkingSetBytes)
+                .ThenBy(static p => p.CpuPercent)
+                .ThenBy(static p => p.Pid),
+            _ => source
+                .OrderByDescending(static p => p.WorkingSetBytes)
+                .ThenByDescending(static p => p.CpuPercent)
+                .ThenBy(static p => p.Pid)
+        };
+
+    private static IEnumerable<ProcessGroupSnapshot> SortGroups(
+        IEnumerable<ProcessGroupSnapshot> source,
+        string sortBy,
+        bool sortDescending) =>
+        (sortBy, sortDescending) switch
+        {
+            ("CPU", true) => source
+                .OrderByDescending(static g => g.TotalCpuPercent)
+                .ThenByDescending(static g => g.TotalWorkingSetBytes)
+                .ThenBy(static g => g.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static g => g.LowestPid),
+            ("CPU", false) => source
+                .OrderBy(static g => g.TotalCpuPercent)
+                .ThenBy(static g => g.TotalWorkingSetBytes)
+                .ThenBy(static g => g.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static g => g.LowestPid),
+            ("DISK", true) => source
+                .OrderByDescending(static g => g.TotalDiskBytesPerSec)
+                .ThenByDescending(static g => g.TotalWorkingSetBytes)
+                .ThenBy(static g => g.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static g => g.LowestPid),
+            ("DISK", false) => source
+                .OrderBy(static g => g.TotalDiskBytesPerSec)
+                .ThenBy(static g => g.TotalWorkingSetBytes)
+                .ThenBy(static g => g.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static g => g.LowestPid),
+            ("NAME", true) => source
+                .OrderByDescending(static g => g.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static g => g.LowestPid),
+            ("NAME", false) => source
+                .OrderBy(static g => g.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static g => g.LowestPid),
+            ("PID", true) => source
+                .OrderByDescending(static g => g.LowestPid)
+                .ThenBy(static g => g.DisplayName, StringComparer.OrdinalIgnoreCase),
+            ("PID", false) => source
+                .OrderBy(static g => g.LowestPid)
+                .ThenBy(static g => g.DisplayName, StringComparer.OrdinalIgnoreCase),
+            (_, false) => source
+                .OrderBy(static g => g.TotalWorkingSetBytes)
+                .ThenBy(static g => g.TotalCpuPercent)
+                .ThenBy(static g => g.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static g => g.LowestPid),
+            _ => source
+                .OrderByDescending(static g => g.TotalWorkingSetBytes)
+                .ThenByDescending(static g => g.TotalCpuPercent)
+                .ThenBy(static g => g.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static g => g.LowestPid)
+        };
 
     public void Dispose()
     {

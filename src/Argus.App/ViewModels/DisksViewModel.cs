@@ -6,6 +6,7 @@ using Argus.App.Services;
 using Argus.Core.Contracts.Maintenance;
 using Argus.Core.Extensions;
 using Argus.Maintenance.Cleanup;
+using Argus.Maintenance.Disks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -145,26 +146,124 @@ public sealed partial class VolumeTabItem : ObservableObject
     private bool _isSelected;
 }
 
-public sealed class FolderSpaceRowItem
+public sealed partial class FolderSpaceRowItem : ObservableObject
 {
-    public FolderSpaceRowItem(FolderSpaceNode node)
+    private readonly Action? _onSelectionChanged;
+
+    public FolderSpaceRowItem(
+        FolderSpaceNode node,
+        Func<FolderSpaceRowItem, Task>? onOpen = null,
+        Action? onSelectionChanged = null)
     {
+        ArgumentNullException.ThrowIfNull(node);
+        _onSelectionChanged = onSelectionChanged;
+
         Name = node.Name;
         FullPath = node.FullPath;
-        SizeText = WindowsCleanerService.FormatBytes(node.SizeBytes);
+        IsDirectory = true;
+        SizeBytes = Math.Max(0L, node.SizeBytes);
+        SizeText = WindowsCleanerService.FormatBytes(SizeBytes);
         DetailText = string.Format(
             CultureInfo.CurrentCulture,
             "{0:0.0}% зайнятого · файлів: {1}",
             node.ShareOfVolumeUsedPercent,
             node.FileCount);
         BarPercent = Math.Clamp(node.ShareOfTopListPercent, 1.0, 100.0);
+
+        var policy = DiskDeleteSafetyPolicy.EvaluatePath(node.FullPath);
+        IsProtectedPath = policy.IsProtectedPath;
+        IsReparsePoint = policy.IsReparsePoint;
+        ProtectionReason = policy.BlockReason;
+
+        OpenCommand = new AsyncRelayCommand(
+            () => onOpen is not null ? onOpen(this) : Task.CompletedTask,
+            () => CanOpen && onOpen is not null);
+    }
+
+    public FolderSpaceRowItem(
+        DiskSpaceEntry entry,
+        Func<FolderSpaceRowItem, Task>? onOpen = null,
+        Action? onSelectionChanged = null)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        _onSelectionChanged = onSelectionChanged;
+
+        Name = entry.Name;
+        FullPath = entry.FullPath;
+        IsDirectory = entry.IsDirectory;
+        SizeBytes = Math.Max(0L, entry.SizeBytes);
+        SizeText = entry.IsReparsePoint
+            ? "Посилання"
+            : WindowsCleanerService.FormatBytes(SizeBytes);
+
+        if (entry.IsReparsePoint)
+        {
+            DetailText = "Символічне посилання / точка з'єднання (ReparsePoint) · захищено";
+        }
+        else if (entry.IsDirectory)
+        {
+            DetailText = string.Format(
+                CultureInfo.CurrentCulture,
+                "{0:0.0}% у теці · файлів: {1}",
+                entry.ShareOfParentPercent,
+                entry.FileCount);
+        }
+        else
+        {
+            DetailText = string.Format(
+                CultureInfo.CurrentCulture,
+                "{0:0.0}% у теці · файл",
+                entry.ShareOfParentPercent);
+        }
+
+        BarPercent = entry.SizeBytes > 0
+            ? Math.Clamp(entry.ShareOfTopListPercent, 1.0, 100.0)
+            : 0.0;
+
+        IsProtectedPath = entry.IsProtectedPath;
+        IsReparsePoint = entry.IsReparsePoint;
+        ProtectionReason = entry.ProtectionReason;
+
+        OpenCommand = new AsyncRelayCommand(
+            () => onOpen is not null ? onOpen(this) : Task.CompletedTask,
+            () => CanOpen && onOpen is not null);
     }
 
     public string Name { get; }
     public string FullPath { get; }
+    public bool IsDirectory { get; }
+    public bool IsFile => !IsDirectory;
+    public string TypeBadge => IsDirectory ? "Тека" : "Файл";
+    public long SizeBytes { get; }
     public string SizeText { get; }
     public string DetailText { get; }
     public double BarPercent { get; }
+    public bool IsProtectedPath { get; }
+    public bool IsReparsePoint { get; }
+    public bool CanSelect => !IsProtectedPath && !IsReparsePoint;
+    public bool IsBlocked => !CanSelect;
+    public bool CanOpen => IsDirectory && !IsReparsePoint;
+    public string? ProtectionReason { get; }
+    public string ProtectionBadgeText => IsReparsePoint ? "Посилання" : "Захищено";
+    public string SelectionTooltip => CanSelect
+        ? "Вибрати для переміщення у Кошик Windows"
+        : (ProtectionReason ?? "Елемент захищено від видалення.");
+
+    public ICommand OpenCommand { get; }
+
+    [ObservableProperty]
+    private bool _isSelected;
+
+    partial void OnIsSelectedChanged(bool value)
+    {
+        if (value && !CanSelect)
+        {
+            IsSelected = false;
+            return;
+        }
+
+        _onSelectionChanged?.Invoke();
+    }
 }
 
 public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
@@ -191,6 +290,33 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
 
     [ObservableProperty]
     private char _selectedVolumeLetter = 'C';
+
+    [ObservableProperty]
+    private string _currentBrowsePath = @"C:\";
+
+    [ObservableProperty]
+    private bool _isInsideSubfolder;
+
+    [ObservableProperty]
+    private string? _parentBrowsePath;
+
+    [ObservableProperty]
+    private bool _isFolderEmpty;
+
+    [ObservableProperty]
+    private int _selectedEntriesCount;
+
+    [ObservableProperty]
+    private string _selectedEntriesSizeText = "0 Б";
+
+    [ObservableProperty]
+    private bool _hasSelectedEntries;
+
+    [ObservableProperty]
+    private bool _isDeleteConfirmationOpen;
+
+    [ObservableProperty]
+    private string _deleteConfirmationText = string.Empty;
 
     [ObservableProperty]
     private int _operationProgressPercent;
@@ -416,7 +542,209 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
             return;
         }
 
-        char letter = char.ToUpperInvariant(driveLetter);
+        try
+        {
+            await LoadVolumeRootCoreAsync(char.ToUpperInvariant(driveLetter)).ConfigureAwait(false);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _busyGate, 0);
+            _uiDispatch(() => IsBusy = false);
+        }
+    }
+
+    [RelayCommand]
+    public async Task OpenFolderAsync(FolderSpaceRowItem? item)
+    {
+        if (_spaceAnalyzer is null ||
+            item is null ||
+            !item.IsDirectory ||
+            item.IsReparsePoint ||
+            string.IsNullOrWhiteSpace(item.FullPath))
+        {
+            return;
+        }
+
+        if (Interlocked.CompareExchange(ref _busyGate, 1, 0) != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await LoadFolderCoreAsync(item.FullPath).ConfigureAwait(false);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _busyGate, 0);
+            _uiDispatch(() => IsBusy = false);
+        }
+    }
+
+    [RelayCommand]
+    public async Task NavigateUpAsync()
+    {
+        if (_spaceAnalyzer is null || !IsInsideSubfolder)
+        {
+            return;
+        }
+
+        if (Interlocked.CompareExchange(ref _busyGate, 1, 0) != 0)
+        {
+            return;
+        }
+
+        string? parentPath = ParentBrowsePath;
+        char letter = SelectedVolumeLetter;
+        string volumeRoot = $"{letter}:\\";
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(parentPath) ||
+                string.Equals(parentPath.TrimEnd('\\') + "\\", volumeRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                await LoadVolumeRootCoreAsync(letter).ConfigureAwait(false);
+            }
+            else
+            {
+                await LoadFolderCoreAsync(parentPath).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _busyGate, 0);
+            _uiDispatch(() => IsBusy = false);
+        }
+    }
+
+    [RelayCommand]
+    public async Task NavigateRootAsync()
+    {
+        if (_spaceAnalyzer is null)
+        {
+            return;
+        }
+
+        await SelectVolumeForSpaceMapAsync(SelectedVolumeLetter).ConfigureAwait(false);
+    }
+
+    [RelayCommand]
+    public void RequestDeleteSelected()
+    {
+        var selected = LargestFolders.Where(static e => e.IsSelected && e.CanSelect).ToArray();
+        if (selected.Length == 0)
+        {
+            IsDeleteConfirmationOpen = false;
+            DeleteConfirmationText = string.Empty;
+            return;
+        }
+
+        long totalBytes = 0;
+        foreach (var item in selected)
+        {
+            totalBytes += item.SizeBytes;
+        }
+
+        string sizeText = WindowsCleanerService.FormatBytes(totalBytes);
+        DeleteConfirmationText =
+            $"Перемістити вибрані елементи ({selected.Length} шт., {sizeText}) у Кошик Windows? Їх можна буде відновити з Кошика.";
+        IsDeleteConfirmationOpen = true;
+    }
+
+    [RelayCommand]
+    public void CancelDeleteSelected()
+    {
+        IsDeleteConfirmationOpen = false;
+        DeleteConfirmationText = string.Empty;
+    }
+
+    [RelayCommand]
+    public async Task ConfirmDeleteSelectedAsync()
+    {
+        if (_spaceAnalyzer is null)
+        {
+            IsDeleteConfirmationOpen = false;
+            DeleteConfirmationText = string.Empty;
+            return;
+        }
+
+        var selectedItems = LargestFolders.Where(static e => e.IsSelected && e.CanSelect).ToArray();
+        if (selectedItems.Length == 0)
+        {
+            IsDeleteConfirmationOpen = false;
+            DeleteConfirmationText = string.Empty;
+            return;
+        }
+
+        if (Interlocked.CompareExchange(ref _busyGate, 1, 0) != 0)
+        {
+            return;
+        }
+
+        bool wasInsideSubfolder = IsInsideSubfolder;
+        string currentPath = CurrentBrowsePath;
+        char currentVolume = SelectedVolumeLetter;
+        string[] pathsToDelete = selectedItems.Select(static i => i.FullPath).ToArray();
+
+        _uiDispatch(() =>
+        {
+            IsBusy = true;
+            IsDeleteConfirmationOpen = false;
+            DeleteConfirmationText = string.Empty;
+            SetProgress(15, $"Переміщення у Кошик Windows ({pathsToDelete.Length} шт.)…");
+        });
+
+        try
+        {
+            var result = await _spaceAnalyzer.DeleteToRecycleBinAsync(pathsToDelete).ConfigureAwait(false);
+
+            _uiDispatch(() =>
+            {
+                if (result.DeletedCount > 0 && result.Failures.Count == 0)
+                {
+                    StatusIsSuccess = true;
+                    StatusBannerText =
+                        $"Переміщено у Кошик Windows: {result.DeletedCount} шт. (звільнено {WindowsCleanerService.FormatBytes(result.FreedBytes)}).";
+                }
+                else if (result.DeletedCount > 0 && result.Failures.Count > 0)
+                {
+                    StatusIsSuccess = false;
+                    StatusBannerText =
+                        $"Переміщено у Кошик: {result.DeletedCount} шт. ({WindowsCleanerService.FormatBytes(result.FreedBytes)}), пропущено/помилок: {result.Failures.Count} ({result.Failures[0].Reason}).";
+                }
+                else
+                {
+                    StatusIsSuccess = false;
+                    string reason = result.Failures.Count > 0
+                        ? result.Failures[0].Reason
+                        : "Жоден елемент не було переміщено у Кошик.";
+                    StatusBannerText = $"Видалення не виконано: {reason}";
+                }
+            });
+
+            if (wasInsideSubfolder && !string.IsNullOrWhiteSpace(currentPath))
+            {
+                await LoadFolderCoreAsync(currentPath).ConfigureAwait(false);
+            }
+            else
+            {
+                await LoadVolumeRootCoreAsync(currentVolume).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _busyGate, 0);
+            _uiDispatch(() => IsBusy = false);
+        }
+    }
+
+    private async Task LoadVolumeRootCoreAsync(char letter)
+    {
+        if (_spaceAnalyzer is null)
+        {
+            return;
+        }
+
         _uiDispatch(() =>
         {
             IsBusy = true;
@@ -426,6 +754,8 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
                 tab.IsSelected = tab.DriveLetter == letter;
             }
 
+            IsDeleteConfirmationOpen = false;
+            DeleteConfirmationText = string.Empty;
             SelectedVolumeSummaryText = $"Сканування найбільших тек на {letter}:\\…";
             SetProgress(5, $"Аналіз карти найбільших тек на {letter}:\\…");
         });
@@ -450,8 +780,44 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
         finally
         {
             await StopTickerAsync(tickerCts, tickerTask).ConfigureAwait(false);
-            Interlocked.Exchange(ref _busyGate, 0);
-            _uiDispatch(() => IsBusy = false);
+        }
+    }
+
+    private async Task LoadFolderCoreAsync(string folderPath)
+    {
+        if (_spaceAnalyzer is null)
+        {
+            return;
+        }
+
+        _uiDispatch(() =>
+        {
+            IsBusy = true;
+            IsDeleteConfirmationOpen = false;
+            DeleteConfirmationText = string.Empty;
+            SetProgress(5, $"Сканування вмісту {folderPath}…");
+        });
+
+        using var tickerCts = new CancellationTokenSource();
+        var tickerTask = RunSmoothTickerAsync(maxAutoPercent: 93, intervalMs: 75, tickerCts.Token);
+
+        try
+        {
+            var scanProgress = new Progress<(int Percent, string EntryName)>(p =>
+            {
+                _uiDispatch(() => RaiseProgressFloor(Math.Clamp(p.Percent, 5, 98), $"Аналіз {p.EntryName}…"));
+            });
+
+            var report = await _spaceAnalyzer.AnalyzeFolderContentsAsync(folderPath, maxEntries: 40, progress: scanProgress).ConfigureAwait(false);
+            _uiDispatch(() =>
+            {
+                ApplyFolderContentsReport(report);
+                SetProgress(100, $"Вміст теки {report.CurrentPath} завантажено");
+            });
+        }
+        finally
+        {
+            await StopTickerAsync(tickerCts, tickerTask).ConfigureAwait(false);
         }
     }
 
@@ -512,6 +878,12 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
     private void ApplySpaceReport(VolumeSpaceReport report)
     {
         SelectedVolumeLetter = report.DriveLetter;
+        CurrentBrowsePath = $"{report.DriveLetter}:\\";
+        ParentBrowsePath = null;
+        IsInsideSubfolder = false;
+        IsDeleteConfirmationOpen = false;
+        DeleteConfirmationText = string.Empty;
+
         string labelPart = string.IsNullOrWhiteSpace(report.VolumeLabel) ? string.Empty : $" «{report.VolumeLabel}»";
         SelectedVolumeSummaryText =
             $"Том {report.DriveLetter}:{labelPart} ({report.FileSystem}) · Зайнято {WindowsCleanerService.FormatBytes(report.UsedBytes)} із {WindowsCleanerService.FormatBytes(report.TotalSizeBytes)} · Вільно {WindowsCleanerService.FormatBytes(report.FreeBytes)}";
@@ -519,7 +891,59 @@ public sealed partial class DisksViewModel : SectionViewModelBase, IDisposable
         LargestFolders.Clear();
         foreach (var node in report.LargestFolders)
         {
-            LargestFolders.Add(new FolderSpaceRowItem(node));
+            LargestFolders.Add(new FolderSpaceRowItem(node, OpenFolderAsync, UpdateSelectionSummary));
+        }
+
+        IsFolderEmpty = LargestFolders.Count == 0;
+        UpdateSelectionSummary();
+    }
+
+    private void ApplyFolderContentsReport(FolderContentsReport report)
+    {
+        SelectedVolumeLetter = report.DriveLetter;
+        CurrentBrowsePath = report.CurrentPath;
+        ParentBrowsePath = report.ParentPath;
+        IsInsideSubfolder = !report.IsVolumeRoot;
+        IsDeleteConfirmationOpen = false;
+        DeleteConfirmationText = string.Empty;
+
+        foreach (var tab in VolumeTabs)
+        {
+            tab.IsSelected = tab.DriveLetter == report.DriveLetter;
+        }
+
+        LargestFolders.Clear();
+        foreach (var entry in report.Entries)
+        {
+            LargestFolders.Add(new FolderSpaceRowItem(entry, OpenFolderAsync, UpdateSelectionSummary));
+        }
+
+        IsFolderEmpty = LargestFolders.Count == 0;
+        UpdateSelectionSummary();
+    }
+
+    private void UpdateSelectionSummary()
+    {
+        int count = 0;
+        long totalBytes = 0;
+
+        foreach (var item in LargestFolders)
+        {
+            if (item.IsSelected && item.CanSelect)
+            {
+                count++;
+                totalBytes += item.SizeBytes;
+            }
+        }
+
+        SelectedEntriesCount = count;
+        SelectedEntriesSizeText = WindowsCleanerService.FormatBytes(totalBytes);
+        HasSelectedEntries = count > 0;
+
+        if (count == 0 && IsDeleteConfirmationOpen)
+        {
+            IsDeleteConfirmationOpen = false;
+            DeleteConfirmationText = string.Empty;
         }
     }
 

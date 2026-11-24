@@ -120,6 +120,182 @@ public sealed partial class ActiveConnectionRowViewModel : ObservableObject
         string.IsNullOrWhiteSpace(path) ? "Системний / захищений процес" : path;
 }
 
+public sealed partial class ConnectionAppGroupViewModel : ObservableObject
+{
+    private readonly Func<string, string, Task> _onBlockAppByPath;
+    private readonly Func<ActiveConnectionItem, Task> _onBlockAppOrIp;
+    private readonly Func<ActiveConnectionItem, Task> _onBlockRemoteIp;
+    private readonly Action<ActiveConnectionItem> _onRequestTerminate;
+    private readonly AsyncRelayCommand _blockAppCommand;
+    private string? _rawExecutablePath;
+
+    public ConnectionAppGroupViewModel(
+        string groupKey,
+        IReadOnlyList<ActiveConnectionItem> items,
+        Func<string, string, Task> onBlockAppByPath,
+        Func<ActiveConnectionItem, Task> onBlockAppOrIp,
+        Func<ActiveConnectionItem, Task> onBlockRemoteIp,
+        Action<ActiveConnectionItem> onRequestTerminate,
+        bool initialExpanded = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(groupKey);
+        ArgumentNullException.ThrowIfNull(items);
+        _onBlockAppByPath = onBlockAppByPath ?? throw new ArgumentNullException(nameof(onBlockAppByPath));
+        _onBlockAppOrIp = onBlockAppOrIp ?? throw new ArgumentNullException(nameof(onBlockAppOrIp));
+        _onBlockRemoteIp = onBlockRemoteIp ?? throw new ArgumentNullException(nameof(onBlockRemoteIp));
+        _onRequestTerminate = onRequestTerminate ?? throw new ArgumentNullException(nameof(onRequestTerminate));
+
+        GroupKey = groupKey;
+        Connections = [];
+        _isExpanded = initialExpanded;
+        _processName = string.Empty;
+        _executablePath = string.Empty;
+        _suspicionSummary = string.Empty;
+
+        _blockAppCommand = new AsyncRelayCommand(
+            () => _onBlockAppByPath(ProcessName, _rawExecutablePath ?? string.Empty),
+            () => HasExecutablePath);
+
+        UpdateFrom(items);
+    }
+
+    public string GroupKey { get; }
+    public ObservableCollection<ActiveConnectionRowViewModel> Connections { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ExpandGlyph))]
+    private bool _isExpanded;
+
+    public string ExpandGlyph => IsExpanded ? "▼" : "▶";
+
+    [ObservableProperty]
+    private string _processName;
+
+    [ObservableProperty]
+    private string _executablePath;
+
+    [ObservableProperty]
+    private bool _hasExecutablePath;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ConnectionCountText))]
+    private int _connectionCount;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMultiplePids))]
+    [NotifyPropertyChangedFor(nameof(PidCountText))]
+    private int _pidCount;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasEstablished))]
+    [NotifyPropertyChangedFor(nameof(EstablishedCountText))]
+    private int _establishedCount;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSuspicious))]
+    [NotifyPropertyChangedFor(nameof(IsWarning))]
+    [NotifyPropertyChangedFor(nameof(IsFlagged))]
+    [NotifyPropertyChangedFor(nameof(SuspicionBadgeText))]
+    private ConnectionSuspicionLevel _suspicionLevel;
+
+    [ObservableProperty]
+    private string _suspicionSummary;
+
+    public string ConnectionCountText => $"{ConnectionCount} з'єдн.";
+    public bool HasMultiplePids => PidCount > 1;
+    public string PidCountText => $"{PidCount} PID";
+    public bool HasEstablished => EstablishedCount > 0;
+    public string EstablishedCountText => $"ESTABLISHED: {EstablishedCount}";
+    public bool IsSuspicious => SuspicionLevel == ConnectionSuspicionLevel.Suspicious;
+    public bool IsWarning => SuspicionLevel == ConnectionSuspicionLevel.Warning;
+    public bool IsFlagged => SuspicionLevel != ConnectionSuspicionLevel.None;
+    public string SuspicionBadgeText => SuspicionLevel switch
+    {
+        ConnectionSuspicionLevel.Suspicious => "Підозріле",
+        ConnectionSuspicionLevel.Warning => "Увага",
+        _ => string.Empty
+    };
+
+    public ICommand BlockAppCommand => _blockAppCommand;
+
+    partial void OnHasExecutablePathChanged(bool value) => _blockAppCommand.NotifyCanExecuteChanged();
+
+    [RelayCommand]
+    private void ToggleExpanded()
+    {
+        IsExpanded = !IsExpanded;
+    }
+
+    public static string BuildGroupKey(string? processName)
+    {
+        string trimmed = string.IsNullOrWhiteSpace(processName) ? "unknown" : processName.Trim();
+        if (trimmed.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && trimmed.Length > 4)
+        {
+            trimmed = trimmed[..^4];
+        }
+
+        return trimmed.ToLowerInvariant();
+    }
+
+    public void UpdateFrom(IReadOnlyList<ActiveConnectionItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+
+        string displayName = items
+            .FirstOrDefault(static item => !string.IsNullOrWhiteSpace(item.ProcessName))
+            ?.ProcessName ?? "Невідомий процес";
+
+        _rawExecutablePath = items
+            .FirstOrDefault(static item => !string.IsNullOrWhiteSpace(item.ExecutablePath))
+            ?.ExecutablePath;
+
+        ProcessName = displayName;
+        ExecutablePath = string.IsNullOrWhiteSpace(_rawExecutablePath)
+            ? "Системний / захищений процес"
+            : _rawExecutablePath;
+        HasExecutablePath = !string.IsNullOrWhiteSpace(_rawExecutablePath);
+        ConnectionCount = items.Count;
+        PidCount = items.Select(static item => item.Pid).Distinct().Count();
+        EstablishedCount = items.Count(static item => string.Equals(item.State, "ESTABLISHED", StringComparison.OrdinalIgnoreCase));
+
+        ConnectionSuspicionLevel maxLevel = ConnectionSuspicionLevel.None;
+        foreach (var item in items)
+        {
+            if (item.SuspicionLevel > maxLevel)
+            {
+                maxLevel = item.SuspicionLevel;
+            }
+        }
+
+        SuspicionLevel = maxLevel;
+        SuspicionSummary = maxLevel == ConnectionSuspicionLevel.None
+            ? string.Empty
+            : string.Join(
+                " · ",
+                items
+                    .Where(static item => item.IsFlagged && !string.IsNullOrWhiteSpace(item.SuspicionSummary))
+                    .OrderByDescending(static item => item.SuspicionLevel)
+                    .Select(static item => item.SuspicionSummary!.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Take(3));
+
+        CollectionSyncHelper.SyncByKey(
+            Connections,
+            items,
+            ActiveConnectionRowViewModel.BuildKey,
+            static r => r.ConnectionKey,
+            m => new ActiveConnectionRowViewModel(
+                m,
+                _onBlockAppOrIp,
+                _onBlockRemoteIp,
+                _onRequestTerminate),
+            static (r, m) => r.UpdateFrom(m),
+            currentSelection: null,
+            static _ => { },
+            StringComparer.Ordinal);
+    }
+}
+
 public sealed partial class ProcessTrafficRowViewModel : ObservableObject
 {
     public ProcessTrafficRowViewModel(
@@ -322,7 +498,7 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
         : base(
             ArgusSectionId.Network,
             "Мережа та Windows Firewall",
-            "Активні TCP/UDP-з'єднання, евристика підозрілої активності, облік трафіку (ETW) і правила Firewall ARGUS_",
+            "Активні мережеві з'єднання згруповані за програмами та евристика підозрілої активності",
             uiMode,
             uiDispatch)
     {
@@ -332,6 +508,7 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
         _uiDispatch = uiDispatch ?? (static action => action());
 
         Connections = [];
+        ConnectionGroups = [];
         ProcessTraffic = [];
         FirewallRules = [];
         _pollTimer = new Timer(OnPollTick, null, Timeout.Infinite, Timeout.Infinite);
@@ -343,6 +520,7 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
     }
 
     public ObservableCollection<ActiveConnectionRowViewModel> Connections { get; }
+    public ObservableCollection<ConnectionAppGroupViewModel> ConnectionGroups { get; }
     public ObservableCollection<ProcessTrafficRowViewModel> ProcessTraffic { get; }
     public ObservableCollection<FirewallRuleRowViewModel> FirewallRules { get; }
 
@@ -399,6 +577,12 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
 
     [ObservableProperty]
     private ActiveConnectionRowViewModel? _selectedConnection;
+
+    [ObservableProperty]
+    private ConnectionAppGroupViewModel? _selectedConnectionGroup;
+
+    [ObservableProperty]
+    private bool _hasConnectionGroups;
 
     [ObservableProperty]
     private ProcessTrafficRowViewModel? _selectedTrafficProcess;
@@ -534,7 +718,17 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
     partial void OnFirewallRuleCountChanged(int value) => OnPropertyChanged(nameof(FirewallTabLabel));
     partial void OnArgusRuleCountChanged(int value) => OnPropertyChanged(nameof(FirewallTabLabel));
     partial void OnSuspiciousConnectionCountChanged(int value) => OnPropertyChanged(nameof(SuspiciousFilterLabel));
-    partial void OnOnlySuspiciousConnectionsChanged(bool value) => ApplyFilters();
+    partial void OnOnlySuspiciousConnectionsChanged(bool value)
+    {
+        ApplyFilters();
+        if (value)
+        {
+            foreach (var group in ConnectionGroups)
+            {
+                group.IsExpanded = true;
+            }
+        }
+    }
     partial void OnSearchQueryChanged(string value) => ApplyFilters();
     partial void OnConnectionFilterChanged(string value) => ApplyFilters();
     partial void OnFirewallFilterChanged(string value) => ApplyFilters();
@@ -1059,7 +1253,8 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
                 .ThenBy(static c => c.RemotePort)
         };
 
-        var filteredConns = connQuery.Take(200).ToList();
+        var allFilteredConns = connQuery.ToList();
+        var filteredConns = allFilteredConns.Take(200).ToList();
         CollectionSyncHelper.SyncByKey(
             Connections,
             filteredConns,
@@ -1074,6 +1269,48 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
             SelectedConnection,
             row => SelectedConnection = row,
             StringComparer.Ordinal);
+
+        var groupedData = allFilteredConns
+            .GroupBy(static c => ConnectionAppGroupViewModel.BuildGroupKey(c.ProcessName), StringComparer.OrdinalIgnoreCase)
+            .Select(static g =>
+            {
+                var orderedItems = g
+                    .OrderByDescending(static c => c.SuspicionLevel)
+                    .ThenBy(static c => c.Pid)
+                    .ThenBy(static c => c.Protocol, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(static c => c.LocalPort)
+                    .ThenBy(static c => c.RemotePort)
+                    .ToList();
+                ConnectionSuspicionLevel maxSuspicion = orderedItems.Max(static c => c.SuspicionLevel);
+                string displayName = orderedItems
+                    .FirstOrDefault(static c => !string.IsNullOrWhiteSpace(c.ProcessName))
+                    ?.ProcessName ?? g.Key;
+                return (Key: g.Key, DisplayName: displayName, MaxSuspicion: maxSuspicion, Items: (IReadOnlyList<ActiveConnectionItem>)orderedItems);
+            })
+            .OrderByDescending(static g => g.MaxSuspicion)
+            .ThenBy(static g => g.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static g => g.Key, StringComparer.Ordinal)
+            .ToList();
+
+        CollectionSyncHelper.SyncByKey(
+            ConnectionGroups,
+            groupedData,
+            static g => g.Key,
+            static r => r.GroupKey,
+            g => new ConnectionAppGroupViewModel(
+                g.Key,
+                g.Items,
+                HandleBlockAppByPathAsync,
+                HandleBlockApplicationAsync,
+                HandleBlockRemoteIpAsync,
+                RequestTerminateConnectionProcess,
+                initialExpanded: OnlySuspiciousConnections),
+            static (r, g) => r.UpdateFrom(g.Items),
+            SelectedConnectionGroup,
+            row => SelectedConnectionGroup = row,
+            StringComparer.OrdinalIgnoreCase);
+
+        HasConnectionGroups = ConnectionGroups.Count > 0;
 
         // Filter & Sort Process Traffic
         var trafficQuery = _allTrafficProcesses.Where(p =>
@@ -1181,7 +1418,7 @@ public sealed partial class NetworkViewModel : SectionViewModelBase, IDisposable
         int establishedCount = _allConnections.Count(static c => string.Equals(c.State, "ESTABLISHED", StringComparison.OrdinalIgnoreCase));
         SummaryText = ActiveSubTab switch
         {
-            0 => $"Показано {Connections.Count} із {_allConnections.Count} сокетів (ESTABLISHED: {establishedCount}){(IsExpertMode ? " · включно з loopback" : " · без loopback")}",
+            0 => $"Програм: {ConnectionGroups.Count} · З'єднань: {Connections.Count} із {_allConnections.Count} (ESTABLISHED: {establishedCount}){(IsExpertMode ? " · включно з loopback" : " · без loopback")}",
             1 => $"Процесів із мережевою активністю: {ProcessTraffic.Count} · Сумарно: {TotalTrafficRateText}",
             _ => $"Показано {FirewallRules.Count} із {_allFirewallRules.Count} правил Windows Firewall · Правил ARGUS_: {ArgusRuleCount}"
         };

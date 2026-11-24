@@ -221,8 +221,47 @@
         </StackPanel>
       </Border>
 
-      <!-- Visual Large-Folder Space Map -->
+      <!-- Visual Large-Folder Space Map & Interactive Drill-Down -->
       <Border Classes="panel-hero" Padding="14,11">
+        <Border.Styles>
+          <Style Selector="Button.folder-link">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Foreground" Value="{StaticResource ArgusTextPrimaryBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+          </Style>
+          <Style Selector="Button.folder-link:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource ArgusCyanBrush}" />
+          </Style>
+          <Style Selector="Button.folder-link:disabled">
+            <Setter Property="Opacity" Value="0.6" />
+            <Setter Property="Cursor" Value="Arrow" />
+          </Style>
+          <Style Selector="Button.argus-danger">
+            <Setter Property="Background" Value="#361420" />
+            <Setter Property="Foreground" Value="#FFE6EA" />
+            <Setter Property="BorderBrush" Value="{StaticResource ArgusCoralBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+          </Style>
+          <Style Selector="Button.argus-danger:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#521B2E" />
+            <Setter Property="BorderBrush" Value="#FF8591" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+          </Style>
+          <Style Selector="Button.argus-danger:disabled">
+            <Setter Property="Opacity" Value="0.45" />
+            <Setter Property="Cursor" Value="Arrow" />
+          </Style>
+        </Border.Styles>
+
         <StackPanel Spacing="9">
           <Grid ColumnDefinitions="*,Auto">
             <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
@@ -252,6 +291,110 @@
             </ItemsControl>
           </Grid>
 
+          <!-- Drill-Down Breadcrumb Navigation & Selection Action Toolbar -->
+          <Border Background="#0E142D"
+                  BorderBrush="{StaticResource ArgusBorderBrush}"
+                  BorderThickness="1"
+                  CornerRadius="8"
+                  Padding="10,7">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Border Classes="pill" Padding="8,3" VerticalAlignment="Center">
+                  <TextBlock Classes="metric-mono"
+                             FontSize="11.5"
+                             Foreground="{StaticResource ArgusCyanBrush}"
+                             Text="{Binding CurrentBrowsePath}"
+                             TextTrimming="CharacterEllipsis" />
+                </Border>
+                <Button Classes="argus-secondary"
+                        Padding="10,4"
+                        FontSize="11.5"
+                        IsVisible="{Binding IsInsideSubfolder}"
+                        IsEnabled="{Binding !IsBusy}"
+                        Content="← На рівень вище"
+                        Command="{Binding NavigateUpCommand}"
+                        VerticalAlignment="Center" />
+                <Button Classes="argus-secondary"
+                        Padding="10,4"
+                        FontSize="11.5"
+                        IsVisible="{Binding IsInsideSubfolder}"
+                        IsEnabled="{Binding !IsBusy}"
+                        Content="До кореня тому"
+                        Command="{Binding NavigateRootCommand}"
+                        VerticalAlignment="Center" />
+              </StackPanel>
+
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Border Classes="pill"
+                        Padding="8,3"
+                        IsVisible="{Binding HasSelectedEntries}"
+                        VerticalAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="5">
+                    <TextBlock FontSize="11"
+                               Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                               Text="Вибрано:" />
+                    <TextBlock Classes="metric-mono"
+                               FontSize="11"
+                               Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                               Text="{Binding SelectedEntriesCount}" />
+                    <TextBlock FontSize="11"
+                               Foreground="{StaticResource ArgusTextMutedBrush}"
+                               Text="·" />
+                    <TextBlock Classes="metric-mono"
+                               FontSize="11"
+                               Foreground="{StaticResource ArgusAmberBrush}"
+                               Text="{Binding SelectedEntriesSizeText}" />
+                  </StackPanel>
+                </Border>
+                <Button Classes="argus-danger"
+                        Padding="11,5"
+                        FontSize="11.5"
+                        IsEnabled="{Binding HasSelectedEntries}"
+                        Content="Видалити у Кошик"
+                        Command="{Binding RequestDeleteSelectedCommand}"
+                        VerticalAlignment="Center" />
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <!-- Inline Safe Recycle Bin Deletion Confirmation Banner -->
+          <Border Background="#2A121C"
+                  BorderBrush="{StaticResource ArgusCoralBrush}"
+                  BorderThickness="1"
+                  CornerRadius="9"
+                  Padding="12,9"
+                  IsVisible="{Binding IsDeleteConfirmationOpen}">
+            <Grid ColumnDefinitions="*,12,Auto">
+              <TextBlock Grid.Column="0"
+                         FontSize="12"
+                         Foreground="{StaticResource ArgusTextPrimaryBrush}"
+                         Text="{Binding DeleteConfirmationText}"
+                         TextWrapping="Wrap"
+                         VerticalAlignment="Center" />
+              <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Classes="argus-danger"
+                        Padding="12,6"
+                        FontSize="11.5"
+                        IsEnabled="{Binding !IsBusy}"
+                        Content="Так, перемістити у Кошик"
+                        Command="{Binding ConfirmDeleteSelectedCommand}" />
+                <Button Classes="argus-secondary"
+                        Padding="11,6"
+                        FontSize="11.5"
+                        Content="Скасувати"
+                        Command="{Binding CancelDeleteSelectedCommand}" />
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <!-- Empty Folder Hint -->
+          <TextBlock FontSize="12"
+                     Foreground="{StaticResource ArgusTextMutedBrush}"
+                     Text="У цій теці немає доступних підтек або файлів."
+                     IsVisible="{Binding IsFolderEmpty}"
+                     Margin="2,4" />
+
+          <!-- Subfolders & Files Space Grid -->
           <ItemsControl ItemsSource="{Binding LargestFolders}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
@@ -260,19 +403,76 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:FolderSpaceRowItem">
-                <Border Classes="tile" Margin="0,0,8,6" Padding="11,7">
+                <Border Classes="tile" Margin="0,0,8,6" Padding="11,7" ToolTip.Tip="{Binding FullPath}">
                   <StackPanel Spacing="4">
-                    <Grid ColumnDefinitions="*,Auto">
-                      <TextBlock Grid.Column="0"
+                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                      <CheckBox Grid.Column="0"
+                                IsChecked="{Binding IsSelected}"
+                                IsEnabled="{Binding CanSelect}"
+                                ToolTip.Tip="{Binding SelectionTooltip}"
+                                VerticalAlignment="Center"
+                                Margin="0,0,6,0" />
+
+                      <!-- Clickable folder name for drill-down -->
+                      <Button Grid.Column="1"
+                              Classes="folder-link"
+                              IsVisible="{Binding IsDirectory}"
+                              IsEnabled="{Binding CanOpen}"
+                              Command="{Binding OpenCommand}"
+                              VerticalAlignment="Center"
+                              Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                          <TextBlock FontSize="12.5"
+                                     FontWeight="SemiBold"
+                                     Text="{Binding Name}"
+                                     TextTrimming="CharacterEllipsis" />
+                          <TextBlock FontSize="12.5"
+                                     Foreground="{StaticResource ArgusCyanBrush}"
+                                     Text="›"
+                                     IsVisible="{Binding CanOpen}" />
+                        </StackPanel>
+                      </Button>
+
+                      <!-- Non-clickable file name -->
+                      <TextBlock Grid.Column="1"
+                                 IsVisible="{Binding IsFile}"
                                  FontSize="12.5"
                                  FontWeight="SemiBold"
                                  Foreground="{StaticResource ArgusTextPrimaryBrush}"
                                  Text="{Binding Name}"
-                                 TextTrimming="CharacterEllipsis" />
-                      <TextBlock Grid.Column="1"
+                                 TextTrimming="CharacterEllipsis"
+                                 VerticalAlignment="Center"
+                                 Margin="0,0,8,0" />
+
+                      <!-- Type & Protection Badges -->
+                      <StackPanel Grid.Column="2"
+                                  Orientation="Horizontal"
+                                  Spacing="4"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,8,0">
+                        <Border Classes="pill" Padding="6,1" VerticalAlignment="Center">
+                          <TextBlock FontSize="10"
+                                     Foreground="{StaticResource ArgusTextSecondaryBrush}"
+                                     Text="{Binding TypeBadge}" />
+                        </Border>
+                        <Border Classes="pill"
+                                Classes.pill-warn="{Binding IsProtectedPath}"
+                                Classes.pill-danger="{Binding IsReparsePoint}"
+                                Padding="6,1"
+                                IsVisible="{Binding IsBlocked}"
+                                ToolTip.Tip="{Binding SelectionTooltip}"
+                                VerticalAlignment="Center">
+                          <TextBlock FontSize="10"
+                                     Foreground="{StaticResource ArgusAmberBrush}"
+                                     Text="{Binding ProtectionBadgeText}" />
+                        </Border>
+                      </StackPanel>
+
+                      <TextBlock Grid.Column="3"
                                  Classes="metric-mono"
                                  FontSize="12"
-                                 Text="{Binding SizeText}" />
+                                 Text="{Binding SizeText}"
+                                 VerticalAlignment="Center" />
                     </Grid>
                     <ProgressBar Minimum="0"
                                  Maximum="100"
