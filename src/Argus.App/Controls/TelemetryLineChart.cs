@@ -32,29 +32,29 @@ public sealed class TelemetryLineChart : Control
     public static readonly StyledProperty<double?> AlertThresholdProperty =
         AvaloniaProperty.Register<TelemetryLineChart, double?>(nameof(AlertThreshold), null);
 
-    private static readonly Color CpuColor = Color.Parse("#38D9F5");
-    private static readonly Color RamColor = Color.Parse("#9B82FF");
-    private static readonly Color GpuColor = Color.Parse("#2DD4A8");
-    private static readonly Color ThermalColor = Color.Parse("#F5A623");
+    internal static readonly Color CpuColor = Color.Parse("#38D9F5");
+    internal static readonly Color RamColor = Color.Parse("#9B82FF");
+    internal static readonly Color GpuColor = Color.Parse("#16A34A");
+    internal static readonly Color ThermalColor = Color.Parse("#F5A623");
 
     private static SolidColorBrush PlotBackgroundBrush = new(Color.Parse("#080D20"));
     private static Pen PlotBorderPen = new(new SolidColorBrush(Color.Parse("#242E63")), 1);
     private static Pen GridPen = new(new SolidColorBrush(Color.Parse("#162048")), 1);
     private static Pen ThresholdPen = new(new SolidColorBrush(Color.Parse("#88F45B69")), 1.2, DashStyle.Dash);
 
-    private static readonly SolidColorBrush CpuCoreBrush = new(CpuColor);
-    private static readonly SolidColorBrush CpuHaloBrush = new(Color.FromArgb(80, CpuColor.R, CpuColor.G, CpuColor.B));
-    private static readonly SolidColorBrush RamCoreBrush = new(RamColor);
-    private static readonly SolidColorBrush RamHaloBrush = new(Color.FromArgb(80, RamColor.R, RamColor.G, RamColor.B));
-    private static readonly SolidColorBrush GpuCoreBrush = new(GpuColor);
-    private static readonly SolidColorBrush GpuHaloBrush = new(Color.FromArgb(80, GpuColor.R, GpuColor.G, GpuColor.B));
-    private static readonly SolidColorBrush ThermalCoreBrush = new(ThermalColor);
-    private static readonly SolidColorBrush ThermalHaloBrush = new(Color.FromArgb(80, ThermalColor.R, ThermalColor.G, ThermalColor.B));
+    internal static readonly SolidColorBrush CpuCoreBrush = new(CpuColor);
+    internal static readonly SolidColorBrush CpuHaloBrush = new(Color.FromArgb(80, CpuColor.R, CpuColor.G, CpuColor.B));
+    internal static readonly SolidColorBrush RamCoreBrush = new(RamColor);
+    internal static readonly SolidColorBrush RamHaloBrush = new(Color.FromArgb(80, RamColor.R, RamColor.G, RamColor.B));
+    internal static readonly SolidColorBrush GpuCoreBrush = new(GpuColor);
+    internal static readonly SolidColorBrush GpuHaloBrush = new(Color.FromArgb(80, GpuColor.R, GpuColor.G, GpuColor.B));
+    internal static readonly SolidColorBrush ThermalCoreBrush = new(ThermalColor);
+    internal static readonly SolidColorBrush ThermalHaloBrush = new(Color.FromArgb(80, ThermalColor.R, ThermalColor.G, ThermalColor.B));
 
-    private static readonly Pen CpuPen = new(CpuCoreBrush, 2.2, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
-    private static readonly Pen RamPen = new(RamCoreBrush, 1.8, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
-    private static readonly Pen GpuPen = new(GpuCoreBrush, 1.8, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
-    private static readonly Pen ThermalPen = new(ThermalCoreBrush, 1.8, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+    internal static readonly Pen CpuPen = new(CpuCoreBrush, 2.2, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+    internal static readonly Pen RamPen = new(RamCoreBrush, 1.8, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+    internal static readonly Pen GpuPen = new(GpuCoreBrush, 1.8, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+    internal static readonly Pen ThermalPen = new(ThermalCoreBrush, 1.8, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
 
     private static readonly double[] GridLevels = [0.25, 0.50, 0.75];
 

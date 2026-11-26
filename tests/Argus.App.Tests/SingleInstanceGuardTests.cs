@@ -39,21 +39,30 @@ public sealed class SingleInstanceGuardTests
         string mutexName = $@"Local\Argus_Test_Handoff_{suffix}";
         string pipeName = $"Argus_Test_HandoffPipe_{suffix}";
 
-        var primary = new SingleInstanceGuard(mutexName, pipeName);
-        Assert.True(primary.TryAcquire());
-
         CancellationToken ct = TestContext.Current.CancellationToken;
+        using var primaryAcquired = new ManualResetEventSlim(false);
 
-        // Release primary mutex shortly after handoff starts
-        _ = Task.Run(async () =>
+        // Mutex has thread affinity: acquire and release on the same dedicated thread.
+        var primaryThread = new Thread(() =>
         {
-            await Task.Delay(200, ct);
-            primary.Dispose();
-        }, ct);
+            using var primary = new SingleInstanceGuard(mutexName, pipeName);
+            if (primary.TryAcquire())
+            {
+                primaryAcquired.Set();
+                Thread.Sleep(200);
+            }
+        })
+        {
+            IsBackground = true
+        };
+        primaryThread.Start();
+        Assert.True(primaryAcquired.Wait(TimeSpan.FromSeconds(2), ct));
 
         using var elevated = new SingleInstanceGuard(mutexName, pipeName);
         bool acquired = await Task.Run(() =>
             elevated.TryAcquire(waitForPreviousExit: true, handoffTimeout: TimeSpan.FromSeconds(3)), ct);
+
+        primaryThread.Join(TimeSpan.FromSeconds(2));
 
         Assert.True(acquired);
         Assert.True(elevated.IsPrimaryInstance);

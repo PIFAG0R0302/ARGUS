@@ -404,7 +404,8 @@ public sealed class App : Application
             uiDispatch,
             sp.GetRequiredService<DevicesViewModel>(),
             sp.GetRequiredService<CleanupViewModel>(),
-            sp.GetRequiredService<DisksViewModel>()));
+            sp.GetRequiredService<DisksViewModel>(),
+            uiMode: sp.GetRequiredService<AppUiModeService>()));
 
         services.AddSingleton(sp => new MonitoringViewModel(
             sp.GetRequiredService<IArgusSettingsStore>(),
@@ -492,7 +493,8 @@ public sealed class App : Application
             uiDispatch: uiDispatch,
             network: sp.GetRequiredService<NetworkViewModel>(),
             startupAndServices: sp.GetRequiredService<StartupAndServicesViewModel>(),
-            processes: sp.GetRequiredService<ProcessesViewModel>()));
+            processes: sp.GetRequiredService<ProcessesViewModel>(),
+            uiMode: sp.GetRequiredService<AppUiModeService>()));
     }
 
     private static bool TryParseInitialSection(string[]? args, out ArgusSectionId section)

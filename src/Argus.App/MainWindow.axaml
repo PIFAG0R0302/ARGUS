@@ -72,7 +72,7 @@
 
           <Button Classes="privilege-pill"
                   Classes.elevated="{Binding IsAdministrator}"
-                  Margin="0,0,10,0"
+                  Margin="0,0,8,0"
                   VerticalAlignment="Center"
                   Command="{Binding RequestElevationCommand}"
                   ToolTip.Tip="{Binding PrivilegeTooltip}">
@@ -90,6 +90,27 @@
                          VerticalAlignment="Center" />
             </StackPanel>
           </Button>
+
+          <Border Classes="expert-toggle-bar"
+                  Margin="0,0,10,0"
+                  Padding="9,2"
+                  CornerRadius="6"
+                  VerticalAlignment="Center"
+                  ToolTip.Tip="Експертний режим: показує технічні шляхи, ID правил, потоки CPU, деталі дисків та розділ «Міграція ОС» (CopyOS).">
+            <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+              <TextBlock Text="Експертний режим"
+                         FontSize="11"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource ArgusVioletSoftBrush}"
+                         VerticalAlignment="Center" />
+              <ToggleSwitch IsChecked="{Binding IsExpertMode}"
+                            OnContent=""
+                            OffContent=""
+                            MinWidth="0"
+                            Padding="0"
+                            VerticalAlignment="Center" />
+            </StackPanel>
+          </Border>
 
           <Button Classes="titlebar-btn"
                   Click="OnMinimizeClicked"
@@ -188,6 +209,7 @@
                         <DataTemplate x:DataType="vm:NavigationItemViewModel">
                           <Button Classes="nav-item"
                                   Classes.active="{Binding IsSelected}"
+                                  IsVisible="{Binding IsVisible}"
                                   Margin="0,0,0,3"
                                   Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectSectionCommand}"
                                   CommandParameter="{Binding SectionId}">

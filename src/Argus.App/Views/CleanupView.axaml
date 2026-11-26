@@ -53,20 +53,6 @@
           </StackPanel>
 
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-            <Border Classes="expert-toggle-bar"
-                    ToolTip.Tip="Показує ID правил, точні шляхи, маски файлів, позначки UAC і приклади знайдених файлів.">
-              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <TextBlock Text="Експертний режим"
-                           FontSize="11.5"
-                           FontWeight="SemiBold"
-                           Foreground="{DynamicResource ArgusVioletSoftBrush}"
-                           VerticalAlignment="Center" />
-                <ToggleSwitch IsChecked="{Binding IsExpertMode}"
-                              OnContent=""
-                              OffContent=""
-                              VerticalAlignment="Center" />
-              </StackPanel>
-            </Border>
             <Button Classes="argus-secondary"
                     Padding="14,7"
                     IsEnabled="{Binding !IsBusy}"

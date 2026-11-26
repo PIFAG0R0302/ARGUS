@@ -38,14 +38,15 @@
           <Grid ColumnDefinitions="*,Auto">
             <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,12,0" VerticalAlignment="Center">
               <WrapPanel Orientation="Horizontal">
-                <TextBlock Classes="section-heading" Text="Політика безпеки та S.M.A.R.T." VerticalAlignment="Center" Margin="0,0,8,4" />
-                <Border Classes="pill pill-ready" Padding="7,2" Margin="0,0,6,4">
+                <TextBlock Classes="section-heading" Text="Політика безпеки" VerticalAlignment="Center" Margin="0,0,8,4" IsVisible="{Binding !IsExpertMode}" />
+                <TextBlock Classes="section-heading" Text="Політика безпеки та S.M.A.R.T." VerticalAlignment="Center" Margin="0,0,8,4" IsVisible="{Binding IsExpertMode}" />
+                <Border Classes="pill pill-ready" Padding="7,2" Margin="0,0,6,4" IsVisible="{Binding IsExpertMode}">
                   <TextBlock Text="SSD / NVMe: безпечна оптимізація" FontSize="10.5" Foreground="{DynamicResource ArgusEmeraldBrush}" />
                 </Border>
-                <Border Classes="pill" Padding="7,2" Margin="0,0,6,4">
+                <Border Classes="pill" Padding="7,2" Margin="0,0,6,4" IsVisible="{Binding IsExpertMode}">
                   <TextBlock Text="HDD: дефрагментація" FontSize="10.5" Foreground="{DynamicResource ArgusCyanBrush}" />
                 </Border>
-                <Border Classes="pill" Padding="7,2" Margin="0,0,6,4">
+                <Border Classes="pill" Padding="7,2" Margin="0,0,6,4" IsVisible="{Binding IsExpertMode}">
                   <TextBlock Text="{Binding FleetSummaryText}" FontSize="10.5" Foreground="{DynamicResource ArgusVioletSoftBrush}" />
                 </Border>
               </WrapPanel>
@@ -65,29 +66,14 @@
               </TextBlock>
             </StackPanel>
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-              <Border Classes="expert-toggle-bar"
-                      ToolTip.Tip="Показує серійні номери, інтерфейс шини, стиль розділів і розширені показники S.M.A.R.T.">
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                  <TextBlock Text="Експертний режим"
-                             FontSize="11.5"
-                             FontWeight="SemiBold"
-                             Foreground="{DynamicResource ArgusVioletSoftBrush}"
-                             VerticalAlignment="Center" />
-                  <ToggleSwitch IsChecked="{Binding IsExpertMode}"
-                                OnContent=""
-                                OffContent=""
-                                VerticalAlignment="Center" />
-                </StackPanel>
-              </Border>
-              <Button Classes="argus-secondary"
-                      Padding="12,7"
-                      FontSize="12"
-                      IsEnabled="{Binding !IsBusy}"
-                      Content="Оновити диски"
-                      Command="{Binding RefreshDisksCommand}"
-                      VerticalAlignment="Center" />
-            </StackPanel>
+            <Button Grid.Column="1"
+                    Classes="argus-secondary"
+                    Padding="12,7"
+                    FontSize="12"
+                    IsEnabled="{Binding !IsBusy}"
+                    Content="Оновити диски"
+                    Command="{Binding RefreshDisksCommand}"
+                    VerticalAlignment="Center" />
           </Grid>
 
           <!-- 0..100% Defragmentation / TRIM / Scan Progress Bar -->
@@ -137,7 +123,8 @@
                         <Border Classes="pill"
                                 Classes.pill-ready="{Binding IsSsdOrNvme}"
                                 Padding="7,1"
-                                VerticalAlignment="Center">
+                                VerticalAlignment="Center"
+                                IsVisible="{Binding $parent[UserControl].((vm:DisksViewModel)DataContext).IsExpertMode}">
                           <TextBlock Text="{Binding MediaBadge}"
                                      FontSize="10.5"
                                      FontWeight="SemiBold"
@@ -148,7 +135,8 @@
                       <TextBlock Classes="metric-mono"
                                  FontSize="11.5"
                                  Text="{Binding BasicCapacityText}"
-                                 TextTrimming="CharacterEllipsis" />
+                                 TextTrimming="CharacterEllipsis"
+                                 IsVisible="{Binding $parent[UserControl].((vm:DisksViewModel)DataContext).IsExpertMode}" />
 
                       <!-- Expert-only Hardware Metadata & Detailed S.M.A.R.T. Strip -->
                       <Border Background="{DynamicResource ArgusBgInputBrush}"
@@ -181,7 +169,8 @@
                                 Orientation="Horizontal"
                                 Spacing="6"
                                 Margin="0,0,12,0"
-                                VerticalAlignment="Center">
+                                VerticalAlignment="Center"
+                                IsVisible="{Binding $parent[UserControl].((vm:DisksViewModel)DataContext).IsExpertMode}">
                       <Border Classes="pill"
                               Classes.pill-ready="{Binding IsHealthy}"
                               Classes.pill-warn="{Binding IsCaution}"

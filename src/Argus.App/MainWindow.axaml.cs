@@ -170,7 +170,10 @@ public sealed partial class MainWindow : Window
     }
 
     private static bool IsInsideButton(object? source) =>
-        source is Visual visual && (visual is Button || visual.FindAncestorOfType<Button>() is not null);
+        source is Visual visual &&
+        (visual is Button or ToggleSwitch ||
+         visual.FindAncestorOfType<Button>() is not null ||
+         visual.FindAncestorOfType<ToggleSwitch>() is not null);
 
     private void OnMinimizeClicked(object? sender, RoutedEventArgs e)
     {

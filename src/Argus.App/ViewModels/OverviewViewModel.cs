@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using Argus.App.Services;
 using Argus.Core;
 using Argus.Core.Configuration;
 using Argus.Core.Contracts.Telemetry;
@@ -98,11 +99,14 @@ public sealed partial class OverviewViewModel : SectionViewModelBase, IDisposabl
         Action<Action>? uiDispatch = null,
         DevicesViewModel? devicesViewModel = null,
         CleanupViewModel? cleanupViewModel = null,
-        DisksViewModel? disksViewModel = null)
+        DisksViewModel? disksViewModel = null,
+        AppUiModeService? uiMode = null)
         : base(
             ArgusSectionId.Overview,
             "Огляд системи",
-            "Загальний стан ПК: основні датчики, архітектура заліза, швидкий аналіз очищення та підключені диски")
+            "Загальний стан ПК: основні датчики, архітектура заліза, швидкий аналіз очищення та підключені диски",
+            uiMode,
+            uiDispatch)
     {
         ArgumentNullException.ThrowIfNull(modules);
         _settingsStore = settingsStore ?? throw new ArgumentNullException(nameof(settingsStore));
@@ -319,6 +323,11 @@ public sealed partial class OverviewViewModel : SectionViewModelBase, IDisposabl
     [RelayCommand]
     private void OpenDisks() => _navigateToSection?.Invoke(ArgusSectionId.Disks);
 
+    protected override void OnExpertModeChanged(bool isExpertMode)
+    {
+        SyncHardwareSummaryFromDevices();
+    }
+
     private void OnDevicesPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         _uiDispatch(SyncHardwareSummaryFromDevices);
@@ -335,9 +344,11 @@ public sealed partial class OverviewViewModel : SectionViewModelBase, IDisposabl
         CpuCacheDetailText = $"{_devicesVm.CpuTopologyAndClockText} · {_devicesVm.CpuCacheAndArchText}";
         MotherboardArchitectureText = _devicesVm.BoardTitle;
         BiosArchitectureText = _devicesVm.BiosSummaryText;
-        GpuArchitectureText = _devicesVm.PrimaryGpuTitle;
+        GpuArchitectureText = IsExpertMode
+            ? _devicesVm.PrimaryGpuTitle
+            : StripGpuVramSuffix(_devicesVm.PrimaryGpuTitle);
 
-        if (_devicesVm.RamSlots.Count > 0)
+        if (IsExpertMode && _devicesVm.RamSlots.Count > 0)
         {
             string slots = string.Join(" · ", _devicesVm.RamSlots.Take(4).Select(static s => $"{s.SlotLocator}: {s.CapacityAndSpeed}"));
             RamArchitectureText = $"{_devicesVm.RamSummaryTitle} ({slots})";
@@ -346,6 +357,25 @@ public sealed partial class OverviewViewModel : SectionViewModelBase, IDisposabl
         {
             RamArchitectureText = _devicesVm.RamSummaryTitle;
         }
+    }
+
+    private static string StripGpuVramSuffix(string gpuTitle)
+    {
+        if (string.IsNullOrWhiteSpace(gpuTitle))
+        {
+            return gpuTitle;
+        }
+
+        if (gpuTitle.EndsWith(" ГіБ VRAM", StringComparison.OrdinalIgnoreCase))
+        {
+            int sepIndex = gpuTitle.LastIndexOf(" · ", StringComparison.Ordinal);
+            if (sepIndex > 0)
+            {
+                return gpuTitle[..sepIndex];
+            }
+        }
+
+        return gpuTitle;
     }
 
     private void OnCleanupPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -567,5 +597,6 @@ public sealed partial class OverviewViewModel : SectionViewModelBase, IDisposabl
 
         _telemetrySubscription.Dispose();
         _settingsSubscription.Dispose();
+        DetachUiMode();
     }
 }

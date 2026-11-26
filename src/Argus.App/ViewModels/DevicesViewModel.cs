@@ -251,6 +251,8 @@ public sealed partial class DevicesViewModel : SectionViewModelBase, IDisposable
     private readonly IDisposable? _topologySubscription;
     private int _initialized;
     private IReadOnlyList<DeviceNode> _allDevices = [];
+    private string _primaryGpuBaseName = "Визначення відеоадаптера…";
+    private string _primaryGpuVramSuffix = string.Empty;
 
     [ObservableProperty]
     private string _searchQuery = string.Empty;
@@ -558,6 +560,19 @@ public sealed partial class DevicesViewModel : SectionViewModelBase, IDisposable
         _ = RefreshDevicesAsync();
     }
 
+    protected override void OnExpertModeChanged(bool isExpertMode)
+    {
+        base.OnExpertModeChanged(isExpertMode);
+        UpdatePrimaryGpuTitle();
+    }
+
+    private void UpdatePrimaryGpuTitle()
+    {
+        PrimaryGpuTitle = IsExpertMode
+            ? _primaryGpuBaseName + _primaryGpuVramSuffix
+            : _primaryGpuBaseName;
+    }
+
     private void ApplyInventory(HardwareInventory inv)
     {
         // 1. CPU
@@ -602,14 +617,18 @@ public sealed partial class DevicesViewModel : SectionViewModelBase, IDisposable
         if (gpu is not null)
         {
             double vramGiB = gpu.DedicatedVideoMemoryBytes / (1024.0 * 1024.0 * 1024.0);
-            PrimaryGpuTitle = vramGiB > 0
-                ? string.Format(CultureInfo.CurrentCulture, "{0} · {1:0.#} ГіБ VRAM", gpu.Name, vramGiB)
-                : gpu.Name;
+            _primaryGpuBaseName = gpu.Name;
+            _primaryGpuVramSuffix = vramGiB > 0
+                ? string.Format(CultureInfo.CurrentCulture, " · {0:0.#} ГіБ VRAM", vramGiB)
+                : string.Empty;
+            UpdatePrimaryGpuTitle();
             PrimaryGpuDriverAndIdText = $"Драйвер: {gpu.DriverVersion} · {gpu.PciDeviceId}";
         }
         else
         {
-            PrimaryGpuTitle = "Відеоадаптер не виявлено";
+            _primaryGpuBaseName = "Відеоадаптер не виявлено";
+            _primaryGpuVramSuffix = string.Empty;
+            UpdatePrimaryGpuTitle();
             PrimaryGpuDriverAndIdText = "—";
         }
 

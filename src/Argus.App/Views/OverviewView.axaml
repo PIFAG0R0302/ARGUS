@@ -80,7 +80,7 @@
                 <StackPanel Spacing="2">
                   <TextBlock FontSize="11" Foreground="{DynamicResource ArgusTextMutedBrush}" Text="ПРОЦЕСОР" />
                   <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" Text="{Binding CpuArchitectureText}" TextTrimming="CharacterEllipsis" />
-                  <TextBlock Classes="metric-mono" FontSize="11" Text="{Binding CpuCacheDetailText}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Classes="metric-mono" FontSize="11" Text="{Binding CpuCacheDetailText}" TextTrimming="CharacterEllipsis" IsVisible="{Binding IsExpertMode}" />
                 </StackPanel>
               </Border>
 
@@ -95,15 +95,16 @@
                 <StackPanel Spacing="2">
                   <TextBlock FontSize="11" Foreground="{DynamicResource ArgusTextMutedBrush}" Text="ВІДЕОКАРТА" />
                   <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" Text="{Binding GpuArchitectureText}" TextTrimming="CharacterEllipsis" />
-                  <TextBlock Classes="metric-mono" FontSize="11" Text="{Binding LiveGpuSummaryText}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Classes="metric-mono" FontSize="11" Text="{Binding LiveGpuSummaryText}" TextTrimming="CharacterEllipsis" IsVisible="{Binding IsExpertMode}" />
                 </StackPanel>
               </Border>
 
               <Border Classes="tile" Padding="11,8">
                 <StackPanel Spacing="2">
-                  <TextBlock FontSize="11" Foreground="{DynamicResource ArgusTextMutedBrush}" Text="СИСТЕМНА ПЛАТА ТА BIOS / UEFI" />
+                  <TextBlock FontSize="11" Foreground="{DynamicResource ArgusTextMutedBrush}" Text="СИСТЕМНА ПЛАТА" IsVisible="{Binding !IsExpertMode}" />
+                  <TextBlock FontSize="11" Foreground="{DynamicResource ArgusTextMutedBrush}" Text="СИСТЕМНА ПЛАТА ТА BIOS / UEFI" IsVisible="{Binding IsExpertMode}" />
                   <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" Text="{Binding MotherboardArchitectureText}" TextTrimming="CharacterEllipsis" />
-                  <TextBlock Classes="metric-mono" FontSize="11" Text="{Binding BiosArchitectureText}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Classes="metric-mono" FontSize="11" Text="{Binding BiosArchitectureText}" TextTrimming="CharacterEllipsis" IsVisible="{Binding IsExpertMode}" />
                 </StackPanel>
               </Border>
             </StackPanel>
@@ -150,11 +151,11 @@
                     <TextBlock Classes="body-muted" FontSize="12" Text="Система" />
                     <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="12" HorizontalAlignment="Right" Text="{Binding OsText}" />
                   </Grid>
-                  <Grid ColumnDefinitions="Auto,*">
+                  <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding IsExpertMode}">
                     <TextBlock Classes="body-muted" FontSize="12" Text="Опитування" />
                     <TextBlock Grid.Column="1" Classes="metric-mono" FontSize="12" HorizontalAlignment="Right" Text="{Binding TelemetryIntervalText}" />
                   </Grid>
-                  <Grid ColumnDefinitions="Auto,*">
+                  <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding IsExpertMode}">
                     <TextBlock Classes="body-muted" FontSize="12" Text="Датчики" />
                     <TextBlock Grid.Column="1" FontSize="12" HorizontalAlignment="Right" Foreground="{DynamicResource ArgusEmeraldBrush}" Text="{Binding SensorTierText}" />
                   </Grid>
@@ -233,7 +234,7 @@
                   <DataTemplate x:DataType="vm:OverviewDiskSummaryItem">
                     <Border Classes="tile" Margin="0,0,0,6" Padding="11,8">
                       <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,10,0">
+                        <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,10,0" VerticalAlignment="Center">
                           <StackPanel Orientation="Horizontal" Spacing="7">
                             <TextBlock Text="{Binding Title}"
                                        FontSize="12.5"
@@ -241,11 +242,19 @@
                                        Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                                        TextTrimming="CharacterEllipsis"
                                        VerticalAlignment="Center" />
-                            <Border Classes="pill" Classes.pill-ready="{Binding IsSsdOrNvme}" Padding="6,1" VerticalAlignment="Center">
+                            <Border Classes="pill"
+                                    Classes.pill-ready="{Binding IsSsdOrNvme}"
+                                    Padding="6,1"
+                                    VerticalAlignment="Center"
+                                    IsVisible="{Binding $parent[UserControl].((vm:OverviewViewModel)DataContext).IsExpertMode}">
                               <TextBlock Text="{Binding MediaBadge}" FontSize="10" Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                             </Border>
                           </StackPanel>
-                          <TextBlock Classes="metric-mono" FontSize="11" Text="{Binding DetailsText}" TextTrimming="CharacterEllipsis" />
+                          <TextBlock Classes="metric-mono"
+                                     FontSize="11"
+                                     Text="{Binding DetailsText}"
+                                     TextTrimming="CharacterEllipsis"
+                                     IsVisible="{Binding $parent[UserControl].((vm:OverviewViewModel)DataContext).IsExpertMode}" />
                         </StackPanel>
 
                         <Border Grid.Column="1"
@@ -254,7 +263,8 @@
                                 Classes.pill-warn="{Binding IsCaution}"
                                 Classes.pill-danger="{Binding IsCritical}"
                                 Padding="8,2"
-                                VerticalAlignment="Center">
+                                VerticalAlignment="Center"
+                                IsVisible="{Binding $parent[UserControl].((vm:OverviewViewModel)DataContext).IsExpertMode}">
                           <TextBlock Text="{Binding HealthLabel}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource ArgusTextPrimaryBrush}" />
                         </Border>
                       </Grid>

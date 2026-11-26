@@ -25,6 +25,9 @@ public sealed partial class NavigationItemViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isSelected;
+
+    [ObservableProperty]
+    private bool _isVisible = true;
 }
 
 public sealed class NavigationGroupViewModel

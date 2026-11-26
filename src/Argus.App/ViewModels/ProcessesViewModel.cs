@@ -22,8 +22,8 @@ public sealed partial class ProcessRowViewModel : ObservableObject
 
         Pid = model.Pid;
         PidText = model.Pid.ToString(CultureInfo.InvariantCulture);
-        IsCriticalSystem = model.IsCriticalSystem;
-        CanTerminate = !model.IsCriticalSystem;
+        IsCriticalSystem = ProcessesViewModel.IsProtectedProcess(model);
+        CanTerminate = !IsCriticalSystem;
 
         _name = model.Name;
         _cpuText = string.Format(CultureInfo.CurrentCulture, "{0:0.0}%", model.CpuPercent);
@@ -145,20 +145,24 @@ internal sealed record ProcessGroupSnapshot(
 public sealed partial class ProcessGroupViewModel : ObservableObject
 {
     private readonly Action<ProcessMetricsItem> _onRequestTerminate;
+    private readonly Action<ProcessGroupViewModel>? _onRequestTerminateGroup;
     private readonly Action<string?> _onOpenFolder;
     private readonly RelayCommand _openFolderCommand;
     private readonly RelayCommand _requestTerminateSingleCommand;
+    private readonly RelayCommand _requestTerminateGroupCommand;
     private string? _representativeRawPath;
     private ProcessMetricsItem? _singleInstanceModel;
 
     internal ProcessGroupViewModel(
         ProcessGroupSnapshot snapshot,
         Action<ProcessMetricsItem> onRequestTerminate,
-        Action<string?> onOpenFolder)
+        Action<string?> onOpenFolder,
+        Action<ProcessGroupViewModel>? onRequestTerminateGroup = null)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         _onRequestTerminate = onRequestTerminate ?? throw new ArgumentNullException(nameof(onRequestTerminate));
         _onOpenFolder = onOpenFolder ?? throw new ArgumentNullException(nameof(onOpenFolder));
+        _onRequestTerminateGroup = onRequestTerminateGroup;
 
         GroupKey = snapshot.GroupKey;
         Instances = [];
@@ -176,6 +180,19 @@ public sealed partial class ProcessGroupViewModel : ObservableObject
                 }
             },
             () => CanTerminateSingle && _singleInstanceModel is not null);
+
+        _requestTerminateGroupCommand = new RelayCommand(
+            () =>
+            {
+                if (IsSingleInstance && _singleInstanceModel is not null)
+                {
+                    _onRequestTerminate(_singleInstanceModel);
+                    return;
+                }
+
+                _onRequestTerminateGroup?.Invoke(this);
+            },
+            () => CanTerminateGroup);
 
         UpdateFrom(snapshot);
     }
@@ -253,8 +270,12 @@ public sealed partial class ProcessGroupViewModel : ObservableObject
     [ObservableProperty]
     private bool _canTerminateSingle;
 
+    [ObservableProperty]
+    private bool _canTerminateGroup;
+
     public ICommand OpenFolderCommand => _openFolderCommand;
     public ICommand RequestTerminateSingleCommand => _requestTerminateSingleCommand;
+    public ICommand RequestTerminateGroupCommand => _requestTerminateGroupCommand;
 
     [RelayCommand]
     private void ToggleExpanded()
@@ -292,7 +313,8 @@ public sealed partial class ProcessGroupViewModel : ObservableObject
         HasExecutablePath = !string.IsNullOrWhiteSpace(snapshot.RepresentativeRawPath);
 
         _singleInstanceModel = snapshot.Instances.Count == 1 ? snapshot.Instances[0] : null;
-        CanTerminateSingle = _singleInstanceModel is not null && !_singleInstanceModel.IsCriticalSystem;
+        CanTerminateSingle = _singleInstanceModel is not null && !ProcessesViewModel.IsProtectedProcess(_singleInstanceModel);
+        CanTerminateGroup = snapshot.Instances.Any(static p => !ProcessesViewModel.IsProtectedProcess(p));
 
         CollectionSyncHelper.SyncByKey(
             Instances,
@@ -306,16 +328,24 @@ public sealed partial class ProcessGroupViewModel : ObservableObject
 
         _openFolderCommand.NotifyCanExecuteChanged();
         _requestTerminateSingleCommand.NotifyCanExecuteChanged();
+        _requestTerminateGroupCommand.NotifyCanExecuteChanged();
     }
 }
 
 public sealed partial class ProcessesViewModel : SectionViewModelBase, IDisposable
 {
+    private sealed record PendingGroupTerminate(
+        string GroupName,
+        int TotalCount,
+        int SkippedCriticalCount,
+        IReadOnlyList<ProcessMetricsItem> TerminableInstances);
+
     private readonly IProcessMonitorService _processService;
     private readonly Action<Action> _uiDispatch;
     private readonly Timer _pollTimer;
     private IReadOnlyList<ProcessMetricsItem> _allProcesses = [];
     private ProcessMetricsItem? _pendingTerminateTarget;
+    private PendingGroupTerminate? _pendingTerminateGroup;
     private int _refreshGate;
     private volatile bool _isUiActive;
     private bool _initialized;
@@ -412,6 +442,9 @@ public sealed partial class ProcessesViewModel : SectionViewModelBase, IDisposab
     private bool _isTerminateConfirmationOpen;
 
     [ObservableProperty]
+    private string _terminateConfirmationTitle = "Підтвердження завершення процесу";
+
+    [ObservableProperty]
     private string _terminatePromptText = string.Empty;
 
     partial void OnSearchQueryChanged(string value) => ApplyFiltersAndSort();
@@ -490,7 +523,7 @@ public sealed partial class ProcessesViewModel : SectionViewModelBase, IDisposab
             _uiDispatch(() =>
             {
                 TotalProcessCount = items.Count;
-                HiddenCriticalCount = items.Count(static p => p.IsCriticalSystem);
+                HiddenCriticalCount = items.Count(static p => IsProtectedProcess(p));
                 ApplyFiltersAndSort();
             });
         }
@@ -512,17 +545,36 @@ public sealed partial class ProcessesViewModel : SectionViewModelBase, IDisposab
     [RelayCommand]
     public async Task ConfirmTerminateAsync()
     {
-        var target = _pendingTerminateTarget;
+        var singleTarget = _pendingTerminateTarget;
+        var groupTarget = _pendingTerminateGroup;
         _pendingTerminateTarget = null;
+        _pendingTerminateGroup = null;
         IsTerminateConfirmationOpen = false;
+        TerminateConfirmationTitle = "Підтвердження завершення процесу";
         TerminatePromptText = string.Empty;
 
-        if (target is null)
+        if (groupTarget is not null)
+        {
+            await ExecuteGroupTerminateAsync(groupTarget).ConfigureAwait(false);
+            return;
+        }
+
+        if (singleTarget is null)
         {
             return;
         }
 
-        var result = await _processService.TerminateProcessAsync(target.Pid).ConfigureAwait(false);
+        if (IsProtectedProcess(singleTarget))
+        {
+            _uiDispatch(() =>
+            {
+                ActionFeedback = $"Процес «{singleTarget.Name}» (PID {singleTarget.Pid}) є критичним для Windows і захищений від завершення.";
+                HasActionFeedback = true;
+            });
+            return;
+        }
+
+        var result = await _processService.TerminateProcessAsync(singleTarget.Pid).ConfigureAwait(false);
         _uiDispatch(() =>
         {
             ActionFeedback = result.Message;
@@ -535,27 +587,172 @@ public sealed partial class ProcessesViewModel : SectionViewModelBase, IDisposab
         }
     }
 
+    private async Task ExecuteGroupTerminateAsync(PendingGroupTerminate groupTarget)
+    {
+        int succeededCount = 0;
+        int failedCount = 0;
+        int skippedCritical = groupTarget.SkippedCriticalCount;
+        bool requiresElevation = false;
+        string? firstFailureMessage = null;
+
+        foreach (var instance in groupTarget.TerminableInstances)
+        {
+            if (IsProtectedProcess(instance))
+            {
+                skippedCritical++;
+                continue;
+            }
+
+            var result = await _processService.TerminateProcessAsync(instance.Pid).ConfigureAwait(false);
+            if (result.Succeeded)
+            {
+                succeededCount++;
+            }
+            else
+            {
+                failedCount++;
+                requiresElevation |= result.RequiresElevation;
+                firstFailureMessage ??= result.Message;
+            }
+        }
+
+        string feedback = FormatGroupTerminateFeedback(
+            groupTarget.GroupName,
+            groupTarget.TotalCount,
+            groupTarget.TerminableInstances.Count,
+            succeededCount,
+            failedCount,
+            skippedCritical,
+            requiresElevation,
+            firstFailureMessage);
+
+        _uiDispatch(() =>
+        {
+            ActionFeedback = feedback;
+            HasActionFeedback = true;
+        });
+
+        if (succeededCount > 0)
+        {
+            await RefreshAsync().ConfigureAwait(false);
+        }
+    }
+
+    private static string FormatGroupTerminateFeedback(
+        string groupName,
+        int totalCount,
+        int attemptedCount,
+        int succeededCount,
+        int failedCount,
+        int skippedCritical,
+        bool requiresElevation,
+        string? firstFailureMessage)
+    {
+        if (succeededCount > 0 && failedCount == 0)
+        {
+            return skippedCritical > 0
+                ? $"Завершено {succeededCount} процесів групи «{groupName}» (пропущено критичних ОС: {skippedCritical})."
+                : $"Завершено {succeededCount} із {totalCount} процесів групи «{groupName}».";
+        }
+
+        if (succeededCount > 0 && failedCount > 0)
+        {
+            var msg = $"Завершено {succeededCount} із {attemptedCount} процесів групи «{groupName}», не вдалося завершити: {failedCount}.";
+            if (skippedCritical > 0)
+            {
+                msg += $" Пропущено критичних ОС: {skippedCritical}.";
+            }
+
+            if (requiresElevation)
+            {
+                msg += " Для решти потрібні права адміністратора (UAC).";
+            }
+
+            return msg;
+        }
+
+        if (failedCount > 0)
+        {
+            var msg = $"Не вдалося завершити процеси групи «{groupName}» ({failedCount} помилок).";
+            if (requiresElevation)
+            {
+                msg += " Потрібні права адміністратора (UAC).";
+            }
+            else if (!string.IsNullOrWhiteSpace(firstFailureMessage))
+            {
+                msg += $" {firstFailureMessage}";
+            }
+
+            return msg;
+        }
+
+        return $"У групі «{groupName}» немає доступних для завершення процесів.";
+    }
+
     [RelayCommand]
     private void CancelTerminate()
     {
         _pendingTerminateTarget = null;
+        _pendingTerminateGroup = null;
         IsTerminateConfirmationOpen = false;
+        TerminateConfirmationTitle = "Підтвердження завершення процесу";
         TerminatePromptText = string.Empty;
     }
 
     private void RequestTerminate(ProcessMetricsItem item)
     {
-        if (item.IsCriticalSystem)
+        if (IsProtectedProcess(item))
         {
             ActionFeedback = $"Процес «{item.Name}» (PID {item.Pid}) є критичним для Windows і захищений від завершення.";
             HasActionFeedback = true;
             return;
         }
 
+        _pendingTerminateGroup = null;
         _pendingTerminateTarget = item;
+        TerminateConfirmationTitle = "Підтвердження завершення процесу";
         TerminatePromptText = $"Примусово завершити процес «{item.Name}» (PID {item.Pid})? Незбережені дані цієї програми буде втрачено.";
         IsTerminateConfirmationOpen = true;
     }
+
+    private void RequestTerminateGroup(ProcessGroupViewModel group)
+    {
+        ArgumentNullException.ThrowIfNull(group);
+
+        var instances = group.Instances.Select(static r => r.Model).ToList();
+        var terminable = instances.Where(static p => !IsProtectedProcess(p)).ToList();
+        int criticalCount = instances.Count - terminable.Count;
+
+        if (terminable.Count == 0)
+        {
+            ActionFeedback = $"Усі процеси групи «{group.Name}» є критичними системними процесами Windows і захищені від завершення.";
+            HasActionFeedback = true;
+            return;
+        }
+
+        if (instances.Count == 1)
+        {
+            RequestTerminate(terminable[0]);
+            return;
+        }
+
+        _pendingTerminateTarget = null;
+        _pendingTerminateGroup = new PendingGroupTerminate(
+            group.Name,
+            instances.Count,
+            criticalCount,
+            terminable);
+
+        TerminateConfirmationTitle = "Підтвердження завершення групи процесів";
+        TerminatePromptText = criticalCount > 0
+            ? $"Примусово завершити {terminable.Count} із {instances.Count} процесів групи «{group.Name}»? Критичні системні процеси ОС ({criticalCount}) буде пропущено."
+            : $"Примусово завершити всі процеси групи «{group.Name}» (інстансів: {instances.Count})? Незбережені дані цієї програми буде втрачено.";
+        IsTerminateConfirmationOpen = true;
+    }
+
+    internal static bool IsProtectedProcess(ProcessMetricsItem item) =>
+        item.IsCriticalSystem ||
+        CriticalProcessProtection.IsCriticalProcess(item.Pid, item.Name, currentProcessId: -1);
 
     private void OpenFolder(string? path)
     {
@@ -582,7 +779,7 @@ public sealed partial class ProcessesViewModel : SectionViewModelBase, IDisposab
         IEnumerable<ProcessMetricsItem> query = _allProcesses;
         if (!showCritical)
         {
-            query = query.Where(static p => !p.IsCriticalSystem);
+            query = query.Where(static p => !IsProtectedProcess(p));
         }
 
         if (!string.IsNullOrEmpty(q))
@@ -616,7 +813,7 @@ public sealed partial class ProcessesViewModel : SectionViewModelBase, IDisposab
             sortedGroups,
             static g => g.GroupKey,
             static vm => vm.GroupKey,
-            g => new ProcessGroupViewModel(g, RequestTerminate, OpenFolder),
+            g => new ProcessGroupViewModel(g, RequestTerminate, OpenFolder, RequestTerminateGroup),
             static (vm, g) => vm.UpdateFrom(g),
             SelectedGroup,
             group => SelectedGroup = group,
@@ -652,7 +849,7 @@ public sealed partial class ProcessesViewModel : SectionViewModelBase, IDisposab
         double totalRead = sortedInstances.Sum(static p => p.DiskReadBytesPerSec);
         double totalWrite = sortedInstances.Sum(static p => p.DiskWriteBytesPerSec);
         int totalThreads = sortedInstances.Sum(static p => p.ThreadCount);
-        bool hasCritical = sortedInstances.Any(static p => p.IsCriticalSystem);
+        bool hasCritical = sortedInstances.Any(static p => IsProtectedProcess(p));
 
         string? rawPath = sortedInstances
             .Select(static p => p.ExecutablePath)

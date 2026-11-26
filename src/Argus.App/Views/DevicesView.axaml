@@ -29,8 +29,9 @@
       <Border Grid.Row="0" Grid.Column="0" Classes="panel" Padding="14,10">
         <StackPanel Spacing="4">
           <Grid ColumnDefinitions="*,Auto">
-            <TextBlock Classes="section-heading" Text="Процесор і кеш-пам'ять" VerticalAlignment="Center" />
-            <Border Grid.Column="1" Classes="pill">
+            <TextBlock Classes="section-heading" Text="Процесор" IsVisible="{Binding !IsExpertMode}" VerticalAlignment="Center" />
+            <TextBlock Classes="section-heading" Text="Процесор і кеш-пам'ять" IsVisible="{Binding IsExpertMode}" VerticalAlignment="Center" />
+            <Border Grid.Column="1" Classes="pill" IsVisible="{Binding IsExpertMode}">
               <TextBlock Text="WMI / Топологія" FontSize="10.5" Foreground="{DynamicResource ArgusCyanBrush}" />
             </Border>
           </Grid>
@@ -41,10 +42,12 @@
                      TextTrimming="CharacterEllipsis" />
           <TextBlock Classes="metric-mono"
                      FontSize="11.5"
+                     IsVisible="{Binding IsExpertMode}"
                      Text="{Binding CpuTopologyAndClockText}"
                      TextTrimming="CharacterEllipsis" />
           <TextBlock FontSize="11.5"
                      Foreground="{DynamicResource ArgusTextSecondaryBrush}"
+                     IsVisible="{Binding IsExpertMode}"
                      Text="{Binding CpuCacheAndArchText}"
                      TextTrimming="CharacterEllipsis" />
         </StackPanel>
@@ -54,8 +57,9 @@
       <Border Grid.Row="0" Grid.Column="2" Classes="panel" Padding="14,10">
         <StackPanel Spacing="4">
           <Grid ColumnDefinitions="*,Auto">
-            <TextBlock Classes="section-heading" Text="Системна плата та UEFI / BIOS" VerticalAlignment="Center" />
-            <Border Grid.Column="1" Classes="pill">
+            <TextBlock Classes="section-heading" Text="Системна плата" IsVisible="{Binding !IsExpertMode}" VerticalAlignment="Center" />
+            <TextBlock Classes="section-heading" Text="Системна плата та UEFI / BIOS" IsVisible="{Binding IsExpertMode}" VerticalAlignment="Center" />
+            <Border Grid.Column="1" Classes="pill" IsVisible="{Binding IsExpertMode}">
               <TextBlock Text="SMBIOS" FontSize="10.5" Foreground="{DynamicResource ArgusVioletSoftBrush}" />
             </Border>
           </Grid>
@@ -66,10 +70,12 @@
                      TextTrimming="CharacterEllipsis" />
           <TextBlock Classes="metric-mono"
                      FontSize="11.5"
+                     IsVisible="{Binding IsExpertMode}"
                      Text="{Binding BiosSummaryText}"
                      TextTrimming="CharacterEllipsis" />
           <TextBlock FontSize="11.5"
                      Foreground="{DynamicResource ArgusTextSecondaryBrush}"
+                     IsVisible="{Binding IsExpertMode}"
                      Text="{Binding OsAndFirmwareText}"
                      TextTrimming="CharacterEllipsis" />
         </StackPanel>
@@ -127,8 +133,9 @@
       <Border Grid.Row="2" Grid.Column="2" Classes="panel" Padding="14,10">
         <StackPanel Spacing="4">
           <Grid ColumnDefinitions="*,Auto">
-            <TextBlock Classes="section-heading" Text="Відеокарта та мережа" VerticalAlignment="Center" />
-            <Border Grid.Column="1" Classes="pill pill-ready">
+            <TextBlock Classes="section-heading" Text="Відеокарта" IsVisible="{Binding !IsExpertMode}" VerticalAlignment="Center" />
+            <TextBlock Classes="section-heading" Text="Відеокарта та мережа" IsVisible="{Binding IsExpertMode}" VerticalAlignment="Center" />
+            <Border Grid.Column="1" Classes="pill pill-ready" IsVisible="{Binding IsExpertMode}">
               <TextBlock Text="Активні шини" FontSize="10.5" Foreground="{DynamicResource ArgusEmeraldBrush}" />
             </Border>
           </Grid>
@@ -139,10 +146,12 @@
                      TextTrimming="CharacterEllipsis" />
           <TextBlock Classes="metric-mono"
                      FontSize="11.5"
+                     IsVisible="{Binding IsExpertMode}"
                      Text="{Binding PrimaryGpuDriverAndIdText}"
                      TextTrimming="CharacterEllipsis" />
           <TextBlock FontSize="11.5"
                      Foreground="{DynamicResource ArgusTextSecondaryBrush}"
+                     IsVisible="{Binding IsExpertMode}"
                      Text="{Binding PrimaryNicSummaryText}"
                      TextTrimming="CharacterEllipsis" />
         </StackPanel>
@@ -153,7 +162,7 @@
     <Border Grid.Row="2" Classes="panel-hero" Padding="14,12">
       <Grid RowDefinitions="Auto,8,Auto,10,*">
 
-        <!-- Row 0: Section Heading + Expert Actions & Mode Toggle -->
+        <!-- Row 0: Section Heading + Expert Actions -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
           <TextBlock Grid.Column="0"
                      Classes="section-heading"
@@ -174,20 +183,6 @@
                     IsEnabled="{Binding !IsLoading}"
                     Content="Оновити"
                     Command="{Binding RefreshDevicesCommand}" />
-            <Border Classes="expert-toggle-bar"
-                    ToolTip.Tip="Показує швидкий перехід у системний Диспетчер пристроїв та розширені дії.">
-              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <TextBlock Text="Експертний режим"
-                           FontSize="11.5"
-                           FontWeight="SemiBold"
-                           Foreground="{DynamicResource ArgusVioletSoftBrush}"
-                           VerticalAlignment="Center" />
-                <ToggleSwitch IsChecked="{Binding IsExpertMode}"
-                              OnContent=""
-                              OffContent=""
-                              VerticalAlignment="Center" />
-              </StackPanel>
-            </Border>
           </StackPanel>
         </Grid>
 
@@ -319,6 +314,7 @@
                                    FontSize="11.5"
                                    HorizontalAlignment="Right"
                                    VerticalAlignment="Center"
+                                   IsVisible="{Binding $parent[UserControl].((vm:DevicesViewModel)DataContext).IsExpertMode}"
                                    Text="{Binding BasicDriverText}"
                                    TextTrimming="CharacterEllipsis" />
                       </Grid>

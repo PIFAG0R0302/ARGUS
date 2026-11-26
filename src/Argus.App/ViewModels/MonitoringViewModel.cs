@@ -210,6 +210,117 @@ public sealed class GaugeConsumerItem
     public bool CanTerminate { get; }
 }
 
+internal sealed record GaugeConsumerGroupSnapshot(
+    string GroupKey,
+    int Rank,
+    string ProcessName,
+    double BarPercent,
+    string PrimaryMetricText,
+    string SecondaryMetricText,
+    string? ExecutablePath,
+    bool IsCriticalSystem,
+    IReadOnlyList<GaugeConsumerItem> Items);
+
+public sealed partial class GaugeConsumerGroupViewModel : ObservableObject
+{
+    internal GaugeConsumerGroupViewModel(GaugeConsumerGroupSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        GroupKey = snapshot.GroupKey;
+        Items = [];
+        UpdateFrom(snapshot);
+    }
+
+    public string GroupKey { get; }
+    public ObservableCollection<GaugeConsumerItem> Items { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ExpandGlyph))]
+    private bool _isExpanded;
+
+    public string ExpandGlyph => IsExpanded ? "▼" : "▶";
+
+    [ObservableProperty]
+    private int _rank;
+
+    [ObservableProperty]
+    private string _rankText = string.Empty;
+
+    [ObservableProperty]
+    private string _processName = string.Empty;
+
+    [ObservableProperty]
+    private int _instanceCount;
+
+    [ObservableProperty]
+    private string _countBadgeText = string.Empty;
+
+    [ObservableProperty]
+    private bool _isMultiInstance;
+
+    [ObservableProperty]
+    private bool _isSingleInstance;
+
+    [ObservableProperty]
+    private string _pidOrCountText = string.Empty;
+
+    [ObservableProperty]
+    private double _barPercent;
+
+    [ObservableProperty]
+    private string _primaryMetricText = string.Empty;
+
+    [ObservableProperty]
+    private string _secondaryMetricText = string.Empty;
+
+    [ObservableProperty]
+    private string? _executablePath;
+
+    [ObservableProperty]
+    private bool _hasExecutablePath;
+
+    [ObservableProperty]
+    private bool _isCriticalSystem;
+
+    [ObservableProperty]
+    private bool _canTerminate;
+
+    [RelayCommand]
+    private void ToggleExpanded()
+    {
+        IsExpanded = !IsExpanded;
+    }
+
+    internal void UpdateFrom(GaugeConsumerGroupSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        Rank = snapshot.Rank;
+        RankText = $"#{snapshot.Rank}";
+        ProcessName = snapshot.ProcessName;
+        InstanceCount = snapshot.Items.Count;
+        IsMultiInstance = InstanceCount > 1;
+        IsSingleInstance = InstanceCount == 1;
+        CountBadgeText = $"{InstanceCount} проц.";
+        PidOrCountText = IsMultiInstance
+            ? $"{InstanceCount} проц."
+            : (snapshot.Items.Count == 1 ? $"PID {snapshot.Items[0].Pid}" : "0 проц.");
+        BarPercent = Math.Clamp(snapshot.BarPercent, 0.0, 100.0);
+        PrimaryMetricText = snapshot.PrimaryMetricText;
+        SecondaryMetricText = snapshot.SecondaryMetricText;
+        ExecutablePath = string.IsNullOrWhiteSpace(snapshot.ExecutablePath) ? null : snapshot.ExecutablePath;
+        HasExecutablePath = !string.IsNullOrWhiteSpace(snapshot.ExecutablePath);
+        IsCriticalSystem = snapshot.IsCriticalSystem;
+        CanTerminate = snapshot.Items.Any(static i => i.CanTerminate);
+
+        Items.Clear();
+        foreach (var item in snapshot.Items)
+        {
+            Items.Add(item);
+        }
+    }
+}
+
 public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposable
 {
     private static readonly TimeSpan GaugeConsumersRefreshInterval = TimeSpan.FromSeconds(2.5);
@@ -277,6 +388,7 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
         StorageItems = [];
         ExtraSensors = [];
         GaugeConsumers = [];
+        GaugeConsumerGroups = [];
         FilteredProcesses = [];
         FilteredServices = [];
         FilteredLocalPorts = [];
@@ -334,6 +446,8 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
     protected override void OnExpertModeChanged(bool isExpertMode)
     {
         OnPropertyChanged(nameof(ShowGaugeConsumerUacCallout));
+        OnPropertyChanged(nameof(ShowCpuThreadsPanel));
+        OnPropertyChanged(nameof(ShowGpuDetailsPanel));
         if (isExpertMode)
         {
             if (_isUiActive && _systemInspector is not null)
@@ -346,6 +460,7 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
             PendingTerminateProcess = null;
             ShowInspectorElevationCallout = false;
             PendingTerminateConsumer = null;
+            PendingTerminateConsumerGroup = null;
             ShowGaugeConsumerElevationCallout = false;
         }
     }
@@ -354,22 +469,27 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
     public ObservableCollection<StorageRowItem> StorageItems { get; }
     public ObservableCollection<ExtraSensorItem> ExtraSensors { get; }
     public ObservableCollection<GaugeConsumerItem> GaugeConsumers { get; }
+    public ObservableCollection<GaugeConsumerGroupViewModel> GaugeConsumerGroups { get; }
     public ObservableCollection<ProcessRowItem> FilteredProcesses { get; }
     public ObservableCollection<WindowsServiceRowItem> FilteredServices { get; }
     public ObservableCollection<LocalPortRowItem> FilteredLocalPorts { get; }
 
-    // Collapsible Hardware Cards (CPU Threads & GPU Adapter) — collapsed by default
+    // Collapsible Hardware Cards (CPU Threads & GPU Adapter) — collapsed by default, gated to Expert mode in UI
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CpuThreadsChevron))]
+    [NotifyPropertyChangedFor(nameof(ShowCpuThreadsPanel))]
     private bool _isCpuThreadsExpanded;
 
     public string CpuThreadsChevron => IsCpuThreadsExpanded ? "▼" : "▶";
+    public bool ShowCpuThreadsPanel => IsExpertMode && IsCpuThreadsExpanded;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(GpuDetailsChevron))]
+    [NotifyPropertyChangedFor(nameof(ShowGpuDetailsPanel))]
     private bool _isGpuDetailsExpanded;
 
     public string GpuDetailsChevron => IsGpuDetailsExpanded ? "▼" : "▶";
+    public bool ShowGpuDetailsPanel => IsExpertMode && IsGpuDetailsExpanded;
 
     // Interactive Gauge Top-Consumers Panel ("CPU", "RAM", "GPU", "TEMP", or null)
     [ObservableProperty]
@@ -407,11 +527,34 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
     [NotifyPropertyChangedFor(nameof(PendingGaugeConsumerTerminatePrompt))]
     private GaugeConsumerItem? _pendingTerminateConsumer;
 
-    public bool HasPendingGaugeConsumerTerminate => PendingTerminateConsumer is not null;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPendingGaugeConsumerTerminate))]
+    [NotifyPropertyChangedFor(nameof(PendingGaugeConsumerTerminatePrompt))]
+    private GaugeConsumerGroupViewModel? _pendingTerminateConsumerGroup;
 
-    public string PendingGaugeConsumerTerminatePrompt => PendingTerminateConsumer is { } p
-        ? $"Завершити процес «{p.ProcessName}» (PID {p.Pid})?"
-        : string.Empty;
+    public bool HasPendingGaugeConsumerTerminate => PendingTerminateConsumer is not null || PendingTerminateConsumerGroup is not null;
+
+    public string PendingGaugeConsumerTerminatePrompt
+    {
+        get
+        {
+            if (PendingTerminateConsumer is { } p)
+            {
+                return $"Завершити процес «{p.ProcessName}» (PID {p.Pid})?";
+            }
+
+            if (PendingTerminateConsumerGroup is { } g)
+            {
+                int killable = g.Items.Count(static i => i.CanTerminate && !CriticalProcessProtection.IsCriticalProcess(i.Pid, i.ProcessName, Environment.ProcessId));
+                int skipped = g.Items.Count - killable;
+                return skipped > 0
+                    ? $"Завершити {killable} некритичних процесів «{g.ProcessName}» ({skipped} системних буде пропущено)?"
+                    : $"Завершити усі {killable} процесів «{g.ProcessName}»?";
+            }
+
+            return string.Empty;
+        }
+    }
 
     [ObservableProperty]
     private bool _hasGaugeConsumerFeedback;
@@ -672,6 +815,9 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
         }
 
         PendingTerminateConsumer = null;
+        PendingTerminateConsumerGroup = null;
+        GaugeConsumers.Clear();
+        GaugeConsumerGroups.Clear();
         ActiveGaugeConsumerKind = normalized;
         ApplyGaugeConsumersHeaderDefaults(normalized);
         _lastGaugeConsumersRefreshUtc = DateTimeOffset.MinValue;
@@ -683,9 +829,11 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
     {
         ActiveGaugeConsumerKind = null;
         GaugeConsumers.Clear();
+        GaugeConsumerGroups.Clear();
         HasGaugeConsumers = false;
         IsGaugeConsumersLoading = false;
         PendingTerminateConsumer = null;
+        PendingTerminateConsumerGroup = null;
         ShowGaugeConsumerElevationCallout = false;
         HasGaugeConsumerFeedback = false;
         GaugeConsumerFeedbackText = string.Empty;
@@ -699,14 +847,30 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
             return;
         }
 
+        OpenGaugeConsumerFolderCore(item.ProcessName, item.ExecutablePath);
+    }
+
+    [RelayCommand]
+    private void OpenGaugeConsumerGroupFolder(GaugeConsumerGroupViewModel? group)
+    {
+        if (!IsExpertMode || group is null || !group.HasExecutablePath)
+        {
+            return;
+        }
+
+        OpenGaugeConsumerFolderCore(group.ProcessName, group.ExecutablePath);
+    }
+
+    private void OpenGaugeConsumerFolderCore(string processName, string? executablePath)
+    {
         bool opened;
         if (_systemInspector is not null)
         {
-            opened = _systemInspector.OpenProcessFolder(item.ExecutablePath);
+            opened = _systemInspector.OpenProcessFolder(executablePath);
         }
         else if (_processMonitor is not null)
         {
-            opened = _processMonitor.OpenProcessFolder(item.ExecutablePath);
+            opened = _processMonitor.OpenProcessFolder(executablePath);
         }
         else
         {
@@ -715,8 +879,8 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
 
         GaugeConsumerFeedbackIsSuccess = opened;
         GaugeConsumerFeedbackText = opened
-            ? $"Відкрито папку процесу «{item.ProcessName}»."
-            : $"Не вдалося відкрити папку для «{item.ProcessName}».";
+            ? $"Відкрито папку процесу «{processName}»."
+            : $"Не вдалося відкрити папку для «{processName}».";
         HasGaugeConsumerFeedback = true;
     }
 
@@ -731,78 +895,212 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
         if (!item.CanTerminate || CriticalProcessProtection.IsCriticalProcess(item.Pid, item.ProcessName, Environment.ProcessId))
         {
             PendingTerminateConsumer = null;
+            PendingTerminateConsumerGroup = null;
             GaugeConsumerFeedbackIsSuccess = false;
             GaugeConsumerFeedbackText = $"Процес «{item.ProcessName}» (PID {item.Pid}) є критичним системним процесом і захищений від завершення.";
             HasGaugeConsumerFeedback = true;
             return;
         }
 
+        PendingTerminateConsumerGroup = null;
         PendingTerminateConsumer = item;
+    }
+
+    [RelayCommand]
+    private void RequestTerminateGaugeConsumerGroup(GaugeConsumerGroupViewModel? group)
+    {
+        if (!IsExpertMode || group is null)
+        {
+            return;
+        }
+
+        if (group.IsSingleInstance && group.Items.Count == 1)
+        {
+            RequestTerminateGaugeConsumer(group.Items[0]);
+            return;
+        }
+
+        bool anyKillable = group.Items.Any(static i =>
+            i.CanTerminate && !CriticalProcessProtection.IsCriticalProcess(i.Pid, i.ProcessName, Environment.ProcessId));
+        if (!anyKillable)
+        {
+            PendingTerminateConsumer = null;
+            PendingTerminateConsumerGroup = null;
+            GaugeConsumerFeedbackIsSuccess = false;
+            GaugeConsumerFeedbackText = $"Усі процеси у групі «{group.ProcessName}» є критичними системними і захищені від завершення.";
+            HasGaugeConsumerFeedback = true;
+            return;
+        }
+
+        PendingTerminateConsumer = null;
+        PendingTerminateConsumerGroup = group;
     }
 
     [RelayCommand]
     private void CancelTerminateGaugeConsumer()
     {
         PendingTerminateConsumer = null;
+        PendingTerminateConsumerGroup = null;
     }
 
     [RelayCommand]
     private async Task ConfirmTerminateGaugeConsumerAsync()
     {
         var target = PendingTerminateConsumer;
+        var groupTarget = PendingTerminateConsumerGroup;
         PendingTerminateConsumer = null;
+        PendingTerminateConsumerGroup = null;
 
-        if (!IsExpertMode || target is null)
+        if (!IsExpertMode || (target is null && groupTarget is null))
         {
             return;
         }
 
-        if (!target.CanTerminate || CriticalProcessProtection.IsCriticalProcess(target.Pid, target.ProcessName, Environment.ProcessId))
+        if (target is not null)
         {
+            if (!target.CanTerminate || CriticalProcessProtection.IsCriticalProcess(target.Pid, target.ProcessName, Environment.ProcessId))
+            {
+                _uiDispatch(() =>
+                {
+                    GaugeConsumerFeedbackIsSuccess = false;
+                    GaugeConsumerFeedbackText = $"Процес «{target.ProcessName}» (PID {target.Pid}) є критичним системним процесом і захищений від завершення.";
+                    HasGaugeConsumerFeedback = true;
+                });
+                return;
+            }
+
+            var result = await TerminatePidCoreAsync(target.Pid).ConfigureAwait(false);
+            if (result is null)
+            {
+                return;
+            }
+
             _uiDispatch(() =>
             {
-                GaugeConsumerFeedbackIsSuccess = false;
-                GaugeConsumerFeedbackText = $"Процес «{target.ProcessName}» (PID {target.Pid}) є критичним системним процесом і захищений від завершення.";
+                GaugeConsumerFeedbackIsSuccess = result.Succeeded;
+                GaugeConsumerFeedbackText = result.Message;
                 HasGaugeConsumerFeedback = true;
+
+                if (result.RequiresElevation)
+                {
+                    ShowGaugeConsumerElevationCallout = true;
+                    GaugeConsumerElevationReason = result.Message;
+                }
+                else if (result.Succeeded)
+                {
+                    ShowGaugeConsumerElevationCallout = false;
+                }
             });
+
+            if (result.Succeeded)
+            {
+                await RefreshGaugeConsumersAsync().ConfigureAwait(false);
+            }
+
             return;
         }
 
-        SystemActionResult result;
+        if (groupTarget is not null)
+        {
+            var killable = groupTarget.Items
+                .Where(static i => i.CanTerminate && !CriticalProcessProtection.IsCriticalProcess(i.Pid, i.ProcessName, Environment.ProcessId))
+                .ToList();
+            int skippedCritical = groupTarget.Items.Count - killable.Count;
+
+            if (killable.Count == 0)
+            {
+                _uiDispatch(() =>
+                {
+                    GaugeConsumerFeedbackIsSuccess = false;
+                    GaugeConsumerFeedbackText = $"Усі процеси у групі «{groupTarget.ProcessName}» є критичними системними і захищені від завершення.";
+                    HasGaugeConsumerFeedback = true;
+                });
+                return;
+            }
+
+            if (_systemInspector is null && _processMonitor is null)
+            {
+                return;
+            }
+
+            int succeededCount = 0;
+            int failedCount = 0;
+            bool requiresElevation = false;
+            string? lastError = null;
+
+            foreach (var item in killable)
+            {
+                var result = await TerminatePidCoreAsync(item.Pid).ConfigureAwait(false);
+                if (result is null)
+                {
+                    return;
+                }
+
+                if (result.Succeeded)
+                {
+                    succeededCount++;
+                }
+                else
+                {
+                    failedCount++;
+                    lastError = result.Message;
+                    if (result.RequiresElevation)
+                    {
+                        requiresElevation = true;
+                    }
+                }
+            }
+
+            string feedback = (failedCount == 0, succeededCount > 0, skippedCritical > 0) switch
+            {
+                (true, true, false) => $"Завершено {succeededCount} процесів «{groupTarget.ProcessName}».",
+                (true, true, true) => $"Завершено {succeededCount} процесів «{groupTarget.ProcessName}» (пропущено критичних: {skippedCritical}).",
+                (false, true, _) => $"Завершено {succeededCount} із {killable.Count} процесів «{groupTarget.ProcessName}» (помилок: {failedCount}).",
+                _ => string.IsNullOrWhiteSpace(lastError)
+                    ? $"Не вдалося завершити процеси «{groupTarget.ProcessName}»."
+                    : lastError
+            };
+
+            _uiDispatch(() =>
+            {
+                GaugeConsumerFeedbackIsSuccess = failedCount == 0 && succeededCount > 0;
+                GaugeConsumerFeedbackText = feedback;
+                HasGaugeConsumerFeedback = true;
+
+                if (requiresElevation)
+                {
+                    ShowGaugeConsumerElevationCallout = true;
+                    GaugeConsumerElevationReason = lastError ?? "Для завершення захищених процесів потрібне підвищення прав (UAC).";
+                }
+                else if (failedCount == 0 && succeededCount > 0)
+                {
+                    ShowGaugeConsumerElevationCallout = false;
+                }
+            });
+
+            if (succeededCount > 0)
+            {
+                await RefreshGaugeConsumersAsync().ConfigureAwait(false);
+            }
+        }
+    }
+
+    private Task<SystemActionResult?> TerminatePidCoreAsync(int pid)
+    {
         if (_systemInspector is not null)
         {
-            result = await _systemInspector.TerminateProcessAsync(target.Pid).ConfigureAwait(false);
-        }
-        else if (_processMonitor is not null)
-        {
-            result = await _processMonitor.TerminateProcessAsync(target.Pid).ConfigureAwait(false);
-        }
-        else
-        {
-            return;
+            return WrapResultAsync(_systemInspector.TerminateProcessAsync(pid));
         }
 
-        _uiDispatch(() =>
+        if (_processMonitor is not null)
         {
-            GaugeConsumerFeedbackIsSuccess = result.Succeeded;
-            GaugeConsumerFeedbackText = result.Message;
-            HasGaugeConsumerFeedback = true;
-
-            if (result.RequiresElevation)
-            {
-                ShowGaugeConsumerElevationCallout = true;
-                GaugeConsumerElevationReason = result.Message;
-            }
-            else if (result.Succeeded)
-            {
-                ShowGaugeConsumerElevationCallout = false;
-            }
-        });
-
-        if (result.Succeeded)
-        {
-            await RefreshGaugeConsumersAsync().ConfigureAwait(false);
+            return WrapResultAsync(_processMonitor.TerminateProcessAsync(pid));
         }
+
+        return Task.FromResult<SystemActionResult?>(null);
+
+        static async Task<SystemActionResult?> WrapResultAsync(Task<SystemActionResult> task) =>
+            await task.ConfigureAwait(false);
     }
 
     public async Task RefreshGaugeConsumersAsync(CancellationToken cancellationToken = default)
@@ -833,6 +1131,7 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
 
                     ApplyGaugeConsumersHeaderDefaults(requestedKind);
                     GaugeConsumers.Clear();
+                    GaugeConsumerGroups.Clear();
                     HasGaugeConsumers = false;
                     GaugeConsumersEmptyText = "Служба моніторингу процесів недоступна.";
                 });
@@ -849,7 +1148,7 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
                     cancellationToken).ConfigureAwait(false);
             }
 
-            var (title, subtitle, items) = BuildGaugeConsumers(requestedKind, processes, gpuUsage, snapshot);
+            var (title, subtitle, items, groups) = BuildGaugeConsumersAndGroups(requestedKind, processes, gpuUsage, snapshot);
             _lastGaugeConsumersRefreshUtc = DateTimeOffset.UtcNow;
 
             _uiDispatch(() =>
@@ -867,7 +1166,18 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
                     GaugeConsumers.Add(item);
                 }
 
-                HasGaugeConsumers = GaugeConsumers.Count > 0;
+                CollectionSyncHelper.SyncByKey(
+                    GaugeConsumerGroups,
+                    groups,
+                    static g => g.GroupKey,
+                    static vm => vm.GroupKey,
+                    static g => new GaugeConsumerGroupViewModel(g),
+                    static (vm, g) => vm.UpdateFrom(g),
+                    currentSelection: null,
+                    setSelection: static _ => { },
+                    StringComparer.OrdinalIgnoreCase);
+
+                HasGaugeConsumers = GaugeConsumerGroups.Count > 0 || GaugeConsumers.Count > 0;
                 if (!HasGaugeConsumers)
                 {
                     GaugeConsumersEmptyText = "Немає активних процесів для відображення.";
@@ -888,6 +1198,7 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
                 }
 
                 GaugeConsumers.Clear();
+                GaugeConsumerGroups.Clear();
                 HasGaugeConsumers = false;
                 GaugeConsumersEmptyText = "Не вдалося отримати список процесів.";
             });
@@ -947,7 +1258,18 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
         }
     }
 
-    private static (string Title, string Subtitle, List<GaugeConsumerItem> Items) BuildGaugeConsumers(
+    internal static string NormalizeConsumerGroupKey(string? name)
+    {
+        string trimmed = string.IsNullOrWhiteSpace(name) ? "(невідомо)" : name.Trim();
+        if (trimmed.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && trimmed.Length > 4)
+        {
+            trimmed = trimmed[..^4];
+        }
+
+        return trimmed.ToLowerInvariant();
+    }
+
+    private static (string Title, string Subtitle, List<GaugeConsumerItem> Items, List<GaugeConsumerGroupSnapshot> Groups) BuildGaugeConsumersAndGroups(
         string kind,
         IReadOnlyList<ProcessMetricsItem> processes,
         IReadOnlyDictionary<int, double>? gpuUsage,
@@ -955,71 +1277,116 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
     {
         const int maxItems = 6;
         var items = new List<GaugeConsumerItem>(maxItems);
+        var groups = new List<GaugeConsumerGroupSnapshot>(maxItems);
 
         switch (kind)
         {
             case "CPU":
             {
-                var top = processes
+                var ordered = processes
                     .Where(p => p.Pid > 0)
                     .OrderByDescending(p => p.CpuPercent)
                     .ThenByDescending(p => p.WorkingSetBytes)
-                    .Take(maxItems);
+                    .ThenBy(p => p.Pid)
+                    .ToList();
 
                 int rank = 1;
-                foreach (var p in top)
+                foreach (var p in ordered.Take(maxItems))
                 {
-                    double cpu = Math.Clamp(p.CpuPercent, 0.0, 100.0);
-                    string primary = string.Format(CultureInfo.CurrentCulture, "{0:0.0}%", cpu);
-                    string secondary = $"{FormatMemorySize(p.WorkingSetBytes)} · {p.ThreadCount} пот.";
-                    items.Add(new GaugeConsumerItem(
-                        rank++,
-                        p.Pid,
-                        p.Name,
-                        primary,
-                        secondary,
-                        cpu,
-                        p.ExecutablePath,
-                        p.IsCriticalSystem,
-                        p.IsProtectedAccess));
+                    items.Add(CreateCpuConsumerItem(rank++, p));
                 }
 
-                return ("Топ-споживачі CPU", "Процеси з найбільшим навантаженням на процесор", items);
+                var grouped = ordered
+                    .GroupBy(static p => NormalizeConsumerGroupKey(p.Name), StringComparer.OrdinalIgnoreCase)
+                    .Select(g =>
+                    {
+                        var instances = g.ToList();
+                        double totalCpu = Math.Clamp(instances.Sum(static p => Math.Max(0.0, p.CpuPercent)), 0.0, 100.0);
+                        long totalRam = instances.Sum(static p => Math.Max(0L, p.WorkingSetBytes));
+                        int totalThreads = instances.Sum(static p => Math.Max(0, p.ThreadCount));
+                        return (Key: g.Key, Instances: instances, TotalCpu: totalCpu, TotalRam: totalRam, TotalThreads: totalThreads);
+                    })
+                    .OrderByDescending(x => x.TotalCpu)
+                    .ThenByDescending(x => x.TotalRam)
+                    .ThenBy(x => x.Instances[0].Name, StringComparer.OrdinalIgnoreCase)
+                    .Take(maxItems);
+
+                int groupRank = 1;
+                foreach (var entry in grouped)
+                {
+                    var childItems = entry.Instances
+                        .Select((p, idx) => CreateCpuConsumerItem(idx + 1, p))
+                        .ToList();
+                    groups.Add(CreateGroupSnapshot(
+                        entry.Key,
+                        groupRank++,
+                        entry.Instances,
+                        entry.TotalCpu,
+                        string.Format(CultureInfo.CurrentCulture, "{0:0.0}%", entry.TotalCpu),
+                        $"{FormatMemorySize(entry.TotalRam)} · {entry.TotalThreads} пот.",
+                        childItems));
+                }
+
+                return ("Топ-споживачі CPU", "Процеси з найбільшим навантаженням на процесор", items, groups);
             }
 
             case "RAM":
             {
-                var top = processes
+                var ordered = processes
                     .Where(p => p.Pid > 0)
                     .OrderByDescending(p => p.WorkingSetBytes)
                     .ThenByDescending(p => p.CpuPercent)
-                    .Take(maxItems)
+                    .ThenBy(p => p.Pid)
                     .ToList();
 
+                var top = ordered.Take(maxItems).ToList();
                 long totalRamBytes = snapshot?.Memory.TotalBytes ?? 0;
                 long peakWorkingSet = top.Count > 0 ? Math.Max(1L, top[0].WorkingSetBytes) : 1L;
 
                 int rank = 1;
                 foreach (var p in top)
                 {
-                    double barPct = totalRamBytes > 0
-                        ? Math.Clamp((double)p.WorkingSetBytes / totalRamBytes * 100.0, 0.0, 100.0)
-                        : Math.Clamp((double)p.WorkingSetBytes / peakWorkingSet * 100.0, 0.0, 100.0);
-                    string primary = FormatMemorySize(p.WorkingSetBytes);
-                    string secondary = string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}% · {1} пот.", p.CpuPercent, p.ThreadCount);
-                    items.Add(new GaugeConsumerItem(
-                        rank++,
-                        p.Pid,
-                        p.Name,
-                        primary,
-                        secondary,
-                        barPct,
-                        p.ExecutablePath,
-                        p.IsCriticalSystem,
-                        p.IsProtectedAccess));
+                    items.Add(CreateRamConsumerItem(rank++, p, totalRamBytes, peakWorkingSet));
                 }
 
-                return ("Топ-споживачі оперативної пам'яті", "Процеси з найбільшим споживанням ОЗП (Working Set)", items);
+                var grouped = ordered
+                    .GroupBy(static p => NormalizeConsumerGroupKey(p.Name), StringComparer.OrdinalIgnoreCase)
+                    .Select(g =>
+                    {
+                        var instances = g.ToList();
+                        long totalRam = instances.Sum(static p => Math.Max(0L, p.WorkingSetBytes));
+                        double totalCpu = Math.Clamp(instances.Sum(static p => Math.Max(0.0, p.CpuPercent)), 0.0, 100.0);
+                        int totalThreads = instances.Sum(static p => Math.Max(0, p.ThreadCount));
+                        return (Key: g.Key, Instances: instances, TotalRam: totalRam, TotalCpu: totalCpu, TotalThreads: totalThreads);
+                    })
+                    .OrderByDescending(x => x.TotalRam)
+                    .ThenByDescending(x => x.TotalCpu)
+                    .ThenBy(x => x.Instances[0].Name, StringComparer.OrdinalIgnoreCase)
+                    .Take(maxItems)
+                    .ToList();
+
+                long peakGroupRam = grouped.Count > 0 ? Math.Max(1L, grouped[0].TotalRam) : 1L;
+                int groupRank = 1;
+                foreach (var entry in grouped)
+                {
+                    double barPct = totalRamBytes > 0
+                        ? Math.Clamp((double)entry.TotalRam / totalRamBytes * 100.0, 0.0, 100.0)
+                        : Math.Clamp((double)entry.TotalRam / peakGroupRam * 100.0, 0.0, 100.0);
+                    long childPeakRam = Math.Max(1L, entry.Instances[0].WorkingSetBytes);
+                    var childItems = entry.Instances
+                        .Select((p, idx) => CreateRamConsumerItem(idx + 1, p, totalRamBytes, childPeakRam))
+                        .ToList();
+                    groups.Add(CreateGroupSnapshot(
+                        entry.Key,
+                        groupRank++,
+                        entry.Instances,
+                        barPct,
+                        FormatMemorySize(entry.TotalRam),
+                        string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}% · {1} пот.", entry.TotalCpu, entry.TotalThreads),
+                        childItems));
+                }
+
+                return ("Топ-споживачі оперативної пам'яті", "Процеси з найбільшим споживанням ОЗП (Working Set)", items, groups);
             }
 
             case "GPU":
@@ -1038,72 +1405,116 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
 
                 if (withGpu.Count > 0)
                 {
-                    int rank = 1;
-                    foreach (var entry in withGpu
+                    var orderedGpu = withGpu
                         .OrderByDescending(x => x.GpuPercent)
                         .ThenByDescending(x => x.Process.WorkingSetBytes)
-                        .Take(maxItems))
+                        .ThenBy(x => x.Process.Pid)
+                        .ToList();
+
+                    int rank = 1;
+                    foreach (var entry in orderedGpu.Take(maxItems))
                     {
-                        string primary = string.Format(CultureInfo.CurrentCulture, "GPU {0:0.0}%", entry.GpuPercent);
-                        string secondary = string.Format(
-                            CultureInfo.CurrentCulture,
-                            "CPU {0:0.0}% · {1}",
-                            entry.Process.CpuPercent,
-                            FormatMemorySize(entry.Process.WorkingSetBytes));
-                        items.Add(new GaugeConsumerItem(
-                            rank++,
-                            entry.Process.Pid,
-                            entry.Process.Name,
-                            primary,
-                            secondary,
-                            entry.GpuPercent,
-                            entry.Process.ExecutablePath,
-                            entry.Process.IsCriticalSystem,
-                            entry.Process.IsProtectedAccess));
+                        items.Add(CreateGpuConsumerItem(rank++, entry.Process, entry.GpuPercent));
                     }
 
-                    return ("Топ-споживачі GPU", "Навантаження GPU по процесах (Windows WDDM GPU Engine)", items);
+                    var groupedGpu = orderedGpu
+                        .GroupBy(static x => NormalizeConsumerGroupKey(x.Process.Name), StringComparer.OrdinalIgnoreCase)
+                        .Select(g =>
+                        {
+                            var entries = g.ToList();
+                            double totalGpu = Math.Clamp(entries.Sum(static x => x.GpuPercent), 0.0, 100.0);
+                            double totalCpu = Math.Clamp(entries.Sum(static x => Math.Max(0.0, x.Process.CpuPercent)), 0.0, 100.0);
+                            long totalRam = entries.Sum(static x => Math.Max(0L, x.Process.WorkingSetBytes));
+                            return (Key: g.Key, Entries: entries, TotalGpu: totalGpu, TotalCpu: totalCpu, TotalRam: totalRam);
+                        })
+                        .OrderByDescending(x => x.TotalGpu)
+                        .ThenByDescending(x => x.TotalRam)
+                        .ThenBy(x => x.Entries[0].Process.Name, StringComparer.OrdinalIgnoreCase)
+                        .Take(maxItems);
+
+                    int groupRank = 1;
+                    foreach (var entry in groupedGpu)
+                    {
+                        var instances = entry.Entries.Select(static x => x.Process).ToList();
+                        var childItems = entry.Entries
+                            .Select((x, idx) => CreateGpuConsumerItem(idx + 1, x.Process, x.GpuPercent))
+                            .ToList();
+                        groups.Add(CreateGroupSnapshot(
+                            entry.Key,
+                            groupRank++,
+                            instances,
+                            entry.TotalGpu,
+                            string.Format(CultureInfo.CurrentCulture, "GPU {0:0.0}%", entry.TotalGpu),
+                            string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}% · {1}", entry.TotalCpu, FormatMemorySize(entry.TotalRam)),
+                            childItems));
+                    }
+
+                    return ("Топ-споживачі GPU", "Навантаження GPU по процесах (Windows WDDM GPU Engine)", items, groups);
                 }
 
                 // Graceful fallback when per-PID GPU counters are unavailable or all 0%
-                var fallback = processes
+                var orderedFallback = processes
                     .Where(p => p.Pid > 0)
                     .OrderByDescending(p => p.CpuPercent)
                     .ThenByDescending(p => p.WorkingSetBytes)
-                    .Take(maxItems)
+                    .ThenBy(p => p.Pid)
                     .ToList();
 
+                var fallback = orderedFallback.Take(maxItems).ToList();
                 long maxMem = fallback.Count > 0 ? Math.Max(1L, fallback.Max(p => p.WorkingSetBytes)) : 1L;
                 int fbRank = 1;
                 foreach (var p in fallback)
                 {
-                    double barPct = p.CpuPercent > 0.1
-                        ? Math.Clamp(p.CpuPercent, 0.0, 100.0)
-                        : Math.Clamp((double)p.WorkingSetBytes / maxMem * 100.0, 0.0, 100.0);
-                    string primary = string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}%", p.CpuPercent);
-                    string secondary = $"RAM {FormatMemorySize(p.WorkingSetBytes)}";
-                    items.Add(new GaugeConsumerItem(
-                        fbRank++,
-                        p.Pid,
-                        p.Name,
-                        primary,
-                        secondary,
+                    items.Add(CreateGpuFallbackConsumerItem(fbRank++, p, maxMem));
+                }
+
+                var groupedFallback = orderedFallback
+                    .GroupBy(static p => NormalizeConsumerGroupKey(p.Name), StringComparer.OrdinalIgnoreCase)
+                    .Select(g =>
+                    {
+                        var instances = g.ToList();
+                        double totalCpu = Math.Clamp(instances.Sum(static p => Math.Max(0.0, p.CpuPercent)), 0.0, 100.0);
+                        long totalRam = instances.Sum(static p => Math.Max(0L, p.WorkingSetBytes));
+                        return (Key: g.Key, Instances: instances, TotalCpu: totalCpu, TotalRam: totalRam);
+                    })
+                    .OrderByDescending(x => x.TotalCpu)
+                    .ThenByDescending(x => x.TotalRam)
+                    .ThenBy(x => x.Instances[0].Name, StringComparer.OrdinalIgnoreCase)
+                    .Take(maxItems)
+                    .ToList();
+
+                long maxGroupMem = groupedFallback.Count > 0 ? Math.Max(1L, groupedFallback.Max(g => g.TotalRam)) : 1L;
+                int fbGroupRank = 1;
+                foreach (var entry in groupedFallback)
+                {
+                    double barPct = entry.TotalCpu > 0.1
+                        ? Math.Clamp(entry.TotalCpu, 0.0, 100.0)
+                        : Math.Clamp((double)entry.TotalRam / maxGroupMem * 100.0, 0.0, 100.0);
+                    long childMaxMem = Math.Max(1L, entry.Instances.Max(p => p.WorkingSetBytes));
+                    var childItems = entry.Instances
+                        .Select((p, idx) => CreateGpuFallbackConsumerItem(idx + 1, p, childMaxMem))
+                        .ToList();
+                    groups.Add(CreateGroupSnapshot(
+                        entry.Key,
+                        fbGroupRank++,
+                        entry.Instances,
                         barPct,
-                        p.ExecutablePath,
-                        p.IsCriticalSystem,
-                        p.IsProtectedAccess));
+                        string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}%", entry.TotalCpu),
+                        $"RAM {FormatMemorySize(entry.TotalRam)}",
+                        childItems));
                 }
 
                 return (
                     "Топ-споживачі GPU",
                     "Лічильники GPU по процесах наразі 0% або недоступні — показано найактивніші процеси за CPU/RAM",
-                    items);
+                    items,
+                    groups);
             }
 
             default: // "TEMP"
             {
                 string thermalSummary = BuildThermalSummaryText(snapshot);
-                var scored = processes
+                var ordered = processes
                     .Where(p => p.Pid > 0)
                     .Select(p =>
                     {
@@ -1115,33 +1526,171 @@ public sealed partial class MonitoringViewModel : SectionViewModelBase, IDisposa
                     })
                     .OrderByDescending(x => x.HeatScore)
                     .ThenByDescending(x => x.Process.WorkingSetBytes)
-                    .Take(maxItems);
+                    .ThenBy(x => x.Process.Pid)
+                    .ToList();
 
                 int rank = 1;
-                foreach (var entry in scored)
+                foreach (var entry in ordered.Take(maxItems))
                 {
-                    string primary = entry.GpuPercent > 0.05
-                        ? string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}% · GPU {1:0.0}%", entry.Process.CpuPercent, entry.GpuPercent)
-                        : string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}%", entry.Process.CpuPercent);
-                    string secondary = $"RAM {FormatMemorySize(entry.Process.WorkingSetBytes)} · {entry.Process.ThreadCount} пот.";
-                    items.Add(new GaugeConsumerItem(
-                        rank++,
-                        entry.Process.Pid,
-                        entry.Process.Name,
+                    items.Add(CreateTempConsumerItem(rank++, entry.Process, entry.GpuPercent, entry.HeatScore));
+                }
+
+                var grouped = ordered
+                    .GroupBy(static x => NormalizeConsumerGroupKey(x.Process.Name), StringComparer.OrdinalIgnoreCase)
+                    .Select(g =>
+                    {
+                        var entries = g.ToList();
+                        double totalCpu = Math.Clamp(entries.Sum(static x => Math.Max(0.0, x.Process.CpuPercent)), 0.0, 100.0);
+                        double totalGpu = Math.Clamp(entries.Sum(static x => x.GpuPercent), 0.0, 100.0);
+                        double totalHeat = entries.Sum(static x => x.HeatScore);
+                        long totalRam = entries.Sum(static x => Math.Max(0L, x.Process.WorkingSetBytes));
+                        int totalThreads = entries.Sum(static x => Math.Max(0, x.Process.ThreadCount));
+                        return (Key: g.Key, Entries: entries, TotalCpu: totalCpu, TotalGpu: totalGpu, TotalHeat: totalHeat, TotalRam: totalRam, TotalThreads: totalThreads);
+                    })
+                    .OrderByDescending(x => x.TotalHeat)
+                    .ThenByDescending(x => x.TotalRam)
+                    .ThenBy(x => x.Entries[0].Process.Name, StringComparer.OrdinalIgnoreCase)
+                    .Take(maxItems);
+
+                int groupRank = 1;
+                foreach (var entry in grouped)
+                {
+                    var instances = entry.Entries.Select(static x => x.Process).ToList();
+                    var childItems = entry.Entries
+                        .Select((x, idx) => CreateTempConsumerItem(idx + 1, x.Process, x.GpuPercent, x.HeatScore))
+                        .ToList();
+                    string primary = entry.TotalGpu > 0.05
+                        ? string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}% · GPU {1:0.0}%", entry.TotalCpu, entry.TotalGpu)
+                        : string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}%", entry.TotalCpu);
+                    groups.Add(CreateGroupSnapshot(
+                        entry.Key,
+                        groupRank++,
+                        instances,
+                        Math.Clamp(entry.TotalHeat, 0.0, 100.0),
                         primary,
-                        secondary,
-                        Math.Clamp(entry.HeatScore, 0.0, 100.0),
-                        entry.Process.ExecutablePath,
-                        entry.Process.IsCriticalSystem,
-                        entry.Process.IsProtectedAccess));
+                        $"RAM {FormatMemorySize(entry.TotalRam)} · {entry.TotalThreads} пот.",
+                        childItems));
                 }
 
                 return (
                     "Джерела нагріву системи (Температура)",
                     $"{thermalSummary} · Топ процесів за тепловим навантаженням (CPU / GPU)",
-                    items);
+                    items,
+                    groups);
             }
         }
+    }
+
+    private static GaugeConsumerItem CreateCpuConsumerItem(int rank, ProcessMetricsItem p)
+    {
+        double cpu = Math.Clamp(p.CpuPercent, 0.0, 100.0);
+        return new GaugeConsumerItem(
+            rank,
+            p.Pid,
+            p.Name,
+            string.Format(CultureInfo.CurrentCulture, "{0:0.0}%", cpu),
+            $"{FormatMemorySize(p.WorkingSetBytes)} · {p.ThreadCount} пот.",
+            cpu,
+            p.ExecutablePath,
+            p.IsCriticalSystem,
+            p.IsProtectedAccess);
+    }
+
+    private static GaugeConsumerItem CreateRamConsumerItem(int rank, ProcessMetricsItem p, long totalRamBytes, long peakWorkingSet)
+    {
+        double barPct = totalRamBytes > 0
+            ? Math.Clamp((double)p.WorkingSetBytes / totalRamBytes * 100.0, 0.0, 100.0)
+            : Math.Clamp((double)p.WorkingSetBytes / peakWorkingSet * 100.0, 0.0, 100.0);
+        return new GaugeConsumerItem(
+            rank,
+            p.Pid,
+            p.Name,
+            FormatMemorySize(p.WorkingSetBytes),
+            string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}% · {1} пот.", p.CpuPercent, p.ThreadCount),
+            barPct,
+            p.ExecutablePath,
+            p.IsCriticalSystem,
+            p.IsProtectedAccess);
+    }
+
+    private static GaugeConsumerItem CreateGpuConsumerItem(int rank, ProcessMetricsItem p, double gpuPercent)
+    {
+        return new GaugeConsumerItem(
+            rank,
+            p.Pid,
+            p.Name,
+            string.Format(CultureInfo.CurrentCulture, "GPU {0:0.0}%", gpuPercent),
+            string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}% · {1}", p.CpuPercent, FormatMemorySize(p.WorkingSetBytes)),
+            gpuPercent,
+            p.ExecutablePath,
+            p.IsCriticalSystem,
+            p.IsProtectedAccess);
+    }
+
+    private static GaugeConsumerItem CreateGpuFallbackConsumerItem(int rank, ProcessMetricsItem p, long maxMem)
+    {
+        double barPct = p.CpuPercent > 0.1
+            ? Math.Clamp(p.CpuPercent, 0.0, 100.0)
+            : Math.Clamp((double)p.WorkingSetBytes / maxMem * 100.0, 0.0, 100.0);
+        return new GaugeConsumerItem(
+            rank,
+            p.Pid,
+            p.Name,
+            string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}%", p.CpuPercent),
+            $"RAM {FormatMemorySize(p.WorkingSetBytes)}",
+            barPct,
+            p.ExecutablePath,
+            p.IsCriticalSystem,
+            p.IsProtectedAccess);
+    }
+
+    private static GaugeConsumerItem CreateTempConsumerItem(int rank, ProcessMetricsItem p, double gpuPercent, double heatScore)
+    {
+        string primary = gpuPercent > 0.05
+            ? string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}% · GPU {1:0.0}%", p.CpuPercent, gpuPercent)
+            : string.Format(CultureInfo.CurrentCulture, "CPU {0:0.0}%", p.CpuPercent);
+        return new GaugeConsumerItem(
+            rank,
+            p.Pid,
+            p.Name,
+            primary,
+            $"RAM {FormatMemorySize(p.WorkingSetBytes)} · {p.ThreadCount} пот.",
+            Math.Clamp(heatScore, 0.0, 100.0),
+            p.ExecutablePath,
+            p.IsCriticalSystem,
+            p.IsProtectedAccess);
+    }
+
+    private static GaugeConsumerGroupSnapshot CreateGroupSnapshot(
+        string groupKey,
+        int rank,
+        IReadOnlyList<ProcessMetricsItem> instances,
+        double barPercent,
+        string primaryMetricText,
+        string secondaryMetricText,
+        IReadOnlyList<GaugeConsumerItem> childItems)
+    {
+        string displayName = instances
+            .Select(static p => p.Name?.Trim())
+            .FirstOrDefault(static n => !string.IsNullOrEmpty(n))
+            ?? groupKey;
+
+        string? executablePath = instances
+            .Select(static p => p.ExecutablePath)
+            .FirstOrDefault(static path => !string.IsNullOrWhiteSpace(path));
+
+        bool isCritical = childItems.All(static c => c.IsCriticalSystem);
+
+        return new GaugeConsumerGroupSnapshot(
+            groupKey,
+            rank,
+            displayName,
+            barPercent,
+            primaryMetricText,
+            secondaryMetricText,
+            executablePath,
+            isCritical,
+            childItems);
     }
 
     private static string BuildThermalSummaryText(TelemetrySnapshot? snapshot)

@@ -70,7 +70,7 @@
           </Grid>
         </Border>
 
-        <!-- Simplified Control Row: Suspicious Toggle + Group Sort Pills + Refresh + Expert Mode -->
+        <!-- Simplified Control Row: Suspicious Toggle + Group Sort Pills + Refresh -->
         <Grid ColumnDefinitions="*,Auto">
           <WrapPanel Grid.Column="0"
                      Orientation="Horizontal"
@@ -109,30 +109,14 @@
                     ToolTip.Tip="Спочатку користувацькі програми, далі системні та захищені процеси Windows (у межах групи — за алфавітом)" />
           </WrapPanel>
 
-          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-            <Button Classes="argus-secondary"
-                    Padding="12,6"
-                    FontSize="12"
-                    Content="Оновити"
-                    IsEnabled="{Binding !IsLoading}"
-                    Command="{Binding RefreshCommand}" />
-            <Border Classes="expert-toggle-bar"
-                    ToolTip.Tip="В експертному режимі відображаються локальні loopback-сокети (127.0.0.1 / ::1) та повні шляхи виконуваних файлів.">
-              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <TextBlock Text="Експертний режим"
-                           FontSize="11.5"
-                           FontWeight="SemiBold"
-                           Foreground="{DynamicResource ArgusVioletSoftBrush}"
-                           VerticalAlignment="Center" />
-                <ToggleSwitch IsChecked="{Binding IsExpertMode}"
-                              OnContent=""
-                              OffContent=""
-                              MinWidth="0"
-                              Padding="0"
-                              VerticalAlignment="Center" />
-              </StackPanel>
-            </Border>
-          </StackPanel>
+          <Button Grid.Column="1"
+                  Classes="argus-secondary"
+                  Padding="12,6"
+                  FontSize="12"
+                  Content="Оновити"
+                  IsEnabled="{Binding !IsLoading}"
+                  Command="{Binding RefreshCommand}"
+                  VerticalAlignment="Center" />
         </Grid>
 
         <!-- Summary & Action Feedback -->

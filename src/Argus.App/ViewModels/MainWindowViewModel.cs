@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Argus.App.Services;
 using Argus.Core.Configuration;
 using Argus.Core.Contracts.System;
 using Argus.Core.Extensions;
@@ -24,10 +25,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly IArgusSettingsStore _settingsStore;
     private readonly Argus.Core.Events.IArgusEventBus? _eventBus;
     private readonly IPrivilegeService _privilegeService;
+    private readonly AppUiModeService? _uiMode;
+    private readonly Action<Action> _uiDispatch;
     private readonly Action? _requestAppExit;
+    private readonly NavigationItemViewModel _migrationNavigationItem;
     private readonly IDisposable? _updateSubscription;
     private readonly IDisposable? _settingsSubscription;
     private bool _isWindowVisible = true;
+    private bool _fallbackExpertMode;
 
     [ObservableProperty]
     private bool _hasUpdateAvailable;
@@ -69,7 +74,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         Action<Action>? uiDispatch = null,
         NetworkViewModel? network = null,
         StartupAndServicesViewModel? startupAndServices = null,
-        ProcessesViewModel? processes = null)
+        ProcessesViewModel? processes = null,
+        AppUiModeService? uiMode = null)
     {
         ArgumentNullException.ThrowIfNull(overview);
         ArgumentNullException.ThrowIfNull(monitoring);
@@ -95,8 +101,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _settingsStore = settingsStore;
         _eventBus = eventBus;
         _privilegeService = privilegeService;
+        _uiMode = uiMode;
+        _uiDispatch = uiDispatch ?? (static action => action());
         _requestAppExit = requestAppExit;
-        _uiScalePercent = settingsStore.Current.Normalize().UiScalePercent;
+        var normalizedSettings = settingsStore.Current.Normalize();
+        _uiScalePercent = normalizedSettings.UiScalePercent;
+        _fallbackExpertMode = normalizedSettings.ExpertModeEnabled;
 
         _sections = new Dictionary<ArgusSectionId, SectionViewModelBase>
         {
@@ -153,6 +163,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         systemItems.Add(new(ArgusSectionId.Journal, "Журнал записів", "IconJournal"));
 
+        _migrationNavigationItem = new(ArgusSectionId.Migration, "Міграція ОС", "IconMigration", "CopyOS")
+        {
+            IsVisible = IsExpertMode
+        };
+
         NavigationGroups =
         [
             new NavigationGroupViewModel("monitoring", "МОНІТОРИНГ", monitoringItems),
@@ -162,7 +177,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 [
                     new(ArgusSectionId.Cleanup, "Очищення", "IconCleanup"),
                     new(ArgusSectionId.Disks, "Диски", "IconDisks"),
-                    new(ArgusSectionId.Migration, "Міграція ОС", "IconMigration", "CopyOS")
+                    _migrationNavigationItem
                 ]),
             new NavigationGroupViewModel("system", "СИСТЕМА", systemItems)
         ];
@@ -191,20 +206,30 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             ? "Програма працює з правами адміністратора — доступні System Restore, оптимізація дисків, керування службами та CopyOS."
             : "Безпечний стандартний режим: моніторинг, діагностика та аналіз працюють без прав адміністратора. Натисніть, щоб підвищити права (UAC) за потреби.";
 
+        if (_uiMode is not null)
+        {
+            _uiMode.ExpertModeChanged += OnUiModeExpertModeChanged;
+        }
+
         if (eventBus is not null)
         {
-            var dispatch = uiDispatch ?? (static a => a());
-            _updateSubscription = eventBus.Subscribe<UpdateAvailableEvent>(e => dispatch(() =>
+            _updateSubscription = eventBus.Subscribe<UpdateAvailableEvent>(e => _uiDispatch(() =>
             {
                 HasUpdateAvailable = e.Update.IsUpdateAvailable;
                 UpdateBadgeText = $"Доступне оновлення v{e.Update.LatestVersion}";
             }));
-            _settingsSubscription = eventBus.Subscribe<SettingsChangedEvent>(e => dispatch(() =>
+            _settingsSubscription = eventBus.Subscribe<SettingsChangedEvent>(e => _uiDispatch(() =>
             {
-                int normalizedScale = e.Settings.Normalize().UiScalePercent;
-                if (UiScalePercent != normalizedScale)
+                var normalized = e.Settings.Normalize();
+                if (UiScalePercent != normalized.UiScalePercent)
                 {
-                    UiScalePercent = normalizedScale;
+                    UiScalePercent = normalized.UiScalePercent;
+                }
+
+                if (_uiMode is null && _fallbackExpertMode != normalized.ExpertModeEnabled)
+                {
+                    _fallbackExpertMode = normalized.ExpertModeEnabled;
+                    ApplyExpertModeState(normalized.ExpertModeEnabled);
                 }
             }));
         }
@@ -220,6 +245,34 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public string PrivilegeTooltip { get; }
     public double UiScaleFactor => UiScalePercent / 100.0;
     public string UiScaleText => $"{UiScalePercent}%";
+
+    public bool IsExpertMode
+    {
+        get => _uiMode?.IsExpertMode ?? _fallbackExpertMode;
+        set
+        {
+            if (_uiMode is not null)
+            {
+                if (_uiMode.IsExpertMode != value)
+                {
+                    _uiMode.IsExpertMode = value;
+                }
+
+                return;
+            }
+
+            if (_fallbackExpertMode == value)
+            {
+                return;
+            }
+
+            _fallbackExpertMode = value;
+            ApplyExpertModeState(value);
+            var updated = (_settingsStore.Current with { ExpertModeEnabled = value }).Normalize();
+            _eventBus?.Publish(new SettingsChangedEvent(updated));
+            _ = PersistSettingsAsync(updated);
+        }
+    }
 
     public IReadOnlyList<NavigationGroupViewModel> NavigationGroups { get; }
     public IReadOnlyList<NavigationItemViewModel> PrimaryNavigation { get; }
@@ -340,10 +393,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         UiScalePercent = clamped;
         var updated = (_settingsStore.Current with { UiScalePercent = clamped }).Normalize();
         _eventBus?.Publish(new SettingsChangedEvent(updated));
-        _ = PersistUiScaleAsync(updated);
+        _ = PersistSettingsAsync(updated);
     }
 
-    private async Task PersistUiScaleAsync(ArgusSettings updated)
+    private async Task PersistSettingsAsync(ArgusSettings updated)
     {
         try
         {
@@ -351,7 +404,22 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
         catch
         {
-            // Best-effort persistence on interactive zoom hotkeys
+            // Best-effort persistence on interactive shell toggles/zoom hotkeys
+        }
+    }
+
+    private void OnUiModeExpertModeChanged(bool isExpertMode)
+    {
+        _uiDispatch(() => ApplyExpertModeState(isExpertMode));
+    }
+
+    private void ApplyExpertModeState(bool isExpertMode)
+    {
+        OnPropertyChanged(nameof(IsExpertMode));
+        _migrationNavigationItem.IsVisible = isExpertMode;
+        if (!isExpertMode && ActiveSection.SectionId == ArgusSectionId.Migration)
+        {
+            SelectSection(ArgusSectionId.Overview);
         }
     }
 
@@ -363,6 +431,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        if (_uiMode is not null)
+        {
+            _uiMode.ExpertModeChanged -= OnUiModeExpertModeChanged;
+        }
+
         _updateSubscription?.Dispose();
         _settingsSubscription?.Dispose();
         foreach (var section in _sections.Values)

@@ -42,39 +42,23 @@
     </Style>
   </UserControl.Styles>
 
-  <!-- Compact Top Status & Expert Toggle Bar (Row 0) + Smoothly Scrollable Workspace Below (Row 2) -->
+  <!-- Compact Top Status Strip (Row 0) + Smoothly Scrollable Workspace Below (Row 2) -->
   <Grid RowDefinitions="Auto,8,*" Margin="0,0,4,6">
 
-    <!-- PINNED COMPACT TOP aAR: Sampling Status & Inline Expert Mode Toggle -->
+    <!-- PINNED COMPACT TOP BAR: Sampling Status -->
     <StackPanel Grid.Row="0" Spacing="6">
-      <!-- Sampling Status Strip & Inline Expert Mode Toggle -->
+      <!-- Sampling Status Strip -->
       <Border Classes="tile" Padding="12,5">
-        <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+        <Grid ColumnDefinitions="Auto,Auto,*">
           <TextBlock Grid.Column="0" Classes="metric-mono" Text="{Binding SamplingSummary}" VerticalAlignment="Center" />
           <TextBlock Grid.Column="1" Classes="metric-mono" Margin="14,0,0,0" Text="{Binding HistorySummary}" VerticalAlignment="Center" />
           <TextBlock Grid.Column="2"
                      FontSize="11.5"
-                     Margin="14,0,12,0"
+                     Margin="14,0,0,0"
                      Foreground="{DynamicResource ArgusTextMutedBrush}"
                      Text="{Binding LastUpdatedText}"
                      HorizontalAlignment="Right"
                      VerticalAlignment="Center" />
-
-          <Border Grid.Column="3"
-                  Classes="expert-toggle-bar"
-                  ToolTip.Tip="Увімкніть, щоб отримати доступ до дій із процесами (відкрити папку, завершити) у панелі топ-споживачів.">
-            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-              <TextBlock Text="Експертний режим"
-                         FontSize="11.5"
-                         FontWeight="SemiBold"
-                         Foreground="{DynamicResource ArgusVioletSoftBrush}"
-                         VerticalAlignment="Center" />
-              <ToggleSwitch IsChecked="{Binding IsExpertMode}"
-                            OnContent=""
-                            OffContent=""
-                            VerticalAlignment="Center" />
-            </StackPanel>
-          </Border>
         </Grid>
       </Border>
 
@@ -100,7 +84,7 @@
       </Border>
     </StackPanel>
 
-    <!-- SMOOTH SCROLLAaLE WORKSPACE: 4 Gauges + Top-Consumers Panel + Skia Chart + Lower Hardware Details -->
+    <!-- SMOOTH SCROLLABLE WORKSPACE: 4 Gauges + Top-Consumers Panel + Skia Chart + Lower Hardware Details -->
     <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
       <StackPanel Spacing="10" Margin="0,0,2,10">
 
@@ -224,7 +208,7 @@
               </Grid>
             </Border>
 
-            <!-- Inline Confirmation Strip before Terminating a Top-Consumer Process -->
+            <!-- Inline Confirmation Strip before Terminating a Top-Consumer Process or Group -->
             <Border Classes="pill-danger"
                     CornerRadius="8"
                     Padding="12,8"
@@ -235,6 +219,7 @@
                            FontWeight="SemiBold"
                            Foreground="{DynamicResource ArgusTextPrimaryBrush}"
                            Text="{Binding PendingGaugeConsumerTerminatePrompt}"
+                           TextWrapping="Wrap"
                            VerticalAlignment="Center" />
                 <Button Grid.Column="1"
                         Classes="argus-primary"
@@ -273,74 +258,191 @@
                        Text="{Binding GaugeConsumersEmptyText}"
                        IsVisible="{Binding !HasGaugeConsumers}" />
 
-            <ItemsControl ItemsSource="{Binding GaugeConsumers}" IsVisible="{Binding HasGaugeConsumers}">
+            <ItemsControl ItemsSource="{Binding GaugeConsumerGroups}" IsVisible="{Binding HasGaugeConsumers}">
               <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="vm:GaugeConsumerItem">
+                <DataTemplate x:DataType="vm:GaugeConsumerGroupViewModel">
                   <Border Classes="tile" Margin="0,0,0,5" Padding="10,6">
-                    <Grid ColumnDefinitions="34,160,74,*,125,135,Auto">
-                      <Border Grid.Column="0" Classes="pill" Padding="5,1" HorizontalAlignment="Left" VerticalAlignment="Center">
-                        <TextBlock Classes="metric-mono" FontSize="10.5" Text="{Binding RankText}" />
+                    <StackPanel Spacing="0">
+                      <!-- Group Header Row (Click header or chevron to expand/collapse instances) -->
+                      <Grid ColumnDefinitions="*,Auto">
+                        <Button Grid.Column="0"
+                                Classes="section-toggle"
+                                Command="{Binding ToggleExpandedCommand}"
+                                ToolTip.Tip="Натисніть, щоб розгорнути або згорнути екземпляри програми">
+                          <Grid ColumnDefinitions="20,34,175,78,*,115,130">
+                            <TextBlock Grid.Column="0"
+                                       Text="{Binding ExpandGlyph}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource ArgusCyanBrush}"
+                                       VerticalAlignment="Center" />
+                            <Border Grid.Column="1" Classes="pill" Padding="5,1" HorizontalAlignment="Left" VerticalAlignment="Center">
+                              <TextBlock Classes="metric-mono" FontSize="10.5" Text="{Binding RankText}" />
+                            </Border>
+                            <StackPanel Grid.Column="2"
+                                        Orientation="Horizontal"
+                                        Spacing="6"
+                                        Margin="4,0,8,0"
+                                        VerticalAlignment="Center">
+                              <TextBlock FontSize="12"
+                                         FontWeight="SemiBold"
+                                         Foreground="{DynamicResource ArgusTextPrimaryBrush}"
+                                         Text="{Binding ProcessName}"
+                                         TextTrimming="CharacterEllipsis"
+                                         VerticalAlignment="Center" />
+                              <Border Classes="pill"
+                                      Padding="5,1"
+                                      Background="{DynamicResource ArgusBgSelectedBrush}"
+                                      BorderBrush="{DynamicResource ArgusVioletBrush}"
+                                      IsVisible="{Binding IsMultiInstance}"
+                                      VerticalAlignment="Center">
+                                <TextBlock Classes="metric-mono"
+                                           FontSize="10"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource ArgusVioletSoftBrush}"
+                                           Text="{Binding CountBadgeText}" />
+                              </Border>
+                            </StackPanel>
+                            <TextBlock Grid.Column="3"
+                                       Classes="metric-mono"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource ArgusTextMutedBrush}"
+                                       Text="{Binding PidOrCountText}"
+                                       VerticalAlignment="Center" />
+                            <ProgressBar Grid.Column="4"
+                                         Minimum="0"
+                                         Maximum="100"
+                                         Value="{Binding BarPercent}"
+                                         Height="6"
+                                         Margin="6,0,12,0"
+                                         CornerRadius="3"
+                                         Background="{DynamicResource ArgusBorderBrush}"
+                                         Foreground="{DynamicResource ArgusCyanBrush}"
+                                         VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="5"
+                                       Classes="metric-mono"
+                                       FontSize="11.5"
+                                       HorizontalAlignment="Right"
+                                       Margin="0,0,10,0"
+                                       Text="{Binding PrimaryMetricText}"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="6"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource ArgusTextSecondaryBrush}"
+                                       HorizontalAlignment="Right"
+                                       Text="{Binding SecondaryMetricText}"
+                                       TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center" />
+                          </Grid>
+                        </Button>
+
+                        <StackPanel Grid.Column="1"
+                                    Orientation="Horizontal"
+                                    Spacing="5"
+                                    Margin="10,0,0,0"
+                                    VerticalAlignment="Center"
+                                    IsVisible="{Binding $parent[UserControl].((vm:MonitoringViewModel)DataContext).IsExpertMode}">
+                          <Button Classes="argus-secondary"
+                                  Padding="8,3"
+                                  FontSize="11"
+                                  IsEnabled="{Binding HasExecutablePath}"
+                                  Content="Відкрити папку"
+                                  Command="{Binding $parent[UserControl].((vm:MonitoringViewModel)DataContext).OpenGaugeConsumerGroupFolderCommand}"
+                                  CommandParameter="{Binding}" />
+                          <Button Classes="argus-secondary"
+                                  Padding="8,3"
+                                  FontSize="11"
+                                  IsEnabled="{Binding CanTerminate}"
+                                  Content="Завершити"
+                                  Command="{Binding $parent[UserControl].((vm:MonitoringViewModel)DataContext).RequestTerminateGaugeConsumerGroupCommand}"
+                                  CommandParameter="{Binding}" />
+                        </StackPanel>
+                      </Grid>
+
+                      <!-- Expandable Child Instances -->
+                      <Border IsVisible="{Binding IsExpanded}"
+                              Margin="20,6,0,2"
+                              Padding="10,4,0,0"
+                              BorderBrush="{DynamicResource ArgusBorderBrush}"
+                              BorderThickness="2,0,0,0">
+                        <ItemsControl ItemsSource="{Binding Items}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:GaugeConsumerItem">
+                              <Border Background="{DynamicResource ArgusBgCardBrush}"
+                                      BorderBrush="{DynamicResource ArgusBorderBrush}"
+                                      BorderThickness="1"
+                                      CornerRadius="6"
+                                      Padding="8,4"
+                                      Margin="0,0,0,4">
+                                <Grid ColumnDefinitions="32,145,74,*,115,130,Auto">
+                                  <Border Grid.Column="0" Classes="pill" Padding="4,1" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                    <TextBlock Classes="metric-mono" FontSize="10" Text="{Binding RankText}" />
+                                  </Border>
+                                  <TextBlock Grid.Column="1"
+                                             FontSize="11.5"
+                                             FontWeight="Medium"
+                                             Foreground="{DynamicResource ArgusTextPrimaryBrush}"
+                                             Text="{Binding ProcessName}"
+                                             TextTrimming="CharacterEllipsis"
+                                             Margin="4,0,8,0"
+                                             VerticalAlignment="Center" />
+                                  <TextBlock Grid.Column="2"
+                                             Classes="metric-mono"
+                                             FontSize="10.5"
+                                             Foreground="{DynamicResource ArgusTextMutedBrush}"
+                                             Text="{Binding PidText}"
+                                             VerticalAlignment="Center" />
+                                  <ProgressBar Grid.Column="3"
+                                               Minimum="0"
+                                               Maximum="100"
+                                               Value="{Binding BarPercent}"
+                                               Height="5"
+                                               Margin="6,0,10,0"
+                                               CornerRadius="3"
+                                               Background="{DynamicResource ArgusBorderBrush}"
+                                               Foreground="{DynamicResource ArgusCyanBrush}"
+                                               VerticalAlignment="Center" />
+                                  <TextBlock Grid.Column="4"
+                                             Classes="metric-mono"
+                                             FontSize="11"
+                                             HorizontalAlignment="Right"
+                                             Margin="0,0,10,0"
+                                             Text="{Binding PrimaryMetricText}"
+                                             VerticalAlignment="Center" />
+                                  <TextBlock Grid.Column="5"
+                                             FontSize="10.5"
+                                             Foreground="{DynamicResource ArgusTextSecondaryBrush}"
+                                             HorizontalAlignment="Right"
+                                             Text="{Binding SecondaryMetricText}"
+                                             TextTrimming="CharacterEllipsis"
+                                             VerticalAlignment="Center" />
+                                  <StackPanel Grid.Column="6"
+                                              Orientation="Horizontal"
+                                              Spacing="5"
+                                              Margin="10,0,0,0"
+                                              VerticalAlignment="Center"
+                                              IsVisible="{Binding $parent[UserControl].((vm:MonitoringViewModel)DataContext).IsExpertMode}">
+                                    <Button Classes="argus-secondary"
+                                            Padding="7,2"
+                                            FontSize="10.5"
+                                            IsEnabled="{Binding HasExecutablePath}"
+                                            Content="Відкрити папку"
+                                            Command="{Binding $parent[UserControl].((vm:MonitoringViewModel)DataContext).OpenGaugeConsumerFolderCommand}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Classes="argus-secondary"
+                                            Padding="7,2"
+                                            FontSize="10.5"
+                                            IsEnabled="{Binding CanTerminate}"
+                                            Content="Завершити"
+                                            Command="{Binding $parent[UserControl].((vm:MonitoringViewModel)DataContext).RequestTerminateGaugeConsumerCommand}"
+                                            CommandParameter="{Binding}" />
+                                  </StackPanel>
+                                </Grid>
+                              </Border>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                       </Border>
-                      <TextBlock Grid.Column="1"
-                                 FontSize="12"
-                                 FontWeight="SemiBold"
-                                 Foreground="{DynamicResource ArgusTextPrimaryBrush}"
-                                 Text="{Binding ProcessName}"
-                                 TextTrimming="CharacterEllipsis"
-                                 Margin="4,0,8,0"
-                                 VerticalAlignment="Center" />
-                      <TextBlock Grid.Column="2"
-                                 Classes="metric-mono"
-                                 FontSize="11"
-                                 Foreground="{DynamicResource ArgusTextMutedBrush}"
-                                 Text="{Binding PidText}"
-                                 VerticalAlignment="Center" />
-                      <ProgressBar Grid.Column="3"
-                                   Minimum="0"
-                                   Maximum="100"
-                                   Value="{Binding BarPercent}"
-                                   Height="6"
-                                   Margin="6,0,12,0"
-                                   CornerRadius="3"
-                                   Background="{DynamicResource ArgusBorderBrush}"
-                                   Foreground="{DynamicResource ArgusCyanBrush}"
-                                   VerticalAlignment="Center" />
-                      <TextBlock Grid.Column="4"
-                                 Classes="metric-mono"
-                                 FontSize="11.5"
-                                 HorizontalAlignment="Right"
-                                 Margin="0,0,10,0"
-                                 Text="{Binding PrimaryMetricText}"
-                                 VerticalAlignment="Center" />
-                      <TextBlock Grid.Column="5"
-                                 FontSize="11"
-                                 Foreground="{DynamicResource ArgusTextSecondaryBrush}"
-                                 HorizontalAlignment="Right"
-                                 Text="{Binding SecondaryMetricText}"
-                                 TextTrimming="CharacterEllipsis"
-                                 VerticalAlignment="Center" />
-                      <StackPanel Grid.Column="6"
-                                  Orientation="Horizontal"
-                                  Spacing="5"
-                                  Margin="10,0,0,0"
-                                  VerticalAlignment="Center"
-                                  IsVisible="{Binding $parent[UserControl].((vm:MonitoringViewModel)DataContext).IsExpertMode}">
-                        <Button Classes="argus-secondary"
-                                Padding="8,3"
-                                FontSize="11"
-                                IsEnabled="{Binding HasExecutablePath}"
-                                Content="Відкрити папку"
-                                Command="{Binding $parent[UserControl].((vm:MonitoringViewModel)DataContext).OpenGaugeConsumerFolderCommand}"
-                                CommandParameter="{Binding}" />
-                        <Button Classes="argus-secondary"
-                                Padding="8,3"
-                                FontSize="11"
-                                IsEnabled="{Binding CanTerminate}"
-                                Content="Завершити"
-                                Command="{Binding $parent[UserControl].((vm:MonitoringViewModel)DataContext).RequestTerminateGaugeConsumerCommand}"
-                                CommandParameter="{Binding}" />
-                      </StackPanel>
-                    </Grid>
+                    </StackPanel>
                   </Border>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
@@ -349,8 +451,8 @@
         </Border>
 
       <!-- Real-Time Skia Multi-Series Chart + Series Filter Toggles + Time Window + Export (Pinned) -->
-      <Border Classes="panel-hero" Padding="14,9">
-        <StackPanel Spacing="6">
+      <Border Classes="panel-hero" Padding="12,7">
+        <StackPanel Spacing="5">
           <Grid ColumnDefinitions="*,Auto,Auto">
             <TextBlock Grid.Column="0"
                        Classes="section-heading"
@@ -440,7 +542,7 @@
                       FontSize="11"
                       Command="{Binding ToggleGpuSeriesCommand}">
                 <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                  <Ellipse Width="7" Height="7" Fill="#2DD4A8" VerticalAlignment="Center" />
+                  <Ellipse Width="7" Height="7" Fill="#16A34A" VerticalAlignment="Center" />
                   <TextBlock Text="GPU %" VerticalAlignment="Center" />
                 </StackPanel>
               </Button>
@@ -470,7 +572,8 @@
             </StackPanel>
           </Grid>
 
-          <controls:TelemetryLineChart Height="106"
+          <controls:TelemetryLineChart Height="165"
+                                       Margin="0,2,0,0"
                                        PrimarySeries="{Binding CpuSeries}"
                                        SecondarySeries="{Binding RamSeries}"
                                        TertiarySeries="{Binding GpuSeries}"
@@ -498,10 +601,12 @@
 
         <Grid ColumnDefinitions="*,14,*">
 
-          <!-- Left: Collapsible Live Per-Thread CPU Load MBtrix -->
+          <!-- Left: Collapsible Live Per-Thread CPU Load Matrix (Expert Mode Only) -->
           <Border Grid.Column="0" Classes="panel" VerticalAlignment="Top" Padding="15,12">
             <StackPanel Spacing="9">
               <Button Classes="section-toggle"
+                      IsHitTestVisible="{Binding IsExpertMode}"
+                      Focusable="{Binding IsExpertMode}"
                       Command="{Binding ToggleCpuThreadsCommand}"
                       ToolTip.Tip="Натисніть, щоб згорнути або розгорнути завантаження по потоках CPU">
                 <Grid ColumnDefinitions="*,Auto">
@@ -513,18 +618,20 @@
                                TextTrimming="CharacterEllipsis" />
                     <TextBlock Classes="metric-mono"
                                FontSize="11.5"
+                               IsVisible="{Binding IsExpertMode}"
                                Text="{Binding CpuClockAndTopologyText}" />
                   </StackPanel>
                   <TextBlock Grid.Column="1"
                              Text="{Binding CpuThreadsChevron}"
                              FontSize="13"
                              Foreground="{DynamicResource ArgusCyanBrush}"
+                             IsVisible="{Binding IsExpertMode}"
                              Margin="10,0,0,0"
                              VerticalAlignment="Center" />
                 </Grid>
               </Button>
 
-              <ItemsControl ItemsSource="{Binding CoreLoads}" IsVisible="{Binding IsCpuThreadsExpanded}">
+              <ItemsControl ItemsSource="{Binding CoreLoads}" IsVisible="{Binding ShowCpuThreadsPanel}">
                 <ItemsControl.ItemsPanel>
                   <ItemsPanelTemplate>
                     <UniformGrid Columns="2" />
@@ -553,10 +660,12 @@
             </StackPanel>
           </Border>
 
-          <!-- Right: Collapsible GPU Adapter Card -->
+          <!-- Right: Collapsible GPU Adapter Card (Basic: Name only; Expert: VRAM, clocks, expand/collapse) -->
           <Border Grid.Column="2" Classes="panel" VerticalAlignment="Top" Padding="15,12">
             <StackPanel Spacing="8">
               <Button Classes="section-toggle"
+                      IsHitTestVisible="{Binding IsExpertMode}"
+                      Focusable="{Binding IsExpertMode}"
                       Command="{Binding ToggleGpuDetailsCommand}"
                       ToolTip.Tip="Натисніть, щоб згорнути або розгорнути деталі відеоадаптера">
                 <Grid ColumnDefinitions="*,Auto,Auto">
@@ -569,6 +678,7 @@
                                TextTrimming="CharacterEllipsis" />
                     <TextBlock Classes="metric-mono"
                                FontSize="11.5"
+                               IsVisible="{Binding IsExpertMode}"
                                Text="{Binding GpuVramDetailText}" />
                   </StackPanel>
                   <Border Grid.Column="1" Classes="pill pill-ready" Margin="8,0,0,0" VerticalAlignment="Center">
@@ -578,12 +688,13 @@
                              Text="{Binding GpuDetailsChevron}"
                              FontSize="13"
                              Foreground="{DynamicResource ArgusCyanBrush}"
+                             IsVisible="{Binding IsExpertMode}"
                              Margin="10,0,0,0"
                              VerticalAlignment="Center" />
                 </Grid>
               </Button>
 
-              <Border Classes="tile" Padding="10,7" IsVisible="{Binding IsGpuDetailsExpanded}">
+              <Border Classes="tile" Padding="10,7" IsVisible="{Binding ShowGpuDetailsPanel}">
                 <TextBlock Classes="metric-mono" FontSize="11.5" Text="{Binding GpuClockAndFanText}" />
               </Border>
             </StackPanel>
