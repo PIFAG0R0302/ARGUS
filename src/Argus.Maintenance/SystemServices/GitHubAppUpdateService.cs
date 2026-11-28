@@ -732,7 +732,8 @@ public sealed partial class GitHubAppUpdateService : IAppUpdateService, IDisposa
             version = new Version(
                 Math.Max(0, parsed.Major),
                 Math.Max(0, parsed.Minor),
-                Math.Max(0, parsed.Build));
+                Math.Max(0, parsed.Build),
+                Math.Max(0, parsed.Revision));
             return true;
         }
 
