@@ -308,7 +308,7 @@
 
           <!-- Bottom Telemetry Status Strip -->
           <Border Grid.Row="2"
-                  Background="#080C1E"
+                  Background="{DynamicResource ArgusBgRailBrush}"
                   BorderBrush="{DynamicResource ArgusBorderBrush}"
                   BorderThickness="0,1,0,0"
                   Padding="28,7">
